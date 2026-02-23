@@ -20,7 +20,7 @@ requests==2.31.0
 
 # Database and caching
 SQLAlchemy==2.0.23
-Redis==5.0.1
+Redis==7.2.0
 psycopg2-binary==2.9.9
 
 # Monitoring and logging
