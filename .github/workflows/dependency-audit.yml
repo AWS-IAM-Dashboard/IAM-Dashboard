@@ -1,0 +1,91 @@
+# Dependency Vulnerability Scanning - Blocks PRs when high/critical vulns are found
+# Severities that trigger a block are configurable via env vars below.
+
+name: Dependency Vulnerability Audit
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  # Minimum npm severity to fail the pipeline: critical | high | moderate | low
+  # Default: high (so high and critical block the PR)
+  NPM_AUDIT_LEVEL: "high"
+  # Pip-audit fails on any vulnerability by default; use .github/pip-audit-ignore.txt
+  # to list acceptable exceptions (one CVE/vuln ID per line).
+
+jobs:
+  frontend-audit:
+    name: Frontend (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          echo "Running npm audit (fail on severity >= ${{ env.NPM_AUDIT_LEVEL }})..."
+          npm audit --audit-level="${{ env.NPM_AUDIT_LEVEL }}" || {
+            echo "::error::Frontend has ${{ env.NPM_AUDIT_LEVEL }} or critical vulnerabilities. Fix with 'npm audit fix' or update dependencies. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
+        env:
+          NPM_AUDIT_LEVEL: ${{ env.NPM_AUDIT_LEVEL }}
+
+  backend-audit:
+    name: Backend (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit (main app)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+            echo "Using ignore list from .github/pip-audit-ignore.txt"
+          fi
+          echo "Auditing main requirements.txt..."
+          pip-audit -r requirements.txt --desc "${IGNORE_ARGS[@]}" || {
+            echo "::error::Backend dependencies have known vulnerabilities. Update packages or add acceptable exceptions to .github/pip-audit-ignore.txt. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
+
+      - name: Run pip-audit (Lambda)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+          fi
+          echo "Auditing infra/lambda/requirements.txt..."
+          pip-audit -r infra/lambda/requirements.txt --desc "${IGNORE_ARGS[@]}" || {
+            echo "::error::Lambda dependencies have known vulnerabilities. Update packages or add acceptable exceptions to .github/pip-audit-ignore.txt. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
