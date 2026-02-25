@@ -1,0 +1,264 @@
+name: Sprint Enforcement - TEST (Dry Run Always)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sprint_day_override:
+        description: "For logging only; gating is bypassed in test workflow"
+        required: false
+        default: "3"
+      max_items:
+        description: "Maximum number of project items to scan"
+        required: false
+        default: "100"
+
+permissions:
+  issues: read
+  contents: read
+
+jobs:
+  enforce-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sprint enforcement test harness (always dry run)
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          script: |
+            const ORG = "AWS-IAM-Dashboard";
+            const PROJECT_NUMBER = 2;
+
+            const STATUS_FIELD_NAME = "Status";
+            const SPRINT_FIELD_NAME = "Sprint";
+            const UNPICKED_STATUSES = new Set(["Todo"]);
+            const DAY_THRESHOLD = 3;
+
+            const TEAM_MEMBERS = {
+              "team: backend":   ["shellz-007", "Udyptula", "JayCee-secdev", "AlbertoOlivares24"],
+              "team: frontend":  ["Jakep119", "jamador0831-lang", "tkyyx", "Mario-Recondo"],
+              "team: devops":    ["AK1F5", "Alvin-Janton", "abduls32"],
+              "team: security":  ["devsingh1625", "Samboujunior", "sebastiangutierrez0", "JadeXG"],
+              "team: data":      ["alexajimenez0", "luckyyfox", "stacyalbert", "fareehagullany"],
+              "team: AI":        ["DmanDSR", "ChrisFlores12", "ttu46059-art", "Nicolenaeini"],
+              "team: pmo":       ["wakeensito", "JewelSphy", "elsafranco"]
+            };
+
+            // Safety: this test harness is always dry-run.
+            const DRY_RUN = true;
+            if (!DRY_RUN) {
+              throw new Error("Safety: non-dry-run not allowed in test workflow");
+            }
+
+            const sprintDayOverride = core.getInput("sprint_day_override") || "3";
+            const maxItems = Number.parseInt(core.getInput("max_items") || "100", 10);
+
+            const now = new Date();
+            const estString = now.toLocaleString("en-US", {
+              timeZone: "America/New_York"
+            });
+            const today = new Date(estString);
+
+            core.info("Mode: TEST DRY RUN (forced)");
+            core.info(`sprint_day_override input: ${sprintDayOverride}`);
+            core.info(`max_items input: ${maxItems}`);
+
+            // Detect current sprint
+            const fieldData = await github.graphql(
+              `
+              query($org: String!, $number: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2IterationField {
+                          name
+                          configuration {
+                            iterations {
+                              title
+                              startDate
+                              duration
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              `,
+              { org: ORG, number: PROJECT_NUMBER }
+            );
+
+            const sprintField = fieldData.organization.projectV2.fields.nodes.find(f => f.name === SPRINT_FIELD_NAME);
+            if (!sprintField) {
+              core.setFailed(`Sprint field "${SPRINT_FIELD_NAME}" not found.`);
+              return;
+            }
+
+            const iterations = sprintField.configuration.iterations;
+            const currentSprint = iterations.find(iter => {
+              const start = new Date(iter.startDate + "T00:00:00Z");
+              const end = new Date(start);
+              end.setDate(start.getDate() + iter.duration);
+              return today >= start && today < end;
+            });
+
+            if (!currentSprint) {
+              core.info("No active sprint found. Exiting.");
+              return;
+            }
+
+            const sprintStart = new Date(currentSprint.startDate + "T00:00:00Z");
+            const sprintDay = Math.floor((today - sprintStart) / (1000 * 60 * 60 * 24)) + 1;
+            core.info(`Current sprint: ${currentSprint.title}`);
+            core.info(`Computed sprint day: ${sprintDay}`);
+            core.info(`Day-3 gate bypassed in test workflow (threshold is ${DAY_THRESHOLD}). Continuing.`);
+
+            // Fetch project items (configurable limit for tests)
+            const data = await github.graphql(
+              `
+              query($org: String!, $number: Int!, $maxItems: Int!) {
+                organization(login: $org) {
+                  projectV2(number: $number) {
+                    items(first: $maxItems) {
+                      nodes {
+                        content {
+                          ... on Issue {
+                            number
+                            title
+                            repository { nameWithOwner }
+                            assignees(first: 10) { nodes { login } }
+                            labels(first: 20) { nodes { name } }
+                          }
+                        }
+                        fieldValues(first: 50) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              name
+                              field { ... on ProjectV2SingleSelectField { name } }
+                            }
+                            ... on ProjectV2ItemFieldIterationValue {
+                              title
+                              field { ... on ProjectV2IterationField { name } }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              `,
+              { org: ORG, number: PROJECT_NUMBER, maxItems }
+            );
+
+            const items = data.organization.projectV2.items.nodes;
+
+            function getStatus(item) {
+              const node = item.fieldValues.nodes.find(v => v.field?.name === STATUS_FIELD_NAME);
+              return node?.name || null;
+            }
+
+            function getSprint(item) {
+              const node = item.fieldValues.nodes.find(v => v.field?.name === SPRINT_FIELD_NAME);
+              return node?.title || null;
+            }
+
+            function getTeamLabel(issue) {
+              const labelNames = (issue.labels?.nodes || []).map(l => l.name);
+              const matches = Object.keys(TEAM_MEMBERS).filter(k => labelNames.includes(k));
+              if (matches.length > 1) {
+                core.warning(`Multiple team labels on ${issue.repository.nameWithOwner}#${issue.number}: ${matches.join(", ")}. Using ${matches[0]}.`);
+              }
+              return matches[0] || null;
+            }
+
+            // Build per-team load (current sprint, not done)
+            const memberLoad = {};
+            for (const teamLabel of Object.keys(TEAM_MEMBERS)) {
+              memberLoad[teamLabel] = {};
+              for (const u of TEAM_MEMBERS[teamLabel]) memberLoad[teamLabel][u] = 0;
+            }
+
+            for (const it of items) {
+              if (!it.content?.number) continue;
+              if (getSprint(it) !== currentSprint.title) continue;
+              if (getStatus(it) === "Done") continue;
+
+              const issue = it.content;
+              const teamLabel = getTeamLabel(issue);
+              if (!teamLabel || !memberLoad[teamLabel]) continue;
+
+              const assigned = issue.assignees.nodes.map(a => a.login);
+              for (const u of assigned) {
+                if (u in memberLoad[teamLabel]) memberLoad[teamLabel][u] += 1;
+              }
+            }
+
+            // Collect unpicked targets (current sprint + todo + no assignee)
+            const targets = items
+              .filter(it => it.content?.number)
+              .filter(it => {
+                const status = getStatus(it);
+                const sprintTitle = getSprint(it);
+                const assignees = it.content.assignees.nodes;
+                return (
+                  sprintTitle === currentSprint.title &&
+                  UNPICKED_STATUSES.has(status) &&
+                  assignees.length === 0
+                );
+              });
+
+            core.info(`Found ${targets.length} unpicked issues in ${currentSprint.title}.`);
+
+            // Group by team
+            const byTeam = new Map();
+            for (const it of targets) {
+              const issue = it.content;
+              const teamLabel = getTeamLabel(issue);
+
+              if (!teamLabel) {
+                core.warning(`No team label for ${issue.repository.nameWithOwner}#${issue.number}. Skipping.`);
+                continue;
+              }
+              if (!TEAM_MEMBERS[teamLabel] || TEAM_MEMBERS[teamLabel].length === 0) {
+                core.warning(`No members set for "${teamLabel}". Skipping ${issue.repository.nameWithOwner}#${issue.number}.`);
+                continue;
+              }
+
+              if (!byTeam.has(teamLabel)) byTeam.set(teamLabel, []);
+              byTeam.get(teamLabel).push(issue);
+            }
+
+            // Assign least-loaded within team (ties break by list order)
+            for (const [teamLabel, issues] of byTeam.entries()) {
+              const members = TEAM_MEMBERS[teamLabel];
+              issues.sort((a, b) => a.number - b.number);
+
+              core.info(`Assigning ${issues.length} issue(s) for ${teamLabel}.`);
+
+              for (const issue of issues) {
+                let assignee = members[0];
+                for (const m of members) {
+                  if (memberLoad[teamLabel][m] < memberLoad[teamLabel][assignee]) assignee = m;
+                }
+
+                const [owner, repo] = issue.repository.nameWithOwner.split("/");
+
+                if (DRY_RUN) {
+                  core.info(`Would assign ${owner}/${repo}#${issue.number} -> ${assignee} (load=${memberLoad[teamLabel][assignee]})`);
+                } else {
+                  await github.rest.issues.addAssignees({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    assignees: [assignee]
+                  });
+                  core.info(`Assigned ${owner}/${repo}#${issue.number} -> ${assignee}`);
+                }
+
+                memberLoad[teamLabel][assignee] += 1;
+              }
+            }
+
+            core.info("Test dry run complete.");
