@@ -1,0 +1,25 @@
+# Dockerfile.deps-test
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System deps: keep minimal; only add build-essential if you expect sdists
+RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      build-essential \
+      gcc \
+      g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN python -m pip install -U pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    echo "=== VERSION CHECK ===" && \
+    python -c "from importlib.metadata import version; import flask, werkzeug, redis, pandas, numpy, pydantic-settings, pydantic; \
+    print('flask', version('flask')); print('werkzeug', version('werkzeug')); print('redis', version('redis')); print('pandas', version('pandas')); print('numpy', version('numpy'); print('pydantic', version('pydantic')); print('pydantic-settings', version('pydancit-settings')))"
+
