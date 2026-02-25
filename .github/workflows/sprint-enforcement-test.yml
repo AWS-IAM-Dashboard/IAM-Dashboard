@@ -1,16 +1,16 @@
 name: Sprint Enforcement - TEST (Dry Run Always)
 
 on:
-  workflow_dispatch:
-    inputs:
-      sprint_day_override:
-        description: "For logging only; gating is bypassed in test workflow"
-        required: false
-        default: "3"
-      max_items:
-        description: "Maximum number of project items to scan"
-        required: false
-        default: "100"
+  push:
+    branches:
+      - feature/devops/Dependabot-alerts
+  pull_request:
+    branches:
+      - feature/devops/Dependabot-alerts
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   issues: read
