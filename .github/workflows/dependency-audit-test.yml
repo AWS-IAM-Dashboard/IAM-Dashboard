@@ -1,0 +1,267 @@
+# Dependency Vulnerability Scanning - Blocks PRs when high/critical vulns are found
+# Severities that trigger a block are configurable via env vars below.
+
+name: Dependency Vulnerability Test Audit
+
+on:
+  pull_request:
+    branches: [ "feature/devops/Dependabot-alerts" ]
+  push:
+    branches: [ "feature/devops/Dependabot-alerts" ]
+
+env:
+  # Minimum npm severity to fail the pipeline: critical | high | moderate | low
+  # Default: high (so high and critical block the PR)
+  NPM_AUDIT_LEVEL: "high"
+  # Pip-audit fails on any vulnerability by default; use .github/pip-audit-ignore.txt
+  # to list acceptable exceptions (one CVE/vuln ID per line).
+
+jobs:
+  frontend-audit:
+    name: Frontend (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Capture npm audit JSON (non-blocking)
+        run: npm audit --json > reports/npm-audit.json || true
+
+      - name: Generate npm audit markdown report
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+
+          const jsonPath = "reports/npm-audit.json";
+          const mdPath = "reports/npm-audit.md";
+          let data = {};
+          try {
+            data = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+          } catch (err) {
+            const md = [
+              "# Frontend npm audit report",
+              "",
+              "Unable to parse npm audit JSON output.",
+              "",
+              `Error: ${err.message}`
+            ].join("\n");
+            fs.writeFileSync(mdPath, md);
+            process.exit(0);
+          }
+
+          const meta = data.metadata && data.metadata.vulnerabilities ? data.metadata.vulnerabilities : null;
+          const severities = ["critical", "high", "moderate", "low"];
+          const lines = ["# Frontend npm audit report", ""];
+
+          if (meta) {
+            lines.push("## Severity counts");
+            lines.push("");
+            lines.push("| Critical | High | Moderate | Low |");
+            lines.push("| --- | --- | --- | --- |");
+            lines.push(`| ${meta.critical ?? 0} | ${meta.high ?? 0} | ${meta.moderate ?? 0} | ${meta.low ?? 0} |`);
+            lines.push("");
+          } else {
+            lines.push("## Severity counts");
+            lines.push("");
+            lines.push("Severity metadata unavailable in npm audit JSON.");
+            lines.push("");
+          }
+
+          const vulns = data.vulnerabilities && typeof data.vulnerabilities === "object" ? data.vulnerabilities : {};
+          const entries = Object.entries(vulns);
+          lines.push("## Vulnerable packages");
+          lines.push("");
+          lines.push("| Package | Severity | Fix available |");
+          lines.push("| --- | --- | --- |");
+          if (entries.length === 0) {
+            lines.push("| _none_ | - | - |");
+          } else {
+            for (const [pkg, info] of entries) {
+              const severity = info && info.severity ? info.severity : "unknown";
+              const fix = info ? info.fixAvailable : null;
+              let fixText = "no";
+              if (fix === true) fixText = "yes";
+              else if (fix && typeof fix === "object") {
+                const name = fix.name || "available";
+                const isMajor = fix.isSemVerMajor ? " (semver-major)" : "";
+                fixText = `${name}${isMajor}`;
+              }
+              if (!severities.includes(severity) && severity !== "unknown") {
+                fixText = `${fixText}`;
+              }
+              lines.push(`| ${pkg} | ${severity} | ${fixText} |`);
+            }
+          }
+
+          fs.writeFileSync(mdPath, `${lines.join("\n")}\n`);
+          NODE
+          cat reports/npm-audit.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce npm audit threshold
+        run: |
+          echo "Running npm audit (fail on severity >= ${{ env.NPM_AUDIT_LEVEL }})..."
+          npm audit --audit-level="${{ env.NPM_AUDIT_LEVEL }}" || {
+            echo "::error::Frontend has ${{ env.NPM_AUDIT_LEVEL }} or critical vulnerabilities. Fix with 'npm audit fix' or update dependencies. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
+        env:
+          NPM_AUDIT_LEVEL: ${{ env.NPM_AUDIT_LEVEL }}
+
+      - name: Upload frontend audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-frontend
+          path: |
+            reports/npm-audit.json
+            reports/npm-audit.md
+          retention-days: 14
+
+  backend-audit:
+    name: Backend (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Capture pip-audit JSON (main app, non-blocking)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+            echo "Using ignore list from .github/pip-audit-ignore.txt"
+          fi
+          echo "Capturing audit report for requirements.txt..."
+          pip-audit -r requirements.txt --desc -f json -o reports/pip-audit-main.json "${IGNORE_ARGS[@]}" || true
+
+      - name: Capture pip-audit JSON (Lambda, non-blocking)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+            echo "Using ignore list from .github/pip-audit-ignore.txt"
+          fi
+          echo "Capturing audit report for infra/lambda/requirements.txt..."
+          pip-audit -r infra/lambda/requirements.txt --desc -f json -o reports/pip-audit-lambda.json "${IGNORE_ARGS[@]}" || true
+
+      - name: Generate pip-audit markdown report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          reports = [
+              ("main", Path("reports/pip-audit-main.json")),
+              ("lambda", Path("reports/pip-audit-lambda.json")),
+          ]
+
+          lines = [
+              "# Backend pip-audit report",
+              "",
+              "| Scope | Package | Version | Vulnerability ID | Aliases | Fix versions | Severity |",
+              "| --- | --- | --- | --- | --- | --- | --- |",
+          ]
+
+          def load_json(path: Path):
+              if not path.exists():
+                  return {"dependencies": []}
+              try:
+                  with path.open("r", encoding="utf-8") as f:
+                      return json.load(f)
+              except Exception:
+                  return {"dependencies": []}
+
+          found = False
+          for scope, path in reports:
+              data = load_json(path)
+              deps = data.get("dependencies", []) if isinstance(data, dict) else []
+              for dep in deps:
+                  name = dep.get("name", "")
+                  version = dep.get("version", "")
+                  vulns = dep.get("vulns", []) or dep.get("vulnerabilities", [])
+                  for vuln in vulns:
+                      found = True
+                      vuln_id = vuln.get("id", "")
+                      aliases = ", ".join(vuln.get("aliases", []) or []) or "-"
+                      fixes = ", ".join(vuln.get("fix_versions", []) or []) or "-"
+                      lines.append(f"| {scope} | {name} | {version} | {vuln_id} | {aliases} | {fixes} | N/A |")
+
+          if not found:
+              lines.append("| - | _none_ | - | - | - | - | N/A |")
+
+          out = "\n".join(lines) + "\n"
+          Path("reports/pip-audit.md").write_text(out, encoding="utf-8")
+          PY
+          cat reports/pip-audit.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run pip-audit (main app)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+            echo "Using ignore list from .github/pip-audit-ignore.txt"
+          fi
+          echo "Auditing main requirements.txt..."
+          pip-audit -r requirements.txt --desc "${IGNORE_ARGS[@]}" || {
+            echo "::error::Backend dependencies have known vulnerabilities. Update packages or add acceptable exceptions to .github/pip-audit-ignore.txt. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
+
+      - name: Run pip-audit (Lambda)
+        run: |
+          IGNORE_ARGS=()
+          if [ -f .github/pip-audit-ignore.txt ]; then
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              IGNORE_ARGS+=(--ignore-vuln "$line")
+            done < .github/pip-audit-ignore.txt
+          fi
+          echo "Auditing infra/lambda/requirements.txt..."
+          pip-audit -r infra/lambda/requirements.txt --desc "${IGNORE_ARGS[@]}" || {
+            echo "::error::Lambda dependencies have known vulnerabilities. Update packages or add acceptable exceptions to .github/pip-audit-ignore.txt. See docs/VULNERABILITY_SCANNING.md"
+            exit 1
+          }
+
+      - name: Upload backend audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-backend
+          path: |
+            reports/pip-audit-main.json
+            reports/pip-audit-lambda.json
+            reports/pip-audit.md
+          retention-days: 14
