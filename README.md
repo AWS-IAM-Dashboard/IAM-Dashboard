@@ -256,6 +256,7 @@ pytest
 │   │   └── kubernetes.rego # Kubernetes policies
 │   ├── .checkov.yml      # Checkov configuration
 │   ├── .gitleaks.toml    # Gitleaks configuration
+│   ├── GITLEAKS_ALLOWLIST.md  # Gitleaks allowlist process and record
 │   └── SECURITY.md       # Security policies
 ├── docs/                 # Documentation
 │   ├── SCANNERS.md       # Security scanning guide

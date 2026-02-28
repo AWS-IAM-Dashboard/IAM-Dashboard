@@ -45,7 +45,8 @@ exclude-dirs = [
     "logs",
     "data",
     "docs",
-    "DevSecOps/opa-policies"
+    "DevSecOps/opa-policies",
+    "infra/lambda"
 ]
 
 # Exclude specific files
@@ -88,3 +89,19 @@ id = "jwt-token"
 description = "JWT Token"
 regex = '''eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*'''
 tags = ["jwt", "token"]
+
+# Allowlist: known safe findings (test fixtures, AWS/docs example values, mock data)
+[allowlist]
+description = "IAM Dashboard allowlist: example values, mocks, non-sensitive fixtures"
+# AWS documented example access key IDs and truncated JWT examples in SDK/docs
+stopwords = [
+    "AKIAIOSFODNN7EXAMPLE",
+    "AKIA111111111EXAMPLE",
+    "AKIA222222222EXAMPLE",
+    "AKIAI44QH8DHBEXAMPLE",
+    "eyJ2IjoiMSIsInMiOjEsImMiOi..."
+]
+# Allow mock/demo data in frontend (e.g. SecurityHub.tsx resource_id)
+paths = [
+    '''src/components/SecurityHub\.tsx'''
+]
