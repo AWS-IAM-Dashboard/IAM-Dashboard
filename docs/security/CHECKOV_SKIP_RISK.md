@@ -1,6 +1,8 @@
 # Checkov Skip List — Risk and Remediation
 
-This document summarizes each check currently skipped in the Checkov configuration (`DevSecOps/.checkov.yml`), assigns severity and rationale, classifies skips as long-term acceptable or temporary, and recommends remediation with owners.
+**Checkov Version:** 3.1.25 *(document version used for evaluation; rules and severity may change in newer Checkov releases)*
+
+This document summarizes each check currently skipped in the Checkov configuration (`DevSecOps/.checkov.yml`), assigns severity and rationale, classifies skips as long-term acceptable or temporary, and recommends remediation with owners and implementation effort estimates.
 
 ---
 
@@ -56,20 +58,20 @@ These skips should be removed once the corresponding remediation is in place:
 ### High severity
 
 
-| Check(s)                                          | Remediation                                                                                                                                                                                                                                                | Owner                                 |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **CKV_AWS_70**                                    | Put static site behind CloudFront and remove S3 bucket public read, or document the public-read design and get formal acceptance.                                                                                                                          | **DevOps** or **Backend**             |
-| **CKV_AWS_355**, **CKV_AWS_290**, **CKV2_AWS_40** | In `infra/github-actions/main.tf`: replace wildcard actions (e.g. `s3:`*, `lambda:*`, `iam:*`) with minimal action lists per service; replace `Resource = "*"` with explicit or scoped ARNs. Re-run Checkov and remove the three skips once policies pass. | **DevOps** (with **Security** review) |
+| Check(s)                                          | Remediation                                                                                                                                                                                                                                                | Owner                                 | Implementation time |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | -------------------- |
+| **CKV_AWS_70**                                    | Put static site behind CloudFront and remove S3 bucket public read, or document the public-read design and get formal acceptance.                                                                                                                          | **DevOps** or **Backend**             | 1–2 hours            |
+| **CKV_AWS_355**, **CKV_AWS_290**, **CKV2_AWS_40** | In `infra/github-actions/main.tf`: replace wildcard actions (e.g. `s3:*`, `lambda:*`, `iam:*`) with minimal action lists per service; replace `Resource = "*"` with explicit or scoped ARNs. Re-run Checkov and remove the three skips once policies pass. | **DevOps** (with **Security** review) | 2–4 hours            |
 
 
 ### Medium severity
 
 
-| Check(s)        | Remediation                                                                                                | Owner                       |
-| --------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------- |
-| **CKV_AWS_309** | Add Cognito (or other auth) to API Gateway and configure authorization type. Remove skip after deployment. | **Backend** or **Security** |
-| **CKV_AWS_272** | Plan and implement Lambda code signing for production; remove skip when enforced.                          | **DevOps** or **Security**  |
-| **CKV_AWS_18**  | Enable S3 access logging on buckets that store sensitive or audit-relevant data; remove skip once enabled. | **DevOps**                  |
+| Check(s)        | Remediation                                                                                                | Owner                       | Implementation time |
+| --------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------- |
+| **CKV_AWS_309** | Add Cognito (or other auth) to API Gateway and configure authorization type. Remove skip after deployment. *Minimal fix: `authorization_type = "AWS_IAM"` ≈1 hour.* | **Backend** or **Security** | 1–2 hours            |
+| **CKV_AWS_272** | Plan and implement Lambda code signing for production; remove skip when enforced.                          | **DevOps** or **Security**  | 2–4 hours            |
+| **CKV_AWS_18**  | Enable S3 access logging on buckets that store sensitive or audit-relevant data; remove skip once enabled. | **DevOps**                  | 1–2 hours            |
 
 
 ---
@@ -78,6 +80,7 @@ These skips should be removed once the corresponding remediation is in place:
 
 - **14 checks** are currently skipped in `DevSecOps/.checkov.yml`.
 - **9** are long-term acceptable; **5** are temporary and should be remediated so the skips can be removed.
-- **4** high-severity skips (CKV_AWS_70, CKV_AWS_355, CKV_AWS_290, CKV2_AWS_40) have clear remediation steps and owners above.
-- Revisit this document when changing infra or auth so skip justifications and remediation remain accurate.
+- **4** high-severity skips (CKV_AWS_70, CKV_AWS_355, CKV_AWS_290, CKV2_AWS_40) have clear remediation steps, owners, and implementation time estimates above.
+- **Checkov version 3.1.25** was used for this evaluation; rules and severity may change in newer releases.
+- Revisit this document when changing infra, auth, or Checkov version so skip justifications and remediation remain accurate.
 

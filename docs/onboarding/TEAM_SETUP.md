@@ -93,4 +93,4 @@ Runs OPA, Checkov, and Gitleaks. `make opa`, `make checkov`, `make gitleaks` for
 
 ---
 
-More: [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [GITHUB_ISSUES_BACKLOG.md](GITHUB_ISSUES_BACKLOG.md)
+More: [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [GITHUB_ISSUES_BACKLOG.md](../planning/GITHUB_ISSUES_BACKLOG.md)

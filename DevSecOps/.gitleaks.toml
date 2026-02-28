@@ -30,7 +30,7 @@ exclude-patterns = [
     "DevSecOps/opa-policies/**",
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
-    "docs/SCANNERS.md"
+    "docs/security/SCANNERS.md"
 ]
 
 # Exclude specific directories
@@ -61,7 +61,7 @@ exclude-files = [
     "docs/**/*.md",
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
-    "docs/SCANNERS.md",
+    "docs/security/SCANNERS.md",
     "src/components/SecurityHub.tsx"
 ]
 

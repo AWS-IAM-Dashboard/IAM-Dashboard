@@ -263,10 +263,15 @@ pytest
 │   ├── .gitleaks.toml    # Gitleaks configuration
 │   └── SECURITY.md       # Security policies
 ├── docs/                 # Documentation
-│   ├── SCANNERS.md       # Security scanning guide
-│   ├── TEAM_SETUP.md     # Team onboarding guide
-│   ├── AWS-Workflow.md   # AWS integration workflow
-│   ├── CONTRIBUTING.md   # Contribution guidelines
+│   ├── security/         # DevSecOps and security docs
+│   │   ├── SCANNERS.md
+│   │   └── CHECKOV_SKIP_RISK.md
+│   ├── planning/         # Backlog and roadmap
+│   │   └── GITHUB_ISSUES_BACKLOG.md
+│   ├── onboarding/       # Setup and contribution
+│   │   ├── TEAM_SETUP.md
+│   │   ├── AWS-Workflow.md
+│   │   └── CONTRIBUTING.md
 │   └── CHANGELOG.md      # Project changelog
 ├── infra/                # Infrastructure as Code (Terraform)
 │   ├── s3/               # S3 buckets (static hosting, scan results)
@@ -415,10 +420,10 @@ This deploys Lambda, DynamoDB, S3, API Gateway, and GitHub Actions OIDC. See [in
 
 ## 📚 Documentation
 
-- [Team Setup Guide](docs/TEAM_SETUP.md) - Complete team onboarding
-- [Security Scanning Guide](docs/SCANNERS.md) - DevSecOps scanning setup
-- [AWS Workflow](docs/AWS-Workflow.md) - AWS integration workflow
-- [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute to the project
+- [Team Setup Guide](docs/onboarding/TEAM_SETUP.md) - Complete team onboarding
+- [Security Scanning Guide](docs/security/SCANNERS.md) - DevSecOps scanning setup
+- [AWS Workflow](docs/onboarding/AWS-Workflow.md) - AWS integration workflow
+- [Contributing Guide](docs/onboarding/CONTRIBUTING.md) - How to contribute to the project
 - [Security Policies](DevSecOps/SECURITY.md) - Security policies and practices
 - [Infrastructure Guide](infra/README.md) - AWS infrastructure (Lambda, DynamoDB, S3, API Gateway)
 - [Kubernetes Guide](k8s/README.md) - Kubernetes deployment guide

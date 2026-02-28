@@ -51,7 +51,7 @@ Keep the project on pace, manage dependencies, enforce scope, and ensure smooth 
    - Block `(POST)` work, protect delivery timeline
 
 6. **Documentation Maintenance**
-   - Keep `docs/GITHUB_ISSUES_BACKLOG.md` up to date
+   - Keep `docs/planning/GITHUB_ISSUES_BACKLOG.md` up to date
    - Update milestone mappings and document decisions
 
 7. **Progress Visibility & Velocity Tracking**

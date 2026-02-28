@@ -147,6 +147,9 @@ infra/lambda/bin/
 infra/lambda/*.dist-info/
 infra/lambda/six.py
 
+# IAM roles (local/dev)
+infra/iam-roles/
+
 # Kubernetes
 *.kubeconfig
 
