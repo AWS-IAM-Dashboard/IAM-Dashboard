@@ -1,7 +1,0 @@
-{
-  "plugins": {
-    "deploy-on-aws": {
-      "enabled": true
-    }
-  }
-}
