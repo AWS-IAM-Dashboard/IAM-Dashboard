@@ -83,6 +83,14 @@ Each document must include:
 These documents are **alignment tools**, not deliverables.  
 Work begins immediately after submission.
 
+### Free vs Paid Scanner Strategy (Demo-Day Focus)
+
+**Free scanners:** IAM scan, Access Analyzer, EC2, S3, VPC, DynamoDB — use standard AWS APIs and do not add extra charges.
+
+**Why we focus on free scanners:** The team is made of college students, and running paid AWS security services (GuardDuty, Inspector, Macie, Config, Security Hub) is costly. For demo day we are taking the most cost-efficient route: make the free scanners work well so we can deliver a strong demo without incurring those charges.
+
+**Why we keep the AWS paid scanners:** Security Hub, GuardDuty, Inspector, Macie, and Config remain in the product as paid-only features so we still showcase the full platform and preserve the option to enable them later when budget allows.
+
 ## Dependencies & Bottlenecks (Read Before Picking Issues)
 
 This section highlights **known dependencies** and **common bottlenecks** so teams can plan work without blocking each other.
@@ -264,6 +272,8 @@ This is **expected behavior**, not failure.
 | W7 | (SEMESTER) Simple account switcher | M5 |
 | W4 | (SEMESTER) First-time onboarding | M5 |
 | W12 | (SEMESTER) Use MailHog for local email flows (welcome, reset password, alerts) | M4 |
+| W13 | (SEMESTER) Design feature-gate for paid AWS scanners (Security Hub, GuardDuty, Inspector, Macie, Config) | P0 |
+| W14 | (SEMESTER) Design free scanner UIs (VPC, DynamoDB, Access Analyzer) — parent; W15/W16 sub-issues | P0 |
 
 ### Security
 | ID | Title | Milestone |
@@ -289,6 +299,7 @@ This is **expected behavior**, not failure.
 ### Data & Reporting (Expanded)
 | ID | Title | Milestone |
 |---|---|---|
+| A10 | (SEMESTER) Design Grafana charts as visual specs for landing page | P0 |
 | A6 | (SEMESTER) Prometheus scrape backend metrics | M4 |
 | A7 | (SEMESTER) Configure Grafana datasources | M4 |
 | A8 | (SEMESTER) Grafana: findings over time | M4 |
@@ -301,6 +312,9 @@ This is **expected behavior**, not failure.
 ### DevOps
 | ID | Title | Milestone |
 |---|---|---|
+| D17 | (SEMESTER) Put static site behind CloudFront and remove S3 bucket public read | P0 |
+| D18 | (SEMESTER) Enable S3 access logging on static hosting bucket | P0 |
+| D19 | (SEMESTER) Plan and implement Lambda code signing for production | P0 |
 | D8 | (SEMESTER) Lint/format gates in CI | M6 |
 | D12 | (SEMESTER) Optimize Docker images | M6 |
 | D13 | (SEMESTER) Deployment verification (/health) | M6 |
@@ -344,6 +358,7 @@ This table shows the *ideal long-term flow* of the project and explains why mile
 
 | Milestone | Name | Issues | Goal |
 |---|---|---|---|
+| **P0** | Onboarding + design | W13, W14, A10, D17, D18, D19 | Team scope docs, scanner design, Checkov remediations |
 | **M1** | Foundation & process | F1–F6, P1, P2, P4, S27, D14, D15 | CI green, docs updated, clear “done” criteria |
 | **M2** | Auth spine (backend) | B1, B6, B7, B10 | Cognito exists; OAuth + JWT working |
 | **M3** | Auth + landing (frontend) | W1, W2, W3, S15, S20, S25 | Landing page + login/session end-to-end |
