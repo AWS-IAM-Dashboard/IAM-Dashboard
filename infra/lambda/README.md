@@ -39,6 +39,16 @@ The Lambda role (`iam-dashboard-lambda-role`) has permissions for:
   - EC2: DescribeInstances, DescribeSecurityGroups, DescribeVolumes, DescribeSnapshots
   - S3: GetBucketEncryption, GetPublicAccessBlock
 
+## 📦 Dependencies and build
+
+Python deps (boto3, etc.) are **not** committed. They are installed at package time:
+
+- **CI (GitHub Actions):** Lambda zip is built **in Docker** via `infra/lambda/Dockerfile.build` (no host Python needed). This runs automatically on push to `main`.
+- **Local:** Run `pip install -r requirements.txt -t .` in `infra/lambda`, then zip, or use Docker:  
+  `docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda`
+
+**Why we do it this way:** Keeping deps out of the repo (and building the zip in CI/Docker) keeps the repo small, speeds up clones, and makes dependency updates a one-line change in `requirements.txt` instead of thousands of committed files. One extra automated build step in the pipeline; no manual step for developers.
+
 ## 🚀 How to Deploy
 
 The Lambda function is automatically packaged by Terraform. Simply run:

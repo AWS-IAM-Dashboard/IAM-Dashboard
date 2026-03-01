@@ -36,10 +36,11 @@ Before deploying, you must configure the following secrets in GitHub:
 ### deploy.yml
 - **Triggers**: Push and PR to `main` branch
 - **Actions**:
-  - Deploys infrastructure via Terraform
   - Builds and deploys frontend to S3
-  - Updates Lambda function code
+  - **Builds Lambda package in Docker** (see `infra/lambda/Dockerfile.build`) then updates Lambda function code — deps are not in the repo; the zip is built in CI
+  - No Terraform in this workflow (infra is applied separately)
 - **Secrets Required**: `AWS_ROLE_ARN`
+- **Docs**: Lambda build approach and local commands → `infra/lambda/README.md`
 
 ### devsecops-scan.yml
 - **Triggers**: Push to any branch

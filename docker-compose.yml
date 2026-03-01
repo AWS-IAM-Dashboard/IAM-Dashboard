@@ -1,4 +1,22 @@
 services:
+  # Vite dev server — no Node.js/npm needed on host; hot reload in Docker
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: iam-dashboard-frontend
+    ports:
+      - "3001:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-http://localhost:5001}
+    networks:
+      - cybersecurity-network
+    stdin_open: true
+    tty: true
+
   # Main Flask application
   app:
     build: .
@@ -56,7 +74,7 @@ services:
 
   # Grafana for data visualization
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.2.3
     container_name: cybersecurity-grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -75,7 +93,7 @@ services:
 
   # Prometheus for metrics collection
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.47.0
     container_name: cybersecurity-prometheus
     ports:
       - "9090:9090"

@@ -64,3 +64,19 @@ variable "lambda_function_arn" {
   default     = ""
 }
 
+variable "log_kms_key_arn" {
+  description = "KMS key ARN used to encrypt CloudWatch Log Groups."
+  type        = string
+}
+
+variable "route_authorization_type" {
+  description = "Authorization type for API Gateway routes. Use NONE until Cognito/JWT authorizer is in place."
+  type        = string
+  default     = "NONE"
+  validation {
+    condition     = contains(["NONE", "JWT", "AWS_IAM", "CUSTOM"], var.route_authorization_type)
+    error_message = "route_authorization_type must be one of NONE, JWT, AWS_IAM, CUSTOM."
+  }
+}
+
+

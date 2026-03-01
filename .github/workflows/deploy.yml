@@ -42,13 +42,6 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: Setup Python
-      if: github.ref == 'refs/heads/main'
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
     - name: Build and Deploy Frontend
       if: github.ref == 'refs/heads/main'
       run: |
@@ -71,26 +64,26 @@ jobs:
           echo "ℹ️  No CloudFront distribution found, skipping cache invalidation"
         fi
 
+    - name: Build Lambda package (Docker)
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "📦 Building Lambda deployment package in Docker..."
+        docker buildx create --use --name lambda-builder 2>/dev/null || true
+        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda
+        docker buildx rm lambda-builder 2>/dev/null || true
+        echo "✅ Lambda package: lambda-out/lambda_function.zip"
+
     - name: Deploy Lambda Function
       if: github.ref == 'refs/heads/main'
       run: |
         LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
         if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
-          echo "⚠️  No Lambda function name found in Terraform outputs, using default: iam-dashboard-scanner"
+          echo "⚠️  No Lambda function name found, using default: iam-dashboard-scanner"
           LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
         fi
-        echo "📦 Packaging Lambda function from infra/lambda/..."
-        cd infra/lambda
-        # Install dependencies if requirements.txt exists
-        if [ -f requirements.txt ]; then
-          echo "📥 Installing Python dependencies..."
-          pip install -r requirements.txt -t . --quiet
-        fi
-        # Create deployment package
-        zip -r lambda_function.zip . -x "*.git*" -x "__pycache__/*" -x "*.pyc" -x "*.zip" -x "terraform.tfstate*" -x "*.tf" -x "*.md" -x "test-event.json" -x "tfplan"
         echo "🚀 Updating Lambda function $LAMBDA_FUNCTION_NAME"
         aws lambda update-function-code \
           --function-name "$LAMBDA_FUNCTION_NAME" \
-          --zip-file fileb://lambda_function.zip
+          --zip-file fileb://lambda-out/lambda_function.zip
         echo "✅ Lambda function deployed successfully"
 

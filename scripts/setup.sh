@@ -57,7 +57,7 @@ if curl -f http://localhost:5000/api/v1/health > /dev/null 2>&1; then
     echo "📚 Next steps:"
     echo "   1. Update .env file with your AWS credentials"
     echo "   2. Visit http://localhost:5001 to see the dashboard"
-    echo "   3. Check TEAM_SETUP.md for detailed documentation"
+    echo "   3. Check docs/onboarding/TEAM_SETUP.md for detailed documentation"
 else
     echo "❌ Application is not responding. Check logs with: docker-compose logs"
 fi

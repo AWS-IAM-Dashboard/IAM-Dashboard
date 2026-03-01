@@ -1673,4 +1673,3 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
             },
             'body': json.dumps(error_body, default=str)
         }
-

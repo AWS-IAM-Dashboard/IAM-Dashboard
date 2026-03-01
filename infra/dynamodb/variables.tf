@@ -31,6 +31,11 @@ variable "enable_scanner_type_index" {
 variable "enable_point_in_time_recovery" {
   description = "Enable point-in-time recovery for DynamoDB table"
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "dynamodb_kms_key_arn" {
+  description = "ARN of the shared/root KMS CMK to use for DynamoDB table encryption"
+  type        = string
 }
 

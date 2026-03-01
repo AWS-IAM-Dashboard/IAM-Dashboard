@@ -66,6 +66,8 @@ resource "aws_lambda_function" "scanner" {
   architectures   = [var.lambda_architecture]
   timeout         = var.lambda_timeout
   memory_size     = var.lambda_memory_size
+  kms_key_arn     = var.lambda_kms_key_arn
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   # Source code hash will force update when code changes
   source_code_hash = var.lambda_zip_file != "" ? filebase64sha256(var.lambda_zip_file) : data.archive_file.lambda_zip[0].output_base64sha256
@@ -80,6 +82,10 @@ resource "aws_lambda_function" "scanner" {
         ENVIRONMENT         = var.environment
       }
     )
+  }
+
+  tracing_config {
+    mode = var.enable_xray_tracing ? "Active" : "PassThrough"
   }
 
   tags = {

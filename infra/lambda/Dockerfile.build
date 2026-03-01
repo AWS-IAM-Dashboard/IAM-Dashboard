@@ -1,0 +1,17 @@
+# Build Lambda deployment package (zip) with deps. Use from repo root:
+#   docker build -f infra/lambda/Dockerfile.build -o out infra/lambda
+FROM python:3.13-slim
+
+WORKDIR /build
+
+# Install zip
+RUN apt-get update -qq && apt-get install -y --no-install-recommends zip && rm -rf /var/lib/apt/lists/*
+
+# Copy only what's needed for the package
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -t .
+
+COPY lambda_function.py ./
+
+# Exclude Terraform/docs from zip; write to root for buildx export
+RUN zip -r /lambda_function.zip . -x "*.git*" -x "__pycache__/*" -x "*.pyc" -x "*.tf" -x "*.md" -x "*.hcl" -x "test-event.json"

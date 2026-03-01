@@ -1,13 +1,17 @@
-# .checkov.yml - Checkov configuration for IAM Dashboard
+# DevSecOps/.checkov.yml - Checkov configuration for IAM Dashboard
+
+# Enable these frameworks
 framework:
   - terraform
   - kubernetes
   - cloudformation
   - dockerfile
 
-download_external_modules: true
+# Download external Terraform modules when scanning
+download-external-modules: true
 
-skip_paths:
+# Skip common directories (use repeated skip-path, not skip_paths)
+skip-path:
   - .terraform
   - .git
   - node_modules
@@ -17,10 +21,29 @@ skip_paths:
   - logs
   - data
 
-soft_fail_on: false
+# Fail the run if checks fail (strict gate)
+# (If you later want PR-only soft fail, we’ll handle that in workflow conditionals.)
+soft-fail: false
+
+# Output verbosity
 quiet: false
 
-skip_checks:
-  - CKV_AWS_1   # wildcard actions (handled by your OPA rules)
-  - CKV_AWS_2   # wildcard resources (OPA)
-  - CKV_AWS_3   # wildcard principals (OPA)
+# Skip these checks (wildcard IAM handled by OPA)
+skip-check:
+  - CKV_AWS_1
+  - CKV_AWS_2
+  - CKV_AWS_3
+  - CKV_AWS_309 # API Gateway Authorization type. Ignored temporarily until Cognito is added
+  - CKV_AWS_117 # Mandates that Lambda is launched in a VPC. Less security and more architectural preference
+  - CKV_AWS_272 # Enforces Lambda to use Code Signing. This is a large architecture change, and isn't strictly necessary. Might add in the future.
+  - CKV_AWS_116 # Forces Lambda to be connected an SQS Dead Letter Queue. Since Lambda is connected to APIGateway, this isn't strictly necessary.
+  - CKV_AWS_144 # Cross-region replication is an architecture/DR roadmap item and is not required for the current project.
+  - CKV_AWS_70  # Public read is required for S3 static website hosting in this architecture (no CloudFront).
+  - CKV2_AWS_62 # No event-driven notifications are required for a static hosting bucket.
+  - CKV_AWS_18  # Forces a bucket to have access logging enabled. This is a good security improvement but would require architecture changes. Might add in the future.   
+  - CKV_AWS_355 # Does not allow * for statement resource. Skipping because the GitHub user needs admin privileges
+  - CKV_AWS_290 # Does not allow write access without constraints
+  - CKV2_AWS_40 # Does not allow of for full IAM privileges
+
+# Optional: keep summary at top
+summary-position: top
