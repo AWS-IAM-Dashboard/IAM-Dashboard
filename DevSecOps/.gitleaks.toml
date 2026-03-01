@@ -64,7 +64,8 @@ exclude-files = [
     "config/grafana/provisioning/datasources/datasources.yml",
     "docs/security/SCANNERS.md",
     "src/components/SecurityHub.tsx",
-    "DevSecOps/.gitleaks.toml"
+    "DevSecOps/.gitleaks.toml",
+    "DevSecOps/GITLEAKS_ALLOWLIST.md"
 ]
 
 # Enable only essential security rules
