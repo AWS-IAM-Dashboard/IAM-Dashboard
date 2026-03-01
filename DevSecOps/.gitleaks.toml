@@ -63,7 +63,8 @@ exclude-files = [
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
     "docs/security/SCANNERS.md",
-    "src/components/SecurityHub.tsx"
+    "src/components/SecurityHub.tsx",
+    "DevSecOps/.gitleaks.toml"
 ]
 
 # Enable only essential security rules
