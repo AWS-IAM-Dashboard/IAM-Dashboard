@@ -19,7 +19,7 @@ requests==2.32.4
 
 # Database and caching
 SQLAlchemy==2.0.23
-Redis==7.2.0
+Redis==7.2.1
 # psycopg2-binary moved to requirements-postgres.txt (PostgreSQL driver)
 # Install with: pip install -r requirements.txt -r requirements-postgres.txt for Docker/Postgres
 
