@@ -35,7 +35,7 @@ black==24.3.0
 flake8==6.1.0
 
 # Environment and configuration
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 
 # API documentation
 marshmallow==3.26.2
