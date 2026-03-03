@@ -34,20 +34,38 @@ Before deploying, you must configure the following secrets in GitHub:
 ## 📋 Workflows
 
 ### deploy.yml
-- **Triggers**: Push and PR to `main` branch
+- **Triggers**: Push and Pull_Request to `main` branch
 - **Actions**:
-  - Builds and deploys frontend to S3
-  - **Builds Lambda package in Docker** (see `infra/lambda/Dockerfile.build`) then updates Lambda function code — deps are not in the repo; the zip is built in CI
-  - No Terraform in this workflow (infra is applied separately)
+   - Runs the `devsecops` and `dependency-audit` security scans
+   - Builds and deploys frontend to S3
+   - **Builds Lambda package in Docker** (see `infra/lambda/Dockerfile.build`) then updates Lambda        function code — deps are not in the repo; the zip is built in CI
+   - No Terraform in this workflow (infra is applied separately)
 - **Secrets Required**: `AWS_ROLE_ARN`
-- **Docs**: Lambda build approach and local commands → `infra/lambda/README.md`
+- **Docs**: Lambda build approach and local commands → [infra/lambda/README.md](../../infra/lambda/README.md)
+
+> [!NOTE]
+> The deploy workflow only runs if the **devsecops-scan.yml** and **dependency-audit.yml** workflows run, and are successful.
+> The deploy workflow only deploys code on pushes to the main branch
 
 ### devsecops-scan.yml
-- **Triggers**: Push to any branch
+- **Triggers**: Invoked by `deploy.yml` on Push or Pull_Request
 - **Actions**:
   - Runs security scanners (gitleaks, checkov, OPA)
   - Uploads results as artifacts
 - **Secrets Required**: None
+
+### dependency-audit.yml
+- **Triggers**: Invoked by `deploy.yml` on Push or Pull_Request
+- **Actions**: 
+   - Scans the Frontend dependencies for vulnerabilities using NPM
+   - Scans the root requirements.txt file
+   - Scans the requirements.txt file for the lambda package
+   - Fails if any vulnerabilites are found in either the Frontend or Backend
+   - Uploads results as artifacts
+- **Secrets Required**: None
+- **Docs**: 
+   - Lambda requirements.txt -> [infra/lmabda/requirements.txt](../../infra/lambda/requirements.txt)
+   - Root requirements.txt -> [./requirements.txt](../../requirements.txt)
 
 ## 🔒 Security Notes
 

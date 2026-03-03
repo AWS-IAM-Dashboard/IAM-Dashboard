@@ -1,13 +1,7 @@
 name: DevSecOps Security Scan
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-  push:
-    branches: [ main, develop ]
-  schedule:
-    # Run security scans daily at 2 AM UTC
-    - cron: '0 2 * * *'
+  workflow_call:
 
 jobs:
   security-scan:
@@ -60,40 +54,39 @@ jobs:
             > "$RUNNER_TEMP/gitleaks-results.json"
       continue-on-error: false
 
-    - name: Upload Checkov Results
-      uses: actions/upload-artifact@v4
+    - name: Convert Checkov JSON to Markdown
       if: always()
-      with:
-        name: checkov-results
-        path: ${{ runner.temp }}/checkov-results.json
-        retention-days: 30
+      run: |
+        python failed_checkov_results.py --path "$RUNNER_TEMP/checkov-results.json" --output "$RUNNER_TEMP/checkov-results.md" || true
 
-    - name: Upload Gitleaks Results
+    - name: Convert Gitleaks JSON to Markdown
+      if: always()
+      run: |
+        python failed_gitleaks_results.py --path "$RUNNER_TEMP/gitleaks-results.json" --output "$RUNNER_TEMP/gitleaks-results.md" || true
+
+    - name: Upload DevSecOps Scan Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: gitleaks-results
-        path: ${{ runner.temp }}/gitleaks-results.json
-        retention-days: 30
+        name: devsecops-scan-results
+        path: |
+          ${{ runner.temp }}/checkov-results.json
+          ${{ runner.temp }}/checkov-results.md
+          ${{ runner.temp }}/gitleaks-results.json
+          ${{ runner.temp }}/gitleaks-results.md
+        retention-days: 7
 
     - name: Security Scan Summary
       if: always()
       run: |
-        echo "## 🔍 Security Scan Results" >> $GITHUB_STEP_SUMMARY
-        echo "### Tools Executed:" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ OPA Policy Validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Checkov Infrastructure Scan" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Gitleaks Secret Detection" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Scan Details:" >> $GITHUB_STEP_SUMMARY
-        echo "- **OPA**: Validates security policies in \`DevSecOps/opa-policies/\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Checkov**: Scans infrastructure code for security misconfigurations" >> $GITHUB_STEP_SUMMARY
-        echo "- **Gitleaks**: Detects accidentally committed secrets" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Review any findings above" >> $GITHUB_STEP_SUMMARY
-        echo "2. Fix critical security issues before merging" >> $GITHUB_STEP_SUMMARY
-        echo "3. Download artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
+        if [ -f "$RUNNER_TEMP/checkov-results.md" ]; then
+          cat "$RUNNER_TEMP/checkov-results.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -f "$RUNNER_TEMP/gitleaks-results.md" ]; then
+          cat "$RUNNER_TEMP/gitleaks-results.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+        fi
 
   # Separate job for local development testing
   local-test:

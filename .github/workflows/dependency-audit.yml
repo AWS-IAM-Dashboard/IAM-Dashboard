@@ -1,13 +1,10 @@
 # Dependency Vulnerability Scanning - Blocks PRs when high/critical vulns are found
 # Severities that trigger a block are configurable via env vars below.
 
-name: Dependency Vulnerability Test Audit
+name: Dependency Vulnerability Audit
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-  push:
-    branches: [ main, develop ]
+  workflow_call:
 
 env:
   # Minimum npm severity to fail the pipeline: critical | high | moderate | low
