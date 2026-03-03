@@ -186,3 +186,6 @@ nul
 
 # File I use to draft my thoughts
 temp.txt
+
+# Backend Token Management (Currently working on the code)
+backend/auth/cognito_config.py
