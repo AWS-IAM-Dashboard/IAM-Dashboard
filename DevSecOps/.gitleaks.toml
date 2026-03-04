@@ -93,11 +93,9 @@ description = "JWT Token"
 regex = '''eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*'''
 tags = ["jwt", "token"]
 
-# Allowlist: known safe findings (test fixtures, AWS/docs example values, mock data)
+# Allowlist: path-based only (no stopwords to avoid config file self-flagging in CI)
 [allowlist]
-description = "IAM Dashboard allowlist: example values, mocks, non-sensitive fixtures"
-
-# Allow mock/demo data in frontend (e.g. SecurityHub.tsx resource_id)
+description = "IAM Dashboard allowlist: paths for mocks and fixtures"
 paths = [
     '''src/components/SecurityHub\.tsx'''
 ]

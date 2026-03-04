@@ -16,9 +16,9 @@ Findings were categorized as follows.
 | Location / value | Reason |
 |------------------|--------|
 | `infra/lambda/**` | AWS SDK (botocore/boto3) example data; contains AWS example access key IDs and truncated JWT-like strings. Entire tree excluded via `exclude-dirs`. |
-| `AKIAIOSFODNN7EXAMPLE`, `AKIA111111111EXAMPLE`, `AKIA222222222EXAMPLE`, `AKIAI44QH8DHBEXAMPLE` | AWS-documented example access key IDs; allowlisted via `[allowlist]` `stopwords`. |
-| `eyJ2IjoiMSIsInMiOjEsImMiOi...` | Truncated example “JWT” in EC2 examples; non-sensitive. Allowlisted via `stopwords`. |
-| `src/components/SecurityHub.tsx` | Mock/demo data using `resource_id: 'AKIAIOSFODNN7EXAMPLE'`. Allowlisted via `[allowlist]` `paths`. |
+| `AKIAIOSFODNN7EXAMPLE`, `AKIA111111111EXAMPLE`, `AKIA222222222EXAMPLE`, `AKIAI44QH8DHBEXAMPLE` | AWS-documented example access key IDs; handled via path exclusions only (no stopwords; avoids CI self-flagging). |
+| `eyJ2IjoiMSIsInMiOjEsImMiOi...` | Truncated example “JWT” in EC2 examples; non-sensitive. Handled via path exclusions. |
+| `src/components/SecurityHub.tsx` | Mock/demo data using `resource_id: 'AKIAIOSFODNN7EXAMPLE'`. Excluded via `exclude-files` and `[allowlist]` `paths`. |
 
 ### Real Secrets
 
