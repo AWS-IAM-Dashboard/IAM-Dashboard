@@ -93,9 +93,4 @@ description = "JWT Token"
 regex = '''eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*'''
 tags = ["jwt", "token"]
 
-# Allowlist: path-based only (no stopwords to avoid config file self-flagging in CI)
-[allowlist]
-description = "IAM Dashboard allowlist: paths for mocks and fixtures"
-paths = [
-    '''src/components/SecurityHub\.tsx'''
-]
+# No [allowlist] block: false positives handled only via exclude-files / exclude-dirs (per team lead).
