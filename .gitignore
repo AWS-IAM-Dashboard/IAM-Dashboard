@@ -137,6 +137,12 @@ temp/
 *.tfstate.*
 .terraform/
 
+# tfvars files (local/environment-specific variables)
+# *.tfvars
+# *.tfvars.json
+# terraform.tfvars
+# terraform.tfvars.json
+
 # Lambda vendored deps (install at build: pip install -r requirements.txt -t .)
 infra/lambda/boto3/
 infra/lambda/botocore/
