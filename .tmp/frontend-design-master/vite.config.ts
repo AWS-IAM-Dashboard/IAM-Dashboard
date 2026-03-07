@@ -1,11 +1,10 @@
 
   import { defineConfig } from 'vite';
   import react from '@vitejs/plugin-react-swc';
-import tailwindcss from '@tailwindcss/vite';
   import path from 'path';
 
   export default defineConfig({
-  plugins: [react(), tailwindcss()],
+    plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -18,6 +17,9 @@ import tailwindcss from '@tailwindcss/vite';
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
+        'figma:asset/e8b7973f0a17a3d3f80c597b67faeb915b197a3c.png': path.resolve(__dirname, './src/assets/e8b7973f0a17a3d3f80c597b67faeb915b197a3c.png'),
+        'figma:asset/b2edbb3a2ee98b8869c07628c4fb2ed1f140a4aa.png': path.resolve(__dirname, './src/assets/b2edbb3a2ee98b8869c07628c4fb2ed1f140a4aa.png'),
+        'figma:asset/a56b4f7b18c18090133cc7d8f7b65ccd011927bc.png': path.resolve(__dirname, './src/assets/a56b4f7b18c18090133cc7d8f7b65ccd011927bc.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
@@ -55,11 +57,7 @@ import tailwindcss from '@tailwindcss/vite';
       outDir: 'build',
     },
     server: {
-      port: 5173,
-      host: true,
-      watch: {
-        usePolling: true,
-      },
-      open: false,
+      port: 3000,
+      open: true,
     },
   });
