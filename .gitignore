@@ -185,5 +185,11 @@ lambda-out/
 npm-cache/
 nul
 
-# File I use to draft my thoughts
+# File I use to complete task in my local repo
 temp.txt
+temp2.txt
+route_ID.txt
+import_routes.ps1
+DevOps-Role.json
+GitHub-Actions-Role-policy.json
+terraform_error.txt
