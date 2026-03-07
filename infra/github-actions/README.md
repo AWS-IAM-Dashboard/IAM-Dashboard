@@ -47,7 +47,7 @@ The deployment workflow (`.github/workflows/deploy.yml`) uses this role:
 - name: Configure AWS credentials
   uses: aws-actions/configure-aws-credentials@v4
   with:
-    role-to-assume: arn:aws:iam::ACCOUNT_ID:role/IAMDash-Deployer-Prod
+    role-to-assume: arn:aws:iam::ACCOUNT_ID:role/iam-dashboard-deployer-prod
     aws-region: us-east-1
 ```
 
@@ -116,7 +116,7 @@ The role has the following permissions:
 After deployment, verify the role exists:
 
 ```bash
-aws iam get-role --role-name IAMDash-Deployer-Prod
+aws iam get-role --role-name iam-dashboard-deployer-prod
 ```
 
 Check the OIDC provider:
@@ -128,7 +128,7 @@ aws iam list-open-id-connect-providers
 ## 📝 Notes
 
 - The OIDC provider thumbprint is hardcoded for GitHub Actions
-- The role name `IAMDash-Deployer-Prod` matches the deployment workflow
+- The role name `iam-dashboard-deployer-prod` matches the deployment workflow
 - All resources are tagged for easy identification
 - The module follows least-privilege principles
 
@@ -136,7 +136,7 @@ aws iam list-open-id-connect-providers
 
 ### Role Not Found
 - Ensure the module has been applied: `terraform apply`
-- Check the role name matches the workflow: `IAMDash-Deployer-Prod`
+- Check the role name matches the workflow: `iam-dashboard-deployer-prod`
 
 ### Permission Denied
 - Verify the repository name matches in `variables.tf`
