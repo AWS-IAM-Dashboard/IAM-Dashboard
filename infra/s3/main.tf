@@ -50,6 +50,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
   rule {
     id     = "default-lifecycle"
     status = "Enabled"
+    
+    # Empty filter applies this lifecycle rule to all objects (equivalent to empty prefix).
+    filter {}
 
     filter {} # required: apply to whole bucket
 
