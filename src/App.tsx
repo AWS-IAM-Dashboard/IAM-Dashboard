@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useAuth } from "react-oidc-context";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { Dashboard } from "./components/Dashboard";
@@ -20,6 +21,7 @@ import { ScanResultsProvider } from "./context/ScanResultsContext";
 import type { ReportRecord } from "./types/report";
 
 export default function App() {
+  const auth = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
 
@@ -116,6 +118,45 @@ export default function App() {
         return <Dashboard onNavigate={setActiveTab} onFullScanComplete={handleFullScanComplete} />;
     }
   };
+
+  if (auth.isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background dark">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (auth.error) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-background dark p-6">
+        <p className="text-destructive">Error: {auth.error.message}</p>
+        <button
+          type="button"
+          className="text-sm text-muted-foreground underline"
+          onClick={() => auth.signinRedirect()}
+        >
+          Try signing in again
+        </button>
+      </div>
+    );
+  }
+
+  if (!auth.isAuthenticated) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-6 bg-background dark p-6">
+        <h1 className="text-xl font-medium text-foreground">AWS Cloud Security Dashboard</h1>
+        <p className="text-muted-foreground">Sign in to continue.</p>
+        <button
+          type="button"
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+          onClick={() => auth.signinRedirect()}
+        >
+          Sign in
+        </button>
+      </div>
+    );
+  }
 
   return (
     <ScanResultsProvider>

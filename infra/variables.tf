@@ -52,3 +52,33 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
+variable "cloudfront_web_acl_id" {
+  description = "Optional WAF Web ACL ARN for CloudFront"
+  type        = string
+  default     = null
+}
+
+variable "cognito_user_pool_name" {
+  description = "Cognito User Pool name"
+  type        = string
+  default     = "iam-dashboard-user-pool"
+}
+
+variable "cognito_domain" {
+  description = "Cognito Hosted UI domain prefix (globally unique)"
+  type        = string
+  default     = "iam-dashboard-auth"
+}
+
+variable "cognito_callback_urls" {
+  description = "Allowed OAuth callback URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:5173/", "https://d33ytnxd7i6mo9.cloudfront.net/"]
+}
+
+variable "cognito_logout_urls" {
+  description = "Allowed sign-out URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:5173/", "https://d33ytnxd7i6mo9.cloudfront.net/"]
+}
+

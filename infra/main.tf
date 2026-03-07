@@ -133,6 +133,28 @@ module "api_gateway" {
   log_kms_key_arn = aws_kms_key.logs.arn
 }
 
+# CloudFront Module (frontend SPA behind S3 website)
+module "cloudfront" {
+  source = "./cloudfront"
+
+  aws_region          = var.aws_region
+  environment         = var.environment
+  project_name        = var.project_name
+  s3_website_endpoint = module.s3.s3_bucket_website_endpoint
+  web_acl_id          = var.cloudfront_web_acl_id
+}
+
+# Cognito User Pool (OAuth / Hosted UI for dashboard auth)
+module "cognito" {
+  source = "./cognito"
+
+  aws_region       = var.aws_region
+  user_pool_name   = var.cognito_user_pool_name
+  cognito_domain   = var.cognito_domain
+  callback_urls    = var.cognito_callback_urls
+  logout_urls      = var.cognito_logout_urls
+}
+
 # GitHub Actions OIDC Module
 module "github_actions" {
   source = "./github-actions"
