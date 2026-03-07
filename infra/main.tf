@@ -92,4 +92,3 @@ module "github_actions" {
   lambda_function_name        = var.lambda_function_name
   dynamodb_table_name         = var.dynamodb_table_name
 }
-

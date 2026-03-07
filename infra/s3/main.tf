@@ -38,8 +38,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.s3_kms_key_arn
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -50,7 +49,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
   rule {
     id     = "default-lifecycle"
     status = "Enabled"
-    
+
     # Empty filter applies this lifecycle rule to all objects (equivalent to empty prefix).
     filter {}
 
