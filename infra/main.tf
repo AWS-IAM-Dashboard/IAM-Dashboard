@@ -25,10 +25,73 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
+<<<<<<< HEAD
 # Use existing KMS key (no create in Terraform; CI does not need kms:CreateKey).
 # Set var.kms_key_id to the key alias (e.g. alias/IAMDash-prod-logs) or key ID via tfvars or TF_VAR_kms_key_id.
 data "aws_kms_key" "logs" {
   key_id = var.kms_key_id
+=======
+# Shared KMS key for encryption
+resource "aws_kms_key" "logs" {
+  description             = "KMS key for encrypting resources like CloudWatch and DynamoDB (IAM Dashboard)"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootPermissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowGitHubActionsRoleAdmin"
+        Effect = "Allow"
+        Principal = {
+          AWS = module.github_actions.github_actions_deployer_role_arn
+        }
+        Action = [
+          "kms:Describe*",
+          "kms:Get*",
+          "kms:List*",
+          "kms:Put*",
+          "kms:Update*",
+          "kms:Create*",
+          "kms:Enable*",
+          "kms:Disable*",
+          "kms:Revoke*",
+          "kms:Delete*",
+          "kms:TagResource",
+          "kms:UntagResource",
+          "kms:ScheduleKeyDeletion",
+          "kms:CancelKeyDeletion",
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:CreateGrant"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name      = "${var.project_name}-${var.environment}-logs-kms"
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_kms_alias" "logs" {
+  name          = "alias/${var.project_name}-${var.environment}-logs"
+  target_key_id = aws_kms_key.logs.key_id
+>>>>>>> 58d41b3 (Updated the KMS key description to be more accurate. Also created a test terraform apply workflow that has security gating with the devsecops workflow.)
 }
 
 # S3 Module
