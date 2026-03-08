@@ -67,6 +67,8 @@ Before deploying, you must configure the following secrets in GitHub:
    - Lambda requirements.txt -> [infra/lmabda/requirements.txt](../../infra/lambda/requirements.txt)
    - Root requirements.txt -> [./requirements.txt](../../requirements.txt)
 
+### terraform-apply.yml
+
 ## 🔒 Security Notes
 
 - Never commit AWS account IDs or ARNs directly in workflow files
