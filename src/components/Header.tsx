@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "react-oidc-context";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Search, Bell, Settings, User, LogOut, Shield } from "lucide-react";
 import { Button } from "./ui/button";
@@ -39,9 +40,27 @@ const mockNotifications = [
   }
 ];
 
+function getCognitoLogoutUrl(): string {
+  const clientId =
+    import.meta.env.VITE_COGNITO_CLIENT_ID ?? "3593qhqul52rgr79mi033f9v1l";
+  const logoutUri =
+    import.meta.env.VITE_COGNITO_LOGOUT_URI ??
+    "https://d84l1y8p4kdic.cloudfront.net";
+  const cognitoDomain =
+    import.meta.env.VITE_COGNITO_DOMAIN ??
+    "https://us-east-1h7e0irb5v.auth.us-east-1.amazoncognito.com";
+  return `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
+}
+
 export function Header({ onNavigate }: HeaderProps) {
+  const auth = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleSignOut = () => {
+    auth.removeUser();
+    window.location.href = getCognitoLogoutUrl();
+  };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
@@ -207,37 +226,44 @@ export function Header({ onNavigate }: HeaderProps) {
             <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
               <Avatar className="h-8 w-8 border border-border">
                 <AvatarImage src="" />
-                <AvatarFallback className="bg-secondary text-xs">AD</AvatarFallback>
+                <AvatarFallback className="bg-secondary text-xs">
+                  {auth.user?.profile?.email?.slice(0, 2).toUpperCase() ?? "?"}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="cyber-card border-border w-64" align="end">
             <div className="px-3 py-2 border-b border-border">
-              <p className="text-sm font-medium">Cloud Security Admin</p>
-              <p className="text-xs text-muted-foreground">admin@cloudsec.com</p>
+              <p className="text-sm font-medium">Cloud Security</p>
+              <p className="text-xs text-muted-foreground">
+                {auth.user?.profile?.email ?? "Signed in"}
+              </p>
             </div>
-            
+
             <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer">
               <User className="h-4 w-4 mr-2" />
               Profile Settings
             </DropdownMenuItem>
-            
-            <DropdownMenuItem 
+
+            <DropdownMenuItem
               className="hover:bg-accent/20 cursor-pointer"
-              onClick={() => onNavigate?.('settings')}
+              onClick={() => onNavigate?.("settings")}
             >
               <Settings className="h-4 w-4 mr-2" />
               Application Settings
             </DropdownMenuItem>
-            
+
             <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer">
               <Shield className="h-4 w-4 mr-2" />
               Security Options
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator className="bg-border" />
-            
-            <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer text-destructive">
+
+            <DropdownMenuItem
+              className="hover:bg-accent/20 cursor-pointer text-destructive"
+              onClick={handleSignOut}
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </DropdownMenuItem>
