@@ -9,7 +9,7 @@ on:
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ main ]
+    branches: [ feature/devops/fix-terraform-apply ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply-test.yml"
