@@ -31,7 +31,12 @@ variable "stage_name" {
 variable "cors_allowed_origins" {
   description = "List of allowed CORS origins"
   type        = list(string)
-  default     = ["*"]
+  # Default to local development frontends only.
+  # Production and other environments should override this via terraform.tfvars.
+  default = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ]
 }
 
 variable "cors_allowed_methods" {
