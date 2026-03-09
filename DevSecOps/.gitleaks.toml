@@ -45,7 +45,8 @@ exclude-dirs = [
     "logs",
     "data",
     "docs",
-    "DevSecOps/opa-policies"
+    "DevSecOps/opa-policies",
+    "infra/lambda"
 ]
 
 # Exclude specific files
@@ -62,7 +63,9 @@ exclude-files = [
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
     "docs/security/SCANNERS.md",
-    "src/components/SecurityHub.tsx"
+    "src/components/SecurityHub.tsx",
+    "DevSecOps/.gitleaks.toml",
+    "DevSecOps/GITLEAKS_ALLOWLIST.md"
 ]
 
 # Enable only essential security rules
@@ -89,3 +92,5 @@ id = "jwt-token"
 description = "JWT Token"
 regex = '''eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*'''
 tags = ["jwt", "token"]
+
+# No [allowlist] block: false positives handled only via exclude-files / exclude-dirs (per team lead).

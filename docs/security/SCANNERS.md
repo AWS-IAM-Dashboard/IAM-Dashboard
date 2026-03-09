@@ -276,10 +276,14 @@ sudo chown -R $USER ~/.docker
 ```
 
 ### False positives in Gitleaks
-If Gitleaks finds something that's not actually a secret:
-1. Check if it's in the exclude patterns in `.gitleaks.toml`
-2. Add it to the exclude list if needed
-3. Ask your team lead before modifying the config
+If Gitleaks finds something that's not actually a secret (e.g. test fixtures, example values like `*EXAMPLE`, non-sensitive hashes):
+1. **Document the process**: See **DevSecOps/GITLEAKS_ALLOWLIST.md** for the full process for allowlist changes.
+2. **Update the config**: In `DevSecOps/.gitleaks.toml` add the finding to the appropriate section:
+   - **Exclude by path**: Add to `exclude-dirs`, `exclude-patterns`, or `exclude-files` under `[gitleaks]`.
+   - **Allow a known safe value**: Add to `[allowlist]` → `stopwords` (exact string) or `paths` (path regex).
+3. **Re-run**: Run `make gitleaks` to confirm the finding is cleared.
+4. **Document**: Add a short note in `DevSecOps/GITLEAKS_ALLOWLIST.md` under "Acceptable (Allowlisted)" with location and reason.
+5. **Never allowlist real secrets**: Real credentials must be removed and rotated, not added to the allowlist.
 
 ### OPA policy errors
 If OPA policies seem too strict:
