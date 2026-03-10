@@ -1,18 +1,18 @@
-name: Terraform Apply Test (infra)
+name: Terraform Apply (infra)
 
 on:
   pull_request:
-    branches: [ feature/devops/fix-terraform-apply ]
+    branches: [ mainn ]
     paths:
       - "infra/**"
-      - ".github/workflows/terraform-apply-test.yml"
+      - ".github/workflows/terraform-apply.yml"
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ feature/devops/fix-terraform-apply ]
+    branches: [ mainn ]
     paths:
       - "infra/**"
-      - ".github/workflows/terraform-apply-test.yml"
+      - ".github/workflows/terraform-apply.yml"
       - ".github/workflows/devsecops-scan.yml"
 
 permissions:
@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: terraform-infra-test-${{ github.ref }}
+  group: terraform-infra-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
