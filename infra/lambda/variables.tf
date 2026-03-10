@@ -82,7 +82,11 @@ variable "enable_xray_tracing" {
 variable "lambda_reserved_concurrency" {
   description = "Reserved concurrency limit for the Lambda function (0 = use account unreserved pool; set to 5+ only if account has enough quota)"
   type        = number
-  default     = 10
+  default     = null
+  validation {
+    condition     = var.lambda_reserved_concurrency == null || var.lambda_reserved_concurrency >= 1
+    error_message = "lambda_reserved_concurrency must be null or a number greater than or equal to 1."
+  }
 }
 
 variable "dynamodb_table_name" {
