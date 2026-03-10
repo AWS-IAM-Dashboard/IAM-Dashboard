@@ -75,3 +75,4 @@ Before deploying, you must configure the following secrets in GitHub:
 - Always use GitHub Secrets for sensitive values
 - The OIDC provider ensures GitHub Actions can only assume the role from your repository
 
+
