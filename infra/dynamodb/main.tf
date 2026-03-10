@@ -55,8 +55,7 @@ resource "aws_dynamodb_table" "scan_results" {
 
   # Server-side encryption
   server_side_encryption {
-    enabled     = true
-    kms_key_arn = var.dynamodb_kms_key_arn
+    enabled = true
   }
 
   # Enable deletion protection in production
@@ -70,4 +69,3 @@ resource "aws_dynamodb_table" "scan_results" {
     Description = "Stores security scan results from AWS native scanners and custom OPA policies"
   }
 }
-

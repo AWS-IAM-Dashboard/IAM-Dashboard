@@ -136,3 +136,5 @@ This directory is scanned by:
 - Store sensitive values in environment variables or AWS Secrets Manager
 - Use remote state backend for team collaboration
 - Enable Terraform Cloud for state management
+
+
