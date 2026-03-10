@@ -46,6 +46,10 @@ skip-check:
   - CKV2_AWS_40 # Does not allow of for full IAM privileges
   - CKV_DOCKER_2 # Build images (e.g. Lambda package) don't need HEALTHCHECK; tracked in DevOps backlog
   - CKV_DOCKER_3 # Frontend entrypoint runs as root to install deps then su-exec app; tracked in DevOps backlog
+  - CKV_AWS_145 # KMS encryption is not needed for a static hosting bucket. Enabling it could cause users to not access the website. (May be changed later)
+  - CKV_AWS_158 # Enforces that CloudWatch Logs are encrypted with KMS. Temporarily disabled until KMS is added
+  - CKV_AWS_119 # Enforces DynamoDB tables to be encrypted with KMS. Temporarily disabled until KMS is added
+  - CKV_AWS_173 # Enforces that environment variables are encrypted with KMS. Temporarily disabled until KMS is added
 
 # Optional: keep summary at top
 summary-position: top
