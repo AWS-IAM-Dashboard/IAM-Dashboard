@@ -34,12 +34,12 @@ variable "enable_static_hosting" {
   default     = true
 }
 
-variable "s3_kms_key_arn" {
-  description = "ARN of shared/root KMS CMK for S3 default encryption"
-  type        = string
-}
-
 variable "s3_logging_bucket_name" {
   description = "Name of the S3 bucket for storing access logs"
   type        = string
 }
+
+# variable "s3_kms_key_arn" {
+#   description = "ARN of shared/root KMS CMK for S3 default encryption"
+#   type        = string
+# }

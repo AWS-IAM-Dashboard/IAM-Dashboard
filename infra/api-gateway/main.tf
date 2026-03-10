@@ -37,7 +37,6 @@ resource "aws_apigatewayv2_api" "api" {
 resource "aws_cloudwatch_log_group" "apigw_access" {
   name              = "/aws/apigwv2/${var.api_gateway_name}/${var.stage_name}/access"
   retention_in_days = 365
-  kms_key_id        = var.log_kms_key_arn
 
   tags = {
     Name      = "${var.api_gateway_name}-${var.stage_name}-access-logs"
@@ -167,4 +166,3 @@ resource "aws_apigatewayv2_route" "full" {
   authorization_type = var.route_authorization_type
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
-

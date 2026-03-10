@@ -34,8 +34,7 @@ variable "enable_point_in_time_recovery" {
   default     = true
 }
 
-variable "dynamodb_kms_key_arn" {
-  description = "ARN of the shared/root KMS CMK to use for DynamoDB table encryption"
-  type        = string
-}
-
+# variable "dynamodb_kms_key_arn" {
+#   description = "ARN of the shared/root KMS CMK to use for DynamoDB table encryption"
+#   type        = string
+# }
