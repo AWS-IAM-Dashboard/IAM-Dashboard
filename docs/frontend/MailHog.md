@@ -101,9 +101,10 @@ Verify Message:
 
 ![Pic](/docs/frontend/Images/MailHog%20Test.png)
 
+---
+
 ![Pic](/docs/frontend/Images/MailHog%20Email.png)
 
-After sending, refresh `http://localhost:8025` to view the message.
 
 ## Beyond HogMail
 MailHog is intentionally a local development/testing tool. It is excellent for safe iteration, quick validation, and avoiding accidental email sends during development.
