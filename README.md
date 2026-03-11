@@ -223,7 +223,7 @@ pytest
 
 ## 📁 Project Structure
 
-```
+```graphql
 ├── .github/              # GitHub configuration
 │   ├── workflows/        # GitHub Actions workflows
 │   │   ├── devsecops-scan.yml  # Security scanning pipeline
