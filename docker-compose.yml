@@ -31,6 +31,11 @@ services:
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SMTP_HOST=${SMTP_HOST:-mailhog}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-no-reply@local.test}
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -71,6 +76,17 @@ services:
       - cybersecurity-network
     restart: unless-stopped
     command: redis-server --appendonly yes
+
+  # MailHog for local SMTP testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: cybersecurity-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - cybersecurity-network
+    restart: unless-stopped
 
   # Grafana for data visualization
   grafana:
