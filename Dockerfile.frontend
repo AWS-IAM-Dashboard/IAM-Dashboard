@@ -1,0 +1,33 @@
+# Vite dev server for local development — no Node.js needed on host
+#checkov:skip=CKV_DOCKER_3:Entrypoint runs as root for npm ci on mounted volumes, then su-exec drops to app user
+FROM node:20-alpine
+
+# Healthcheck + su-exec to run dev server as app user after entrypoint installs deps
+RUN apk add --no-cache curl su-exec
+
+# Non-root runtime user
+RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app \
+    && mkdir -p /app && chown -R app:app /app
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY . .
+# Ensure app user owns sources
+RUN chown -R app:app /app
+
+# Entrypoint runs as root so it can npm ci into the node_modules volume, then runs dev server as app
+COPY docker-frontend-entrypoint.sh /docker-frontend-entrypoint.sh
+RUN chmod +x /docker-frontend-entrypoint.sh
+
+# Do not switch to USER app here; entrypoint runs as root, then su-exec app for vite
+# Dev server runs in container; port 5173 (Vite default) mapped to host 3001
+EXPOSE 5173
+
+# Vite dev server health probe
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:5173/ || exit 1
+
+ENTRYPOINT ["/docker-frontend-entrypoint.sh"]

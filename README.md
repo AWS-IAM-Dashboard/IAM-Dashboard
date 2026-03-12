@@ -28,8 +28,10 @@ docker-compose up -d
 
 ### Full-Stack Development
 
+New contributors only need Docker. No need to install Node.js or run `npm install` locally.
+
 ```bash
-# Start all services
+# Start all services (includes Vite frontend on port 3001 with hot reload)
 docker-compose up -d
 
 # View logs
@@ -39,9 +41,12 @@ docker-compose logs -f
 docker-compose down
 ```
 
+The **frontend** runs the Vite dev server in a container at http://localhost:3001 with hot reload; edit `src/` and the browser updates automatically.
+
 ## 🌐 Access Points
 
-- **Main Dashboard**: http://localhost:5001
+- **Frontend (Vite dev server, hot reload)**: http://localhost:3001 — runs in Docker; no Node.js/npm needed on host
+- **Main Dashboard (Flask)**: http://localhost:5001
 - **Grafana Monitoring**: http://localhost:3000 (admin/admin)
 - **Prometheus Metrics**: http://localhost:9090
 
@@ -90,7 +95,7 @@ sudo chown -R $USER ~/.docker
 ```
 
 **Common Issues:**
-- **Port conflicts**: Ensure ports 5001, 3000, 5432, 6379, 9090 are available
+- **Port conflicts**: Ensure ports 3001 (frontend), 3000 (Grafana), 5001, 5432, 6379, 9090 are available
 - **Docker not running**: Start Docker Desktop or Docker daemon
 - **Permission denied**: Check Docker group membership
 - **Out of space**: Run `docker system prune` to clean up
@@ -218,7 +223,7 @@ pytest
 
 ## 📁 Project Structure
 
-```
+```graphql
 ├── .github/              # GitHub configuration
 │   ├── workflows/        # GitHub Actions workflows
 │   │   ├── devsecops-scan.yml  # Security scanning pipeline
@@ -258,10 +263,15 @@ pytest
 │   ├── .gitleaks.toml    # Gitleaks configuration
 │   └── SECURITY.md       # Security policies
 ├── docs/                 # Documentation
-│   ├── SCANNERS.md       # Security scanning guide
-│   ├── TEAM_SETUP.md     # Team onboarding guide
-│   ├── AWS-Workflow.md   # AWS integration workflow
-│   ├── CONTRIBUTING.md   # Contribution guidelines
+│   ├── security/         # DevSecOps and security docs
+│   │   ├── SCANNERS.md
+│   │   └── CHECKOV_SKIP_RISK.md
+│   ├── planning/         # Backlog and roadmap
+│   │   └── GITHUB_ISSUES_BACKLOG.md
+│   ├── onboarding/       # Setup and contribution
+│   │   ├── TEAM_SETUP.md
+│   │   ├── AWS-Workflow.md
+│   │   └── CONTRIBUTING.md
 │   └── CHANGELOG.md      # Project changelog
 ├── infra/                # Infrastructure as Code (Terraform)
 │   ├── s3/               # S3 buckets (static hosting, scan results)
@@ -410,10 +420,10 @@ This deploys Lambda, DynamoDB, S3, API Gateway, and GitHub Actions OIDC. See [in
 
 ## 📚 Documentation
 
-- [Team Setup Guide](docs/TEAM_SETUP.md) - Complete team onboarding
-- [Security Scanning Guide](docs/SCANNERS.md) - DevSecOps scanning setup
-- [AWS Workflow](docs/AWS-Workflow.md) - AWS integration workflow
-- [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute to the project
+- [Team Setup Guide](docs/onboarding/TEAM_SETUP.md) - Complete team onboarding
+- [Security Scanning Guide](docs/security/SCANNERS.md) - DevSecOps scanning setup
+- [AWS Workflow](docs/onboarding/AWS-Workflow.md) - AWS integration workflow
+- [Contributing Guide](docs/onboarding/CONTRIBUTING.md) - How to contribute to the project
 - [Security Policies](DevSecOps/SECURITY.md) - Security policies and practices
 - [Infrastructure Guide](infra/README.md) - AWS infrastructure (Lambda, DynamoDB, S3, API Gateway)
 - [Kubernetes Guide](k8s/README.md) - Kubernetes deployment guide

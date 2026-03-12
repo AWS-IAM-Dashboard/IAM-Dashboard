@@ -36,6 +36,7 @@ env.bak/
 venv.bak/
 
 # IDE
+.cursor/
 .vscode/
 .idea/
 *.swp
@@ -57,6 +58,7 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+logs.md
 
 # Runtime data
 pids/
@@ -117,6 +119,7 @@ public
 
 # Temporary folders
 tmp/
+.tmp/
 temp/
 
 # Database
@@ -135,6 +138,20 @@ temp/
 *.tfstate.*
 .terraform/
 
+# Lambda vendored deps (install at build: pip install -r requirements.txt -t .)
+infra/lambda/boto3/
+infra/lambda/botocore/
+infra/lambda/urllib3/
+infra/lambda/s3transfer/
+infra/lambda/dateutil/
+infra/lambda/jmespath/
+infra/lambda/bin/
+infra/lambda/*.dist-info/
+infra/lambda/six.py
+
+# IAM roles (local/dev)
+infra/iam-roles/
+
 # Kubernetes
 *.kubeconfig
 
@@ -150,6 +167,7 @@ scanner-results/
 *.sarif
 scanner-reports/
 security-reports/
+checkov-results.json
 
 # Terraform Plan Files
 *.tfplan
@@ -163,5 +181,9 @@ build/
 # Lambda deployment packages
 *.zip
 lambda_function.zip
+lambda-out/
 npm-cache/
 nul
+
+# File I use to draft my thoughts
+temp.txt

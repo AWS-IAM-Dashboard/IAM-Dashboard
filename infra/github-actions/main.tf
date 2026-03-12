@@ -22,7 +22,7 @@ locals {
 # IAM Role for GitHub Actions
 resource "aws_iam_role" "github_actions_deployer" {
   name = var.github_actions_role_name
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -43,7 +43,7 @@ resource "aws_iam_role" "github_actions_deployer" {
       }
     ]
   })
-  
+
   tags = {
     Name      = var.github_actions_role_name
     Project   = var.project_name
@@ -56,7 +56,7 @@ resource "aws_iam_role" "github_actions_deployer" {
 resource "aws_iam_role_policy" "github_actions_s3_policy" {
   name = "${var.github_actions_role_name}-s3-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -99,7 +99,7 @@ resource "aws_iam_role_policy" "github_actions_s3_policy" {
 resource "aws_iam_role_policy" "github_actions_lambda_policy" {
   name = "${var.github_actions_role_name}-lambda-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -137,7 +137,7 @@ resource "aws_iam_role_policy" "github_actions_lambda_policy" {
 resource "aws_iam_role_policy" "github_actions_dynamodb_policy" {
   name = "${var.github_actions_role_name}-dynamodb-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -176,7 +176,7 @@ resource "aws_iam_role_policy" "github_actions_dynamodb_policy" {
 resource "aws_iam_role_policy" "github_actions_cloudfront_policy" {
   name = "${var.github_actions_role_name}-cloudfront-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -197,7 +197,7 @@ resource "aws_iam_role_policy" "github_actions_cloudfront_policy" {
 resource "aws_iam_role_policy" "github_actions_apigateway_policy" {
   name = "${var.github_actions_role_name}-apigateway-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -250,7 +250,7 @@ resource "aws_iam_role_policy" "github_actions_apigateway_policy" {
 resource "aws_iam_role_policy" "github_actions_iam_read_policy" {
   name = "${var.github_actions_role_name}-iam-read-policy"
   role = aws_iam_role.github_actions_deployer.id
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -290,9 +290,9 @@ resource "aws_iam_role_policy" "github_actions_iam_read_policy" {
 # Policy for Terraform state management (S3 backend) - Only created if bucket/table are specified
 resource "aws_iam_role_policy" "github_actions_terraform_state_policy" {
   count = var.terraform_state_bucket != "" && var.terraform_state_lock_table != "" ? 1 : 0
-  name = "${var.github_actions_role_name}-terraform-state-policy"
-  role = aws_iam_role.github_actions_deployer.id
-  
+  name  = "${var.github_actions_role_name}-terraform-state-policy"
+  role  = aws_iam_role.github_actions_deployer.id
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

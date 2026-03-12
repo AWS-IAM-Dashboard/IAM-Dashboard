@@ -1,13 +1,29 @@
-name: Deploy IAM Dashboard
+name: Deploy IAM Dashboard 
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
+  dependency-audit:
+    name: Dependency Vulnerability Audit
+    uses: ./.github/workflows/dependency-audit.yml
+    secrets: inherit
+
+  devsecops-scan:
+    name: DevSecOps Security Scan
+    uses: ./.github/workflows/devsecops-scan.yml
+    secrets: inherit
+
   deploy:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs:
+      - dependency-audit
+      - devsecops-scan
     runs-on: ubuntu-latest
 
     permissions:
@@ -21,13 +37,10 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        # AWS_ROLE_ARN secret must be configured in Repository Settings → Secrets
-        # Format: arn:aws:iam::ACCOUNT_ID:role/IAMDash-Deployer-Prod
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: us-east-1
 
     - name: Set deployment variables
-      if: github.ref == 'refs/heads/main'
       id: deployment-vars
       run: |
         # Use hardcoded resource names - infrastructure is managed separately
@@ -36,61 +49,49 @@ jobs:
         echo "cloudfront_id=" >> $GITHUB_OUTPUT
 
     - name: Setup Node.js
-      if: github.ref == 'refs/heads/main'
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
 
-    - name: Setup Python
-      if: github.ref == 'refs/heads/main'
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
     - name: Build and Deploy Frontend
-      if: github.ref == 'refs/heads/main'
       run: |
         npm ci
         npm run build
         S3_BUCKET="${{ steps.deployment-vars.outputs.s3_bucket }}"
         if [ -z "$S3_BUCKET" ]; then
-          echo "⚠️  No S3 bucket found in Terraform outputs, using default pattern"
+          echo "No S3 bucket found in Terraform outputs, using default pattern"
           S3_BUCKET="iam-dashboard-frontend-$(date +%s)"
         fi
-        echo "📤 Uploading build files to s3://$S3_BUCKET/"
+        echo "Uploading build files to s3://$S3_BUCKET/"
         aws s3 sync build/ s3://$S3_BUCKET/ --delete
         CLOUDFRONT_ID="${{ steps.deployment-vars.outputs.cloudfront_id }}"
         if [ -n "$CLOUDFRONT_ID" ]; then
-          echo "🔄 Invalidating CloudFront cache for distribution $CLOUDFRONT_ID"
+          echo "Invalidating CloudFront cache for distribution $CLOUDFRONT_ID"
           aws cloudfront create-invalidation \
             --distribution-id "$CLOUDFRONT_ID" \
             --paths "/*"
         else
-          echo "ℹ️  No CloudFront distribution found, skipping cache invalidation"
+          echo "No CloudFront distribution found, skipping cache invalidation"
         fi
 
+    - name: Build Lambda package (Docker)
+      run: |
+        echo "Building Lambda deployment package in Docker..."
+        docker buildx create --use --name lambda-builder 2>/dev/null || true
+        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda
+        docker buildx rm lambda-builder 2>/dev/null || true
+        echo "Lambda package: lambda-out/lambda_function.zip"
+
     - name: Deploy Lambda Function
-      if: github.ref == 'refs/heads/main'
       run: |
         LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
         if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
-          echo "⚠️  No Lambda function name found in Terraform outputs, using default: iam-dashboard-scanner"
+          echo "No Lambda function name found, using default: iam-dashboard-scanner"
           LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
         fi
-        echo "📦 Packaging Lambda function from infra/lambda/..."
-        cd infra/lambda
-        # Install dependencies if requirements.txt exists
-        if [ -f requirements.txt ]; then
-          echo "📥 Installing Python dependencies..."
-          pip install -r requirements.txt -t . --quiet
-        fi
-        # Create deployment package
-        zip -r lambda_function.zip . -x "*.git*" -x "__pycache__/*" -x "*.pyc" -x "*.zip" -x "terraform.tfstate*" -x "*.tf" -x "*.md" -x "test-event.json" -x "tfplan"
-        echo "🚀 Updating Lambda function $LAMBDA_FUNCTION_NAME"
+        echo "Updating Lambda function $LAMBDA_FUNCTION_NAME"
         aws lambda update-function-code \
           --function-name "$LAMBDA_FUNCTION_NAME" \
-          --zip-file fileb://lambda_function.zip
-        echo "✅ Lambda function deployed successfully"
-
+          --zip-file fileb://lambda-out/lambda_function.zip
+        echo "Lambda function deployed successfully"

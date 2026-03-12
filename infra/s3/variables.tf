@@ -33,3 +33,8 @@ variable "enable_static_hosting" {
   type        = bool
   default     = true
 }
+
+variable "s3_kms_key_arn" {
+  description = "ARN of shared/root KMS CMK for S3 default encryption"
+  type        = string
+}

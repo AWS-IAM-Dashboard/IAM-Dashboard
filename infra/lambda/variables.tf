@@ -68,6 +68,23 @@ variable "lambda_environment_variables" {
   default     = {}
 }
 
+variable "lambda_kms_key_arn" {
+  description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
+  type        = string
+}
+
+variable "enable_xray_tracing" {
+  description = "Enable AWS X-Ray tracing for the Lambda function"
+  type        = bool
+  default     = true
+}
+
+variable "lambda_reserved_concurrency" {
+  description = "Reserved concurrency limit for the Lambda function to control scaling/cost"
+  type        = number
+  default     = 5
+}
+
 variable "dynamodb_table_name" {
   description = "Name of the DynamoDB table for scan results"
   type        = string
