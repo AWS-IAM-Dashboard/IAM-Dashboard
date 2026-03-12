@@ -158,6 +158,63 @@ This project provides a security team work haven with:
 }
 ```
 
+### API Authentication (Cognito + API Gateway)
+
+The AWS-hosted scanner API (API Gateway HTTP API in `infra/api-gateway`) is protected using **Amazon Cognito JWT validation** so that only authorized clients can trigger scans.
+
+- **Identity Provider**: Amazon Cognito User Pool
+- **Protected endpoints**: All `/scan/*` routes (Security Hub, GuardDuty, Config, Inspector, Macie, IAM, EC2, S3, and full scans)
+- **Validation**: API Gateway JWT authorizer validates the token `iss` (issuer) and `aud` (audience) against the configured User Pool and app client.
+
+#### Backend / Terraform configuration (summary)
+
+- The `infra/api-gateway` module exposes variables:
+  - `cognito_user_pool_arn`
+  - `cognito_user_pool_client_id`
+- These are wired into an `aws_apigatewayv2_authorizer` of type `JWT`, with identity source `Authorization` header.
+- See `infra/api-gateway/README.md` for the exact configuration and required Terraform inputs.
+
+#### How the frontend obtains a token
+
+You can integrate with Cognito using any preferred client (AWS Amplify, `amazon-cognito-identity-js`, custom Hosted UI flow, etc.). A typical flow:
+
+1. **User signs in** against the Cognito User Pool (hosted UI or embedded UI).
+2. After a successful login, you receive an **ID token** (or access token) JWT from Cognito.
+3. Store that token in the browser, e.g.:
+
+   ```ts
+   // After Cognito login:
+   window.localStorage.setItem('iamdash_id_token', cognitoIdToken);
+   ```
+
+The frontend `API` client in `src/services/api.ts` will automatically:
+
+- Read `iamdash_id_token` from `localStorage` (if present), or
+- Fall back to `VITE_API_AUTH_TOKEN` (for non-browser clients or quick testing),
+- And send it as:
+
+```http
+Authorization: Bearer <jwt-token>
+```
+
+No additional changes are required in components that call the scan functions (`scanSecurityHub`, `scanGuardDuty`, etc.) as long as a valid token is present.
+
+#### How non-frontend consumers authenticate
+
+For other clients (CLI tools, CI/CD jobs, backend services):
+
+1. Obtain a Cognito JWT using the appropriate OAuth2 or SRP flow for your app client.
+2. Pass the token on each request to the API Gateway endpoint:
+
+   ```bash
+   curl -X POST "$API_INVOKE_URL/scan/full" \
+     -H "Authorization: Bearer $JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"region": "us-east-1"}'
+   ```
+
+This requirement addresses infrastructure scanners such as Checkov (`CKV_AWS_309`) by ensuring protected API routes are not publicly callable without valid credentials.
+
 ## 📊 Features
 
 ### Security Dashboard (Analyst Work Haven)

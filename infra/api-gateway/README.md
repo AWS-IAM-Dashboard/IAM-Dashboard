@@ -44,12 +44,53 @@ terraform apply
 - **CORS**: Enabled with configurable origins
 - **Throttling**: 100 burst, 50 rate limit per second
 
+## 🔐 Authentication (Cognito JWT)
+
+All `/scan/*` endpoints are protected by an **Amazon Cognito JWT authorizer** on the HTTP API.
+
+### Required Terraform Variables
+
+Pass these variables when applying the `api-gateway` module:
+
+- `cognito_user_pool_arn` – ARN of the Cognito User Pool that issues JWTs.
+- `cognito_user_pool_client_id` – App client ID used as the JWT audience.
+
+The authorizer is configured as:
+
+- **Type**: JWT
+- **Identity source**: `Authorization` header (`Bearer <jwt-token>`)
+- **Issuer**: `https://cognito-idp.<aws_region>.amazonaws.com/<user_pool_id>`
+- **Audience**: `[cognito_user_pool_client_id]`
+
+### Protected Routes
+
+The following routes require a valid Cognito JWT:
+
+- `POST /scan/security-hub`
+- `POST /scan/guardduty`
+- `POST /scan/config`
+- `POST /scan/inspector`
+- `POST /scan/macie`
+- `POST /scan/iam`
+- `POST /scan/ec2`
+- `POST /scan/s3`
+- `POST /scan/full`
+
+Clients (frontend, CLI, or other services) must:
+
+1. Obtain a JWT from Cognito (ID or access token).
+2. Send it on every request:
+
+   ```http
+   Authorization: Bearer <jwt-token>
+   ```
+
 ## 🔄 Next Steps (When Lambda is Ready)
 
 1. **Create Routes**: Add route definitions for each of the 9 endpoints
 2. **Lambda Integration**: Integrate each route with the Lambda function
 3. **Request/Response Mapping**: Configure request/response transformations
-4. **Authorization**: Add API keys or IAM authentication if needed
+4. **Authorization**: Refine scopes/claims in Cognito as needed
 5. **Deployment**: Deploy to stage and test endpoints
 
 ## 📝 Example Route Integration (Future)

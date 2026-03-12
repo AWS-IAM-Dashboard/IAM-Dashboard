@@ -208,6 +208,8 @@ make show-results
 
 ## Understanding Results
 
+Before you start fixing anything, check the **false-positive catalog** in `scanner-false-positives.md`. If a finding matches one of the documented types (including the preconditions), handle it as described there; otherwise, treat it as a potential real issue.
+
 ### OPA Results
 - **Format**: Human-readable text output
 - **Location**: Console output
@@ -217,18 +219,19 @@ make show-results
 
 ### Checkov Results
 - **Format**: JSON and CLI output
-- **Location**: `checkov-results.json` (in project root)
+- **Location**: `scanner-results/checkov-results.json`
 - **What to look for**:
   - `PASS` - Check passed
   - `FAIL` - Security issue found
   - `SKIP` - Check was skipped
+  - For recurring `FAIL` results, see if they match a documented type in `scanner-false-positives.md` before suppressing or accepting the risk.
 
 ### Gitleaks Results
-- **Format**: JSON output
-- **Location**: `gitleaks-results.json` (in project root)
+- **Format**: JSON and CLI output
+- **Location**: `scanner-results/gitleaks-results.json`
 - **What to look for**:
   - Any findings indicate potential secrets
-  - Check if they're false positives
+  - Check if they're false positives using the Gitleaks section in `scanner-false-positives.md`
 
 ---
 

@@ -64,3 +64,13 @@ variable "lambda_function_arn" {
   default     = ""
 }
 
+variable "cognito_user_pool_arn" {
+  description = "ARN of the Cognito User Pool used for JWT authentication"
+  type        = string
+}
+
+variable "cognito_user_pool_client_id" {
+  description = "App client ID (audience) for the Cognito User Pool"
+  type        = string
+}
+

@@ -41,6 +41,24 @@ export interface APIError {
 }
 
 /**
+ * Retrieve the current auth token, if any.
+ * 
+ * This is intentionally simple: in a real deployment you would
+ * plug this into your Cognito login flow (e.g. store the ID token
+ * in localStorage after login or inject it via a custom provider).
+ */
+function getAuthToken(): string | null {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem('iamdash_id_token');
+    if (stored) return stored;
+  }
+
+  // Optional: allow injecting a static token via env for scripts/demo
+  const envToken = import.meta.env.VITE_API_AUTH_TOKEN as string | undefined;
+  return envToken ?? null;
+}
+
+/**
  * Make a request to the API Gateway
  */
 async function apiRequest<T>(
@@ -52,6 +70,11 @@ async function apiRequest<T>(
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
   };
+
+  const authToken = getAuthToken();
+  if (authToken) {
+    (defaultHeaders as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
+  }
 
   const response = await fetch(url, {
     ...options,

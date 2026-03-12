@@ -30,7 +30,8 @@ exclude-patterns = [
     "DevSecOps/opa-policies/**",
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
-    "docs/SCANNERS.md"
+    "docs/SCANNERS.md",
+    "DevSecOps/.gitleaks.toml"
 ]
 
 # Exclude specific directories
@@ -61,7 +62,21 @@ exclude-files = [
     "docs/**/*.md",
     "docker-compose.yml",
     "config/grafana/provisioning/datasources/datasources.yml",
-    "docs/SCANNERS.md"
+    "docs/SCANNERS.md",
+    "DevSecOps/.gitleaks.toml"
+]
+
+# Note: Do not add stopwords containing example keys (e.g. AKIAIOSFODNN7EXAMPLE).
+# Gitleaks can flag this config file when those strings appear in it; use path-based
+# allowlisting (e.g. [allowlist] paths) instead.
+
+# Path-based allowlist: ignore findings in these paths (fixtures, SDK examples, mock data only)
+[allowlist]
+description = "Paths with non-sensitive example keys and mock data"
+paths = [
+  '''infra/lambda/botocore/.*''',
+  '''infra/lambda/boto3/.*''',
+  '''src/components/SecurityHub\.tsx''',
 ]
 
 # Enable only essential security rules
