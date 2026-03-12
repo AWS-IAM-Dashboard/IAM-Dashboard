@@ -72,17 +72,22 @@ resource "aws_apigatewayv2_integration" "lambda" {
 ## 🔐 CORS Configuration
 
 Default CORS settings:
-- **Allowed Origins**: `["*"]` (configure via variable)
+- **Allowed Origins (dev)**: `["http://localhost:3000", "http://localhost:5173"]`
 - **Allowed Methods**: `["GET", "POST", "OPTIONS"]`
 - **Allowed Headers**: `["Content-Type", "Authorization"]`
 - **Max Age**: 3600 seconds
 
-Update via variables for production use:
+For non-local environments, override `cors_allowed_origins` via `terraform.tfvars` (or environment-specific tfvars files) to restrict access to only your approved frontend domains, for example:
+
 ```hcl
-variable "cors_allowed_origins" {
-  default = ["https://your-domain.com"]
-}
+cors_allowed_origins = [
+  "https://iam-dashboard.example.com",
+]
 ```
+
+As part of the S25 CORS configuration review, the API Gateway CORS configuration was updated to:
+- Remove the wildcard (`"*"`), avoiding overly broad access.
+- Explicitly scope allowed origins per environment using Terraform variables.
 
 ## 🏷️ Tags
 

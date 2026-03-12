@@ -1,0 +1,4 @@
+# List of vulnerability IDs to ignore (one per line).
+# Use only for documented, accepted exceptions. See docs/VULNERABILITY_SCANNING.md.
+# Example:
+# CVE-2024-12345

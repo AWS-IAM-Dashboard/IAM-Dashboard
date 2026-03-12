@@ -1,8 +1,26 @@
 # Dependabot configuration for IAM Dashboard
-# This file configures automated dependency updates
+# This file configures automated dependency updates.
+# PRs opened by Dependabot are checked by the Dependency Vulnerability Audit workflow;
+# high/critical vulns will block merge. See docs/VULNERABILITY_SCANNING.md.
 
 version: 2
 updates:
+  # Frontend (npm) dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "security-team"
+    assignees:
+      - "security-team"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
   # Python dependencies
   - package-ecosystem: "pip"
     directory: "/"

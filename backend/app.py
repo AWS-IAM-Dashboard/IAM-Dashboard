@@ -45,8 +45,15 @@ def create_app():
     app.config['REDIS_URL'] = os.environ.get(
         'REDIS_URL', 'redis://localhost:6379/0')
 
-    # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+    # Enable CORS for frontend integration.
+    # Comma-separated list of allowed origins, e.g. "https://iam-dashboard.example.com".
+    default_cors_origins = "http://localhost:3000,http://localhost:5173"
+    allowed_origins = [
+        origin.strip()
+        for origin in os.environ.get("CORS_ALLOWED_ORIGINS", default_cors_origins).split(",")
+        if origin.strip()
+    ]
+    CORS(app, origins=allowed_origins)
 
     # Initialize API
     api = Api(app, prefix='/api/v1')

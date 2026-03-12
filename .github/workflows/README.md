@@ -55,6 +55,12 @@ Before deploying, you must configure the following secrets in GitHub:
 - **Secrets Required**: None
 
 ### dependency-audit.yml
+- **Triggers**: Pull request and push to `main` and `develop`
+- **Actions**:
+  - **Frontend**: `npm audit` — fails when severity is high or critical (configurable via `NPM_AUDIT_LEVEL`)
+  - **Backend**: `pip-audit` on `requirements.txt` and `infra/lambda/requirements.txt` — fails on any vuln unless listed in `.github/pip-audit-ignore.txt`
+- **Purpose**: Block PRs when known dependency vulnerabilities are present. See [docs/VULNERABILITY_SCANNING.md](../docs/VULNERABILITY_SCANNING.md) for resolving and suppressing findings.
+- **Secrets Required**: None
 - **Triggers**: Invoked by `deploy.yml` on Push or Pull_Request
 - **Actions**: 
    - Scans the Frontend dependencies for vulnerabilities using NPM
