@@ -1,0 +1,113 @@
+{
+  "Id": "key-consolepolicy-3",
+  "Statement": [
+    {
+      "Action": "kms:*",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::562559071105:root"
+      },
+      "Resource": "*",
+      "Sid": "Enable IAM User Permissions"
+    },
+    {
+      "Action": [
+        "kms:Create*",
+        "kms:Describe*",
+        "kms:Enable*",
+        "kms:List*",
+        "kms:Put*",
+        "kms:Update*",
+        "kms:Revoke*",
+        "kms:Disable*",
+        "kms:Get*",
+        "kms:Delete*",
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:ScheduleKeyDeletion",
+        "kms:CancelKeyDeletion",
+        "kms:RotateKeyOnDemand"
+      ],
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::562559071105:user/cyber-alvin",
+          "arn:aws:iam::562559071105:user/cyber-Akif",
+          "arn:aws:iam::562559071105:user/cyber-Dev",
+          "arn:aws:iam::562559071105:user/iamadmin",
+          "arn:aws:iam::562559071105:user/cyber-Alexa"
+        ]
+      },
+      "Resource": "*",
+      "Sid": "Allow access for Key Administrators"
+    },
+    {
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
+      ],
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::562559071105:user/cyber-alvin",
+          "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+          "arn:aws:iam::562559071105:user/cyber-Akif",
+          "arn:aws:iam::562559071105:user/cyber-Dev",
+          "arn:aws:iam::562559071105:user/iamadmin",
+          "arn:aws:iam::562559071105:user/cyber-Alexa"
+        ]
+      },
+      "Resource": "*",
+      "Sid": "Allow use of the key"
+    },
+    {
+      "Action": [
+        "kms:CreateGrant",
+        "kms:ListGrants",
+        "kms:RevokeGrant"
+      ],
+      "Condition": {
+        "Bool": {
+          "kms:GrantIsForAWSResource": "true"
+        }
+      },
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::562559071105:user/cyber-alvin",
+          "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+          "arn:aws:iam::562559071105:user/cyber-Akif",
+          "arn:aws:iam::562559071105:user/cyber-Dev",
+          "arn:aws:iam::562559071105:user/iamadmin",
+          "arn:aws:iam::562559071105:user/cyber-Alexa"
+        ]
+      },
+      "Resource": "*",
+      "Sid": "Allow attachment of persistent resources"
+    },
+    {
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "kms:EncryptionContext:aws:logs:arn": "arn:aws:logs:us-east-1:562559071105:log-group:/aws/apigwv2/iam-dashboard-api/v1/access"
+        }
+      },
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "logs.us-east-1.amazonaws.com"
+      },
+      "Resource": "*",
+      "Sid": "Allow CloudWatch Logs use for API Gateway access logs"
+    }
+  ],
+  "Version": "2012-10-17"
+}

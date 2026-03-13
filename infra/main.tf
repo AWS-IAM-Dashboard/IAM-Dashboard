@@ -23,7 +23,9 @@ provider "aws" {
   region = var.aws_region
 }
 
-resource "aws_kms_key" "IAM_Dashboard_Key" {}
+resource "aws_kms_key" "IAM_Dashboard_Key" {
+  policy = file("${path.module}/kms_policy.json")
+}
 
 # S3 Module
 module "s3" {
