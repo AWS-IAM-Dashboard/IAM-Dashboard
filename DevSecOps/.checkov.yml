@@ -44,8 +44,7 @@ skip-check:
   - CKV_AWS_290 # Does not allow write access without constraints
   - CKV2_AWS_40 # Does not allow of for full IAM privileges
   - CKV_AWS_145 # KMS encryption is not needed for a static hosting bucket. Enabling it could cause users to not access the website. (May be changed later)
-  - CKV_AWS_119 # Enforces DynamoDB tables to be encrypted with KMS. Temporarily disabled until KMS is added
-  # CKV_AWS_173 # Enforces that environment variables are encrypted with KMS. Temporarily disabled until KMS is added
+  # CKV_AWS_119 # Enforces DynamoDB tables to be encrypted with KMS. Temporarily disabled until KMS is added
   - CKV_AWS_7 # Ensures KMS keys have key rotation enabled, temporarily skipped
   - CKV2_AWS_64 # Emsures that KMS keys have key policies encoded in terraform, temporarily skipped
 

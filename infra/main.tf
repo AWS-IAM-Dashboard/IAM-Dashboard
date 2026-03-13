@@ -46,6 +46,7 @@ module "dynamodb" {
   environment                   = var.environment
   project_name                  = var.project_name
   dynamodb_table_name           = var.dynamodb_table_name
+  dynamodb_kms_key_arn          = aws_kms_key.IAM_Dashboard_Key.arn
   enable_point_in_time_recovery = true
 }
 

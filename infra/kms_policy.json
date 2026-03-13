@@ -128,6 +128,33 @@
       },
       "Resource": "*",
       "Sid": "Allow Lambda use of the key for environment encryption"
+    },
+    {
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey",
+        "kms:CreateGrant"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "aws:SourceArn": "arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-scan-results"
+        },
+        "StringEquals": {
+          "kms:CallerAccount": "562559071105",
+          "kms:EncryptionContext:aws:dynamodb:subscriberId": "562559071105",
+          "kms:EncryptionContext:aws:dynamodb:tableName": "iam-dashboard-scan-results",
+          "kms:ViaService": "dynamodb.us-east-1.amazonaws.com"
+        }
+      },
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "dynamodb.us-east-1.amazonaws.com"
+      },
+      "Resource": "*",
+      "Sid": "Allow DynamoDB use of the key for scan results table encryption"
     }
   ],
   "Version": "2012-10-17"

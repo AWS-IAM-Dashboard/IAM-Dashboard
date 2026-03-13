@@ -55,7 +55,8 @@ resource "aws_dynamodb_table" "scan_results" {
 
   # Server-side encryption
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = var.dynamodb_kms_key_arn
   }
 
   # Enable deletion protection in production
