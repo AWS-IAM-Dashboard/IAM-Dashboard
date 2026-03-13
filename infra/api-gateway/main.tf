@@ -36,6 +36,7 @@ resource "aws_apigatewayv2_api" "api" {
 # CloudWatch log group for API Gateway access logs
 resource "aws_cloudwatch_log_group" "apigw_access" {
   name              = "/aws/apigwv2/${var.api_gateway_name}/${var.stage_name}/access"
+  kms_key_id        = var.kms_key_arn
   retention_in_days = 365
 
   tags = {

@@ -9,7 +9,7 @@ on:
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ feature/devops/fix-terraform-apply ]
+    branches: [ feature/devops/fix-terraform-apply, main ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply-test.yml"
@@ -64,7 +64,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [devsecops_scan, plan]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     defaults:
       run:

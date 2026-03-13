@@ -25,11 +25,6 @@ provider "aws" {
 
 resource "aws_kms_key" "IAM_Dashboard_Key" {}
 
-import {
-  to = aws_kms_key.IAM_Dashboard_Key
-  id = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
-}
-
 # S3 Module
 module "s3" {
   source = "./s3"
@@ -71,6 +66,7 @@ module "api_gateway" {
   aws_region   = var.aws_region
   environment  = var.environment
   project_name = var.project_name
+  kms_key_arn  = aws_kms_key.IAM_Dashboard_Key.arn
 }
 
 # GitHub Actions OIDC Module
