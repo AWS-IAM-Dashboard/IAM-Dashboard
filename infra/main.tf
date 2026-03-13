@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.12.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -21,6 +21,13 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+}
+
+resource "aws_kms_key" "IAM_Dashboard_Key" {}
+
+import {
+  to = aws_kms_key.IAM_Dashboard_Key
+  id = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
 }
 
 # S3 Module
