@@ -59,6 +59,7 @@ module "lambda" {
   lambda_function_name = var.lambda_function_name
   dynamodb_table_name  = var.dynamodb_table_name
   s3_bucket_name       = var.s3_bucket_name
+  lambda_kms_key_arn   = aws_kms_key.IAM_Dashboard_Key.arn
 }
 
 # API Gateway Module

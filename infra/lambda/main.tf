@@ -66,6 +66,7 @@ resource "aws_lambda_function" "scanner" {
   architectures                  = [var.lambda_architecture]
   timeout                        = var.lambda_timeout
   memory_size                    = var.lambda_memory_size
+  kms_key_arn                    = var.lambda_kms_key_arn
   reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   # Source code hash will force update when code changes

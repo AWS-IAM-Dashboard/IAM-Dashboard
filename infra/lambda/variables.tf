@@ -68,10 +68,10 @@ variable "lambda_environment_variables" {
   default     = {}
 }
 
-# variable "lambda_kms_key_arn" {
-#   description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
-#   type        = string
-# }
+variable "lambda_kms_key_arn" {
+  description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
+  type        = string
+}
 
 variable "enable_xray_tracing" {
   description = "Enable AWS X-Ray tracing for the Lambda function"

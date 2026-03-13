@@ -107,6 +107,27 @@
       },
       "Resource": "*",
       "Sid": "Allow CloudWatch Logs use for API Gateway access logs"
+    },
+    {
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey",
+        "kms:CreateGrant"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "kms:EncryptionContext:LambdaFunctionArn": "arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-scanner"
+        }
+      },
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.us-east-1.amazonaws.com"
+      },
+      "Resource": "*",
+      "Sid": "Allow Lambda use of the key for environment encryption"
     }
   ],
   "Version": "2012-10-17"
