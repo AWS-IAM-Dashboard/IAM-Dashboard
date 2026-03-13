@@ -151,7 +151,7 @@
       },
       "Effect": "Allow",
       "Principal": {
-        "Service": "dynamodb.us-east-1.amazonaws.com"
+        "Service": "dynamodb.amazonaws.com"
       },
       "Resource": "*",
       "Sid": "Allow DynamoDB use of the key for scan results table encryption"
