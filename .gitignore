@@ -151,6 +151,7 @@ infra/lambda/six.py
 
 # IAM roles (local/dev)
 infra/iam-roles/
+kms_policy.json
 
 # Kubernetes
 *.kubeconfig
