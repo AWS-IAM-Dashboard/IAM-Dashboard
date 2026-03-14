@@ -422,6 +422,7 @@ This deploys Lambda, DynamoDB, S3, API Gateway, and GitHub Actions OIDC. See [in
 
 - [Team Setup Guide](docs/onboarding/TEAM_SETUP.md) - Complete team onboarding
 - [Security Scanning Guide](docs/security/SCANNERS.md) - DevSecOps scanning setup
+- [IAM Finding Scoring Model](docs/security/SCORING.md) - How IAM findings are scored (Critical/High/Medium/Low) using impact and likelihood; for auditors and maintainers
 - [AWS Workflow](docs/onboarding/AWS-Workflow.md) - AWS integration workflow
 - [Contributing Guide](docs/onboarding/CONTRIBUTING.md) - How to contribute to the project
 - [Security Policies](DevSecOps/SECURITY.md) - Security policies and practices
