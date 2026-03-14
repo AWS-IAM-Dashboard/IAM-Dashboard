@@ -19,7 +19,8 @@ import {
   DollarSign,
   Monitor,
   Search,
-  Eye
+  Eye,
+  BadgeCheck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -37,8 +38,11 @@ const navItems = [
   { id: "macie", label: "Macie", icon: Eye },
   { id: "separator-resources", label: "", icon: null, type: "separator" },
   { id: "iam-security", label: "IAM & Access Control", icon: Users },
+  { id: "access-analyzer", label: "Access Analyzer", icon: BadgeCheck },
   { id: "ec2-security", label: "EC2 & Compute", icon: Cloud },
   { id: "s3-security", label: "S3 & Storage", icon: HardDrive },
+  { id: "vpc-security", label: "VPC & Network", icon: Network },
+  { id: "dynamodb-security", label: "DynamoDB", icon: Database },
   { id: "separator-other", label: "", icon: null, type: "separator" },
   { id: "alerts", label: "Security Alerts", icon: AlertTriangle },
   { id: "compliance", label: "Compliance Dashboard", icon: Shield },
