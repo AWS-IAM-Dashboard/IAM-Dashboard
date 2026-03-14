@@ -184,3 +184,6 @@ lambda_function.zip
 lambda-out/
 npm-cache/
 nul
+
+# File I use to think
+temp.txt
