@@ -24,7 +24,6 @@ provider "aws" {
 }
 
 resource "aws_kms_key" "IAM_Dashboard_Key" {
-  policy              = file("${path.module}/kms_policy.json")
   enable_key_rotation = true
 }
 

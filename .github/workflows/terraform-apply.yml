@@ -2,14 +2,14 @@ name: Terraform Apply (infra)
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, feature/devops/terraform-apply-fixed ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply.yml"
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ main ]
+    branches: [ main, feature/devops/terraform-apply-fixed ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply.yml"
@@ -64,7 +64,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [devsecops_scan, plan]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     defaults:
       run:
