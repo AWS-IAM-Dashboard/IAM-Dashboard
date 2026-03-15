@@ -51,6 +51,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
     id     = "default-lifecycle"
     status = "Enabled"
 
+    filter {} # required: apply to whole bucket
+
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
