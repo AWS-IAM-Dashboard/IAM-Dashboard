@@ -33,6 +33,10 @@ jobs:
     name: Terraform Plan
     needs: devsecops_scan
     runs-on: ubuntu-latest
+    env:
+      # KMS key alias or ID used by the KMS data source in infra/.
+      # Set this secret in GitHub as KMS_KEY_ID (e.g. alias/IAM-Dashboard-Keys).
+      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
     defaults:
       run:
         working-directory: infra
@@ -66,6 +70,9 @@ jobs:
     needs: [devsecops_scan, plan]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    env:
+      # Use the same KMS key alias/ID for apply as for plan.
+      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
     defaults:
       run:
         working-directory: infra
