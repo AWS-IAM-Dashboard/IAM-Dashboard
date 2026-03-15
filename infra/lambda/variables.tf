@@ -80,7 +80,7 @@ variable "enable_xray_tracing" {
 }
 
 variable "lambda_reserved_concurrency" {
-  description = "Reserved concurrency limit for the Lambda function (0 = use account unreserved pool; set to 5+ only if account has enough quota)"
+  description = "Reserved concurrency limit for the Lambda function (null = use account unreserved pool)"
   type        = number
   default     = null
   validation {

@@ -32,14 +32,16 @@ resource "aws_s3_bucket_versioning" "frontend" {
   }
 }
 
-# S3 bucket server-side encryption (KMS for consistency with DynamoDB, Lambda, API Gateway logs)
+# S3 bucket server-side encryption
+# NOTE: This bucket serves a public static website via the S3 website endpoint.
+# Using SSE-S3 (AES256) avoids requiring KMS Decrypt for anonymous users, which
+# would break public access. Use KMS on non-public buckets instead.
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.s3_kms_key_arn
+      sse_algorithm = "AES256"
     }
   }
 }

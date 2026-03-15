@@ -86,4 +86,7 @@ module "github_actions" {
   scan_results_s3_bucket_name = var.scan_results_s3_bucket_name
   lambda_function_name        = var.lambda_function_name
   dynamodb_table_name         = var.dynamodb_table_name
+  # So CI can use Terraform backend (state bucket + lock table)
+  terraform_state_bucket     = "iam-dashboard-terraform-state"
+  terraform_state_lock_table = "terraform-state-lock"
 }
