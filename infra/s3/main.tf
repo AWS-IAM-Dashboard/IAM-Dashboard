@@ -32,13 +32,14 @@ resource "aws_s3_bucket_versioning" "frontend" {
   }
 }
 
-# S3 bucket server-side encryption
+# S3 bucket server-side encryption (KMS for consistency with DynamoDB, Lambda, API Gateway logs)
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = var.s3_kms_key_arn
     }
   }
 }
