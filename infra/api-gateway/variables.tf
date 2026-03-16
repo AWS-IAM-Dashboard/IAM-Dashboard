@@ -29,9 +29,9 @@ variable "stage_name" {
 }
 
 variable "cors_allowed_origins" {
-  description = "List of allowed CORS origins"
+  description = "List of allowed CORS origins (frontend uses http://localhost:3001 in dev)"
   type        = list(string)
-  default     = ["*"]
+  default     = ["http://localhost:3001", "http://localhost:5173"]
 }
 
 variable "cors_allowed_methods" {

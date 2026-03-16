@@ -289,6 +289,33 @@ If OPA policies seem too strict:
 
 ---
 
+## IAM Scanner tuning (false-positive reduction)
+
+The IAM scanner used by the dashboard (Lambda: `infra/lambda/lambda_function.py`, function `scan_iam`) supports optional parameters to reduce known false positives identified in **S1**.
+
+### Defaults (safe for dev/demo)
+
+- **Service-linked roles suppressed**: AWS-managed roles (e.g. `AWSServiceRoleFor*` and ARNs containing `:role/aws-service-role/`) are excluded unless explicitly enabled.
+- **Test/demo resources suppressed**: identities/roles starting with `test-` or `demo-` are excluded (these are commonly created by `scripts/create-iam-test-resources.sh`).
+- **Demo identity best-practice findings suppressed in non-prod**: user names starting with prefixes in `demo_identity_prefixes` (default `["cyber-"]`) are excluded when `ENVIRONMENT != "prod"`.
+
+### Request parameters (JSON)
+
+Pass these in the body of the scan request (e.g. `POST /scan/iam`):
+
+- **`suppress_service_linked_roles`**: boolean (default `true`)
+- **`suppress_test_resources`**: boolean (default `true`)
+- **`suppress_demo_identity_findings`**: boolean (default `true` when `ENVIRONMENT != "prod"`)
+- **`demo_identity_prefixes`**: string[] (default `["cyber-"]`)
+- **`scope_name_prefixes`**: string[] (optional). If set, only include users/roles whose names start with one of these prefixes.
+- **`scope_tag_key`** / **`scope_tag_value`**: strings (optional). If set, only include users/roles whose IAM tags match this key/value.
+
+### Why this exists
+
+These knobs apply the S1 false-positive catalog so findings focus on actionable project-owned roles/users rather than AWS-managed service roles, intentional test fixtures, or demo identities.
+
+---
+
 ## Getting Help
 
 ### Resources
