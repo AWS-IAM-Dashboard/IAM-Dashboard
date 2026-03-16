@@ -258,6 +258,47 @@ def _cors_response_headers(event: Optional[Dict[str, Any]]) -> Dict[str, str]:
         headers['Vary'] = 'Origin'
     return headers
 
+def is_service_linked_role(role_name: str, role_arn: str) -> bool:
+    """
+    AWS service-linked roles are AWS-managed and generally not actionable:
+    - Name often starts with AWSServiceRoleFor*
+    - ARN path usually contains :role/aws-service-role/
+    """
+    rn = (role_name or "").strip()
+    ra = (role_arn or "").strip()
+    return rn.startswith("AWSServiceRoleFor") or (":role/aws-service-role/" in ra)
+
+def is_test_resource(name: str) -> bool:
+    """Heuristic for intentional test/demo resources created by project scripts."""
+    n = (name or "").strip().lower()
+    return n.startswith("test-") or n.startswith("demo-")
+
+def is_demo_identity(name: str, scan_params: Dict[str, Any]) -> bool:
+    """
+    Heuristic for lab/demo identities that are expected to violate best practices.
+    Kept intentionally configurable to avoid hiding real production issues.
+    """
+    prefixes = scan_params.get("demo_identity_prefixes")
+    if not isinstance(prefixes, list) or not prefixes:
+        prefixes = ["cyber-"]
+    nn = (name or "").strip().lower()
+    return any(nn.startswith(str(p).lower()) for p in prefixes)
+
+def _tags_match(tags: list, key: str, value: str) -> bool:
+    if not key or value is None:
+        return False
+    for t in tags or []:
+        if t.get("Key") == key and t.get("Value") == value:
+            return True
+    return False
+
+def is_in_scope_by_name(name: str, scan_params: Dict[str, Any]) -> bool:
+    prefixes = scan_params.get("scope_name_prefixes")
+    if not isinstance(prefixes, list) or not prefixes:
+        return True  # no scoping requested
+    nn = (name or "").strip().lower()
+    return any(nn.startswith(str(p).lower()) for p in prefixes)
+
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
     """Publish a custom CloudWatch metric"""
@@ -1115,6 +1156,12 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
     """Scan IAM for security issues"""
     try:
         logger.info(f"Scanning IAM in region: {region}")
+        scan_params = scan_params or {}
+        suppress_service_linked = bool(scan_params.get("suppress_service_linked_roles", True))
+        suppress_test_resources = bool(scan_params.get("suppress_test_resources", True))
+        suppress_demo_identities = bool(scan_params.get("suppress_demo_identity_findings", ENVIRONMENT != "prod"))
+        scope_tag_key = scan_params.get("scope_tag_key")
+        scope_tag_value = scan_params.get("scope_tag_value")
         
         # List users
         users = iam.list_users()
@@ -1138,6 +1185,22 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             user_arn = user.get('Arn', f'arn:aws:iam::{account_id}:user/{user_name}')
             
             try:
+                if suppress_test_resources and is_test_resource(user_name):
+                    continue
+                if suppress_demo_identities and is_demo_identity(user_name, scan_params):
+                    # Demo/lab identities are expected to be noncompliant; suppress to reduce noise.
+                    continue
+                if not is_in_scope_by_name(user_name, scan_params):
+                    continue
+                if scope_tag_key and scope_tag_value:
+                    try:
+                        user_tags = iam.list_user_tags(UserName=user_name).get("Tags", [])
+                        if not _tags_match(user_tags, str(scope_tag_key), str(scope_tag_value)):
+                            continue
+                    except ClientError:
+                        # If we can't read tags, fall back to name-only scoping.
+                        pass
+
                 # Check MFA
                 mfa_devices = iam.list_mfa_devices(UserName=user_name)
                 if not mfa_devices.get('MFADevices'):
@@ -1270,6 +1333,20 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             role_arn = role.get('Arn', f'arn:aws:iam::{account_id}:role/{role_name}')
             
             try:
+                if suppress_test_resources and is_test_resource(role_name):
+                    continue
+                if suppress_service_linked and is_service_linked_role(role_name, role_arn):
+                    continue
+                if not is_in_scope_by_name(role_name, scan_params):
+                    continue
+                if scope_tag_key and scope_tag_value:
+                    try:
+                        role_tags = iam.list_role_tags(RoleName=role_name).get("Tags", [])
+                        if not _tags_match(role_tags, str(scope_tag_key), str(scope_tag_value)):
+                            continue
+                    except ClientError:
+                        pass
+
                 # Get role details including trust policy
                 role_details = iam.get_role(RoleName=role_name)
                 assume_role_policy = role_details.get('Role', {}).get('AssumeRolePolicyDocument', {})
