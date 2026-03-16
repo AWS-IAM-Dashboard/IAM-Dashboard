@@ -58,6 +58,12 @@ variable "dynamodb_table_name" {
   default     = "iam-dashboard-scan-results"
 }
 
+variable "lambda_artifacts_s3_bucket_name" {
+  description = "S3 bucket name for Lambda deployment artifacts (code signing)"
+  type        = string
+  default     = "iam-dashboard-lambda-artifacts"
+}
+
 variable "terraform_state_bucket" {
   description = "S3 bucket name for Terraform state (optional)"
   type        = string
