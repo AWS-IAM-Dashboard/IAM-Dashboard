@@ -15,7 +15,6 @@ from prometheus_client import (
 )
 
 # Metric definitions (module-level singletons)
-
 REQUEST_COUNT = Counter(
     "http_requests_total",
     "Total HTTP request count",
@@ -30,7 +29,6 @@ REQUEST_LATENCY = Histogram(
 )
 
 # Request hooks — attach to the Flask app via register_metrics_hooks()
-
 def _before_request():
     """Store request start time on Flask's g object."""
     g._metrics_start = time.perf_counter()
@@ -57,11 +55,8 @@ def register_metrics_hooks(app):
     app.after_request(_after_request)
 
 
-# ---------------------------------------------------------------------------
 # Resource — uses make_response so Flask-RESTful passes the response through
 # as-is without attempting JSON serialization of the Prometheus text output
-# ---------------------------------------------------------------------------
-
 class MetricsResource(Resource):
     """Expose Prometheus metrics at /api/v1/metrics."""
 
