@@ -52,3 +52,16 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
+# Existing KMS key: alias or key ID. Use so Terraform does not create a key (CI has no kms:CreateKey).
+# IMPORTANT: Do not hard-code real key IDs or aliases in code; set per-environment via
+# TF_VAR_kms_key_id, terraform.tfvars (not committed), or CI environment/secrets.
+variable "kms_key_id" {
+  description = "ID or alias of the existing KMS key (e.g. alias/iamdash-prod-logs)"
+  type        = string
+  default     = ""
+  validation {
+    condition     = length(var.kms_key_id) > 0
+    error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
+  }
+}
+

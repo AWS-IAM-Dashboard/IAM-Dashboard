@@ -38,4 +38,3 @@ variable "dynamodb_kms_key_arn" {
   description = "ARN of the shared/root KMS CMK to use for DynamoDB table encryption"
   type        = string
 }
-
