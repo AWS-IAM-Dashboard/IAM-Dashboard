@@ -44,6 +44,7 @@ skip-check:
   - CKV_AWS_355 # Does not allow * for statement resource. Skipping because the GitHub user needs admin privileges
   - CKV_AWS_290 # Does not allow write access without constraints
   - CKV2_AWS_40 # Does not allow of for full IAM privileges
+  - CKV_AWS_145 # KMS encryption is not needed for a static hosting bucket. Enabling it could cause users to not access the website. (May be changed later)
 
 # Optional: keep summary at top
 summary-position: top

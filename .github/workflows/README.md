@@ -67,9 +67,20 @@ Before deploying, you must configure the following secrets in GitHub:
    - Lambda requirements.txt -> [infra/lmabda/requirements.txt](../../infra/lambda/requirements.txt)
    - Root requirements.txt -> [./requirements.txt](../../requirements.txt)
 
+### terraform-apply.yml
+-  **Triggers**: Push and Pull_Request to `main` branch
+-  **Actions**:
+   - Scans for changes in the `infra/` directory
+   - Invokes DevSecOps workflow
+   - Runs `terraform plan`
+   - If DevSecOps and terraform plan are successful, runs `terraform apply` and updates infrastructure in console
+-  **Secrets Required**: `AWS_ROLE_ARN` environment variable
+-  **Docs**: Check out the workflow yaml [terraform-apply.yml](../workflows/terraform-apply.yml)
+
 ## 🔒 Security Notes
 
 - Never commit AWS account IDs or ARNs directly in workflow files
 - Always use GitHub Secrets for sensitive values
 - The OIDC provider ensures GitHub Actions can only assume the role from your repository
+
 

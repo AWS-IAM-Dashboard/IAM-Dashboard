@@ -98,4 +98,3 @@ resource "aws_lambda_function" "scanner" {
 
   depends_on = [aws_iam_role_policy.lambda_policy]
 }
-
