@@ -50,7 +50,7 @@ def create_app():
         'REDIS_URL', 'redis://localhost:6379/0')
 
     # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+    CORS(app, origins=['http://localhost:3001', 'http://localhost:5173'])
 
     # Register metrics collection hooks
     register_metrics_hooks(app)
