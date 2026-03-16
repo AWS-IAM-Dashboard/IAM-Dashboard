@@ -162,6 +162,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend_logs" {
     id     = "expire-access-logs"
     status = "Enabled"
 
+    # Apply this rule to all objects in the logging bucket
+    filter {}
+
     expiration {
       days = 90
     }
