@@ -35,11 +35,12 @@ data "aws_kms_key" "logs" {
 module "s3" {
   source = "./s3"
 
-  aws_region     = var.aws_region
-  environment    = var.environment
-  project_name   = var.project_name
-  s3_bucket_name = var.s3_bucket_name
-  s3_kms_key_arn = data.aws_kms_key.logs.arn
+  aws_region             = var.aws_region
+  environment            = var.environment
+  project_name           = var.project_name
+  s3_bucket_name         = var.s3_bucket_name
+  s3_kms_key_arn         = data.aws_kms_key.logs.arn
+  s3_logging_bucket_name = "${var.s3_bucket_name}-access-logs"
 }
 
 # DynamoDB Module
