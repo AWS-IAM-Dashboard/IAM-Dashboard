@@ -72,7 +72,8 @@ resource "aws_iam_role_policy" "github_actions_s3_policy" {
         ]
         Resource = [
           "arn:aws:s3:::${var.frontend_s3_bucket_name}",
-          "arn:aws:s3:::${var.scan_results_s3_bucket_name}"
+          "arn:aws:s3:::${var.scan_results_s3_bucket_name}",
+          "arn:aws:s3:::${var.lambda_artifacts_s3_bucket_name}"
         ]
       },
       {
@@ -88,7 +89,8 @@ resource "aws_iam_role_policy" "github_actions_s3_policy" {
         ]
         Resource = [
           "arn:aws:s3:::${var.frontend_s3_bucket_name}/*",
-          "arn:aws:s3:::${var.scan_results_s3_bucket_name}/*"
+          "arn:aws:s3:::${var.scan_results_s3_bucket_name}/*",
+          "arn:aws:s3:::${var.lambda_artifacts_s3_bucket_name}/*"
         ]
       }
     ]
@@ -128,6 +130,28 @@ resource "aws_iam_role_policy" "github_actions_lambda_policy" {
           "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}",
           "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}:*"
         ]
+      }
+    ]
+  })
+}
+
+# Policy for AWS Signer (Lambda code signing)
+resource "aws_iam_role_policy" "github_actions_signer_policy" {
+  name = "${var.github_actions_role_name}-signer-policy"
+  role = aws_iam_role.github_actions_deployer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "signer:StartSigningJob",
+          "signer:DescribeSigningJob",
+          "signer:GetSigningProfile",
+          "signer:ListSigningProfiles"
+        ]
+        Resource = "*"
       }
     ]
   })

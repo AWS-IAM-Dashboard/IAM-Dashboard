@@ -35,7 +35,6 @@ skip-check:
   - CKV_AWS_3
   - CKV_AWS_309 # API Gateway Authorization type. Ignored temporarily until Cognito is added
   - CKV_AWS_117 # Mandates that Lambda is launched in a VPC. Less security and more architectural preference
-  - CKV_AWS_272 # Enforces Lambda to use Code Signing. This is a large architecture change, and isn't strictly necessary. Might add in the future.
   - CKV_AWS_116 # Forces Lambda to be connected an SQS Dead Letter Queue. Since Lambda is connected to APIGateway, this isn't strictly necessary.
   - CKV_AWS_144 # Cross-region replication is an architecture/DR roadmap item and is not required for the current project.
   - CKV_AWS_70  # Public read is required for S3 static website hosting in this architecture (no CloudFront).

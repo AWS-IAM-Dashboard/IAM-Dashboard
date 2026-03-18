@@ -23,3 +23,13 @@ output "lambda_role_name" {
   value       = aws_iam_role.lambda_role.name
 }
 
+output "signing_profile_name" {
+  description = "Name of the AWS Signer signing profile for Lambda"
+  value       = aws_signer_signing_profile.lambda.name
+}
+
+output "lambda_artifacts_bucket" {
+  description = "S3 bucket for Lambda deployment artifacts (code signing)"
+  value       = aws_s3_bucket.lambda_artifacts.bucket
+}
+

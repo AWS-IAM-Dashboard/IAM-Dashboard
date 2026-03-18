@@ -47,6 +47,7 @@ jobs:
         echo "lambda_function=iam-dashboard-scanner" >> $GITHUB_OUTPUT
         echo "s3_bucket=iam-dashboard-project" >> $GITHUB_OUTPUT
         echo "cloudfront_id=" >> $GITHUB_OUTPUT
+        echo "artifacts_bucket=IAMDash-lambda-artifacts" >> $GITHUB_OUTPUT
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -84,15 +85,71 @@ jobs:
         docker buildx rm lambda-builder 2>/dev/null || true
         echo "Lambda package: lambda-out/lambda_function.zip"
 
-    - name: Deploy Lambda Function
+    - name: Upload Lambda artifact to S3
+      id: upload-artifact
       run: |
-        LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
-        if [ -z "$LAMBDA_FUNCTION_NAME" ]; then
-          echo "No Lambda function name found, using default: iam-dashboard-scanner"
-          LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
+        BUCKET="${{ steps.deployment-vars.outputs.artifacts_bucket }}"
+        KEY="unsigned/lambda_function_$(date +%Y%m%d%H%M%S).zip"
+        echo "Uploading unsigned Lambda package to s3://${BUCKET}/${KEY}"
+        aws s3 cp lambda-out/lambda_function.zip "s3://${BUCKET}/${KEY}"
+        VERSION_ID=$(aws s3api head-object \
+          --bucket "${BUCKET}" --key "${KEY}" \
+          --query 'VersionId' --output text)
+        echo "s3_key=${KEY}" >> $GITHUB_OUTPUT
+        echo "s3_version_id=${VERSION_ID}" >> $GITHUB_OUTPUT
+
+    - name: Sign Lambda artifact with AWS Signer
+      id: sign-artifact
+      run: |
+        BUCKET="${{ steps.deployment-vars.outputs.artifacts_bucket }}"
+        KEY="${{ steps.upload-artifact.outputs.s3_key }}"
+        VERSION="${{ steps.upload-artifact.outputs.s3_version_id }}"
+
+        # Discover the signing profile
+        PROFILE=$(aws signer list-signing-profiles \
+          --query "profiles[?platformId=='AWSLambda-SHA384-ECDSA'].profileName | [0]" \
+          --output text)
+        echo "Using signing profile: ${PROFILE}"
+
+        # Start signing job
+        JOB_ID=$(aws signer start-signing-job \
+          --source "s3={bucketName=${BUCKET},key=${KEY},version=${VERSION}}" \
+          --destination "s3={bucketName=${BUCKET},prefix=signed/}" \
+          --profile-name "${PROFILE}" \
+          --query 'jobId' --output text)
+        echo "Signing job started: ${JOB_ID}"
+
+        # Wait for signing to complete (up to 150s)
+        for i in $(seq 1 30); do
+          STATUS=$(aws signer describe-signing-job --job-id "${JOB_ID}" \
+            --query 'status' --output text)
+          echo "  Attempt ${i}: status=${STATUS}"
+          if [ "${STATUS}" = "Succeeded" ]; then
+            SIGNED_KEY=$(aws signer describe-signing-job --job-id "${JOB_ID}" \
+              --query 'signedObject.s3.key' --output text)
+            echo "signed_s3_key=${SIGNED_KEY}" >> $GITHUB_OUTPUT
+            break
+          elif [ "${STATUS}" = "Failed" ]; then
+            echo "::error::Signing job failed"
+            aws signer describe-signing-job --job-id "${JOB_ID}"
+            exit 1
+          fi
+          sleep 5
+        done
+
+        if [ "${STATUS}" != "Succeeded" ]; then
+          echo "::error::Signing job timed out after 150 seconds"
+          exit 1
         fi
-        echo "Updating Lambda function $LAMBDA_FUNCTION_NAME"
+
+    - name: Deploy signed Lambda function
+      run: |
+        BUCKET="${{ steps.deployment-vars.outputs.artifacts_bucket }}"
+        SIGNED_KEY="${{ steps.sign-artifact.outputs.signed_s3_key }}"
+        FUNCTION="${{ steps.deployment-vars.outputs.lambda_function }}"
+        echo "Deploying signed artifact from s3://${BUCKET}/${SIGNED_KEY}"
         aws lambda update-function-code \
-          --function-name "$LAMBDA_FUNCTION_NAME" \
-          --zip-file fileb://lambda-out/lambda_function.zip
-        echo "Lambda function deployed successfully"
+          --function-name "${FUNCTION}" \
+          --s3-bucket "${BUCKET}" \
+          --s3-key "${SIGNED_KEY}"
+        echo "Lambda function deployed with signed code successfully"
