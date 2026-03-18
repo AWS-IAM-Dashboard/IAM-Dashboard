@@ -1,0 +1,41 @@
+{
+  "suppression": {
+    "enabled": true,
+    "suppressSeverities": ["low", "informational", "info"],
+    "fieldMatches": []
+  },
+  "deduplication": {
+    "enabled": true,
+    "identityStrategies": [
+      {
+        "requiredFields": ["rule_id", "resource_id"],
+        "fingerprintFields": ["rule_id", "resource_id"]
+      },
+      {
+        "requiredFields": ["rule_id", "resource_arn"],
+        "fingerprintFields": ["rule_id", "resource_arn"]
+      },
+      {
+        "requiredFields": ["finding_type", "resource_id"],
+        "fingerprintFields": ["finding_type", "resource_id"]
+      },
+      {
+        "requiredFields": ["finding_type", "resource_arn"],
+        "fingerprintFields": ["finding_type", "resource_arn"]
+      },
+      {
+        "requiredFields": ["finding_type", "title"],
+        "fingerprintFields": ["finding_type", "title"]
+      },
+      {
+        "requiredFields": ["title", "resource_id"],
+        "fingerprintFields": ["title", "resource_id"]
+      },
+      {
+        "requiredFields": ["title", "resource_arn"],
+        "fingerprintFields": ["title", "resource_arn"]
+      }
+    ]
+  }
+}
+

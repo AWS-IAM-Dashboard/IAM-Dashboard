@@ -27,6 +27,7 @@ import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { useScanResults } from "../context/ScanResultsContext";
 import { maskSensitiveData } from "../utils/security";
+import { getDedupKey } from "../utils/findingsDedup";
 
 interface SecurityAlert {
   id: string;
@@ -161,6 +162,7 @@ export function CloudSecurityAlerts() {
   // Transform scan findings into SecurityAlert format
   const alerts = useMemo(() => {
     const allAlerts: SecurityAlert[] = [];
+    const severityOrder: Record<SecurityAlert['severity'], number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
     
     scanResults.forEach(scan => {
       const findings = scan.findings || [];
@@ -169,7 +171,8 @@ export function CloudSecurityAlerts() {
       findings.forEach((finding: any, index: number) => {
         const severity = (finding.severity || 'Medium').charAt(0).toUpperCase() + 
                         (finding.severity || 'Medium').slice(1).toLowerCase();
-        const alertId = finding.id || `${scannerType}-${scan.scan_id}-${index}`;
+        const dedupKey = getDedupKey(finding);
+        const alertId = dedupKey || finding.id || `${scannerType}-${scan.scan_id}-${index}`;
         
         // Determine service name from scanner type or finding
         let service = scannerType.toUpperCase();
@@ -215,9 +218,32 @@ export function CloudSecurityAlerts() {
       });
     });
     
+    // Deduplicate across scanner sources by alert id (which uses the dedup key when available),
+    // keeping the highest severity (and newest timestamp) representative.
+    const dedupedById = new Map<string, SecurityAlert>();
+    for (const a of allAlerts) {
+      const id = String(a.id);
+      const existing = dedupedById.get(id);
+      if (!existing) {
+        dedupedById.set(id, a);
+        continue;
+      }
+
+      const aRank = severityOrder[a.severity] ?? 0;
+      const existingRank = severityOrder[existing.severity] ?? 0;
+      if (aRank > existingRank) {
+        dedupedById.set(id, a);
+        continue;
+      }
+      if (aRank === existingRank) {
+        const aTs = new Date(a.timestamp).getTime();
+        const eTs = new Date(existing.timestamp).getTime();
+        if (aTs > eTs) dedupedById.set(id, a);
+      }
+    }
+
     // Sort by severity (Critical first) and timestamp (newest first)
-    return allAlerts.sort((a, b) => {
-      const severityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return Array.from(dedupedById.values()).sort((a, b) => {
       const severityDiff = (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
       if (severityDiff !== 0) return severityDiff;
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();

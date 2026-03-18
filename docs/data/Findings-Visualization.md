@@ -14,6 +14,18 @@ Findings Visualization
 - Seperate by policies, by groups, by roles, by users if they have been assigned to a policy, etc. (Ideas) #Show counts or labels for each of these
 - 100% implementation of differentiating between low, medium, high and critical findings. 
 
+**Deduplication + Suppression (implemented)**
+- The dashboard now collapses duplicate findings across scanner sources (and suppresses low-value findings) before counts are computed.
+- Deduplication and filtering are applied in `ScanResultsContext` and then repeated where combined totals are computed across multiple scans.
+- Rules are config-driven in `src/config/findings-rules.json` via two controls:
+  - `suppression`
+    - Default behavior suppresses `low`, `informational`, and `info` severities.
+    - Optional `fieldMatches` can be added to suppress findings by regex against `title`, `description`, `message`, or other finding fields.
+  - `deduplication`
+    - Identical findings are detected via “identity strategies” using a fingerprint of key fields (example strategies include `rule_id + resource_id`, `finding_type + resource_arn`, and `finding_type + title`).
+    - When multiple findings share the same fingerprint, the dashboard keeps the highest-severity representative and tracks a small dedup count (`_dedup_count`).
+- Shared logic lives in `src/utils/findingsDedup.ts`.
+- To tune behavior without code edits, modify `src/config/findings-rules.json` and (if you need new identity fields) update the canonical field aliases in `src/utils/findingsDedup.ts`.
 
 **Simple client-side filtering and sorters** (Front-end)
 ##Possible implentations:
