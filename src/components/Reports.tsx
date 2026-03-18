@@ -12,6 +12,7 @@ import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, t
 import { toast } from "sonner@2.0.3";
 import { useScanResults } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
+import { applySuppression, computeSeverityCounts, deduplicateFindings } from "../utils/findingsDedup";
 
 const REPORT_TYPE_TABS = [
   {
@@ -99,14 +100,13 @@ export function Reports({ reports }: ReportsProps) {
    * Extract findings from scan result, trying multiple locations
    */
   const extractFindingsFromResult = (scanResult: any): any[] => {
-    // Try direct findings
-    if (scanResult.findings && Array.isArray(scanResult.findings) && scanResult.findings.length > 0) {
-      return scanResult.findings;
-    }
-    
-    // Try in results object
+    // Prefer the already-processed findings stored in context (suppressed + deduped).
+    // If it's present (even empty), do not fall back to raw nested findings.
+    if (Array.isArray(scanResult.findings)) return scanResult.findings;
+
+    // Fallback: try in results object (and re-apply suppression + dedup for safety).
     if (scanResult.results?.findings && Array.isArray(scanResult.results.findings) && scanResult.results.findings.length > 0) {
-      return scanResult.results.findings;
+      return deduplicateFindings(applySuppression(scanResult.results.findings));
     }
     
     // Try nested in various scanner-specific locations
@@ -119,11 +119,7 @@ export function Reports({ reports }: ReportsProps) {
     if (scanResult.results?.inspector_findings) nestedFindings.push(...(Array.isArray(scanResult.results.inspector_findings) ? scanResult.results.inspector_findings : []));
     if (scanResult.results?.macie_findings) nestedFindings.push(...(Array.isArray(scanResult.results.macie_findings) ? scanResult.results.macie_findings : []));
     
-    if (nestedFindings.length > 0) {
-      return nestedFindings;
-    }
-    
-    return scanResult.findings || [];
+    return deduplicateFindings(applySuppression(nestedFindings.length > 0 ? nestedFindings : (scanResult.findings || [])));
   };
 
   /**
@@ -141,19 +137,18 @@ export function Reports({ reports }: ReportsProps) {
       return;
     }
 
-    // Combine all scan results
+    const allFindings = allScans.flatMap(s => s.findings || []);
+    const dedupedAllFindings = deduplicateFindings(allFindings);
+    const totals = computeSeverityCounts(dedupedAllFindings);
+
+    // Combine all scan results (but keep severity counts consistent with deduped findings)
     const combinedSummary = {
-      critical_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0),
-      high_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0),
-      medium_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0),
-      low_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0),
+      ...totals,
       users: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.users || 0,
       roles: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.roles || 0,
       policies: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.policies || 0,
       groups: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.groups || 0
     };
-    
-    const allFindings = allScans.flatMap(s => s.findings || []);
     
     const scanData: ScanResultData = {
       scan_id: `security-summary-${Date.now()}`,
@@ -163,13 +158,13 @@ export function Reports({ reports }: ReportsProps) {
       timestamp: new Date().toISOString(),
       results: { scans: allScans },
       scan_summary: combinedSummary,
-      findings: allFindings
+      findings: dedupedAllFindings
     };
 
     try {
       exportScanResultToPDF(scanData, 'Security Summary Report');
       toast.success('Security Summary Report generated', {
-        description: `Combined ${allScans.length} scan results with ${allFindings.length} total findings`
+        description: `Combined ${allScans.length} scan results with ${dedupedAllFindings.length} total findings`
       });
     } catch (error) {
       toast.error('Failed to generate report', {
@@ -195,9 +190,10 @@ export function Reports({ reports }: ReportsProps) {
       return;
     }
 
-    // Focus on critical and high severity findings
+    // Focus on critical and high severity findings (deduped across scanner sources)
     const allFindings = allScans.flatMap(s => s.findings || []);
-    const threatFindings = allFindings.filter((f: any) => {
+    const dedupedAllFindings = deduplicateFindings(allFindings);
+    const threatFindings = dedupedAllFindings.filter((f: any) => {
       const severity = (f.severity || '').toLowerCase();
       return severity === 'critical' || severity === 'high';
     });
@@ -212,9 +208,10 @@ export function Reports({ reports }: ReportsProps) {
       threatsByType[type].push(finding);
     });
 
+    const totals = computeSeverityCounts(dedupedAllFindings);
     const threatSummary = {
-      critical_findings: allFindings.filter((f: any) => (f.severity || '').toLowerCase() === 'critical').length,
-      high_findings: allFindings.filter((f: any) => (f.severity || '').toLowerCase() === 'high').length,
+      critical_findings: totals.critical_findings,
+      high_findings: totals.high_findings,
       medium_findings: 0,
       low_findings: 0,
       total_threats: threatFindings.length,
@@ -269,28 +266,25 @@ export function Reports({ reports }: ReportsProps) {
       return;
     }
 
-    // Aggregate high-level metrics
-    const totalCritical = allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0);
-    const totalHigh = allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0);
-    const totalMedium = allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0);
-    const totalLow = allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0);
-    const totalFindings = totalCritical + totalHigh + totalMedium + totalLow;
+    const allFindings = allScans.flatMap(s => s.findings || []);
+    const dedupedAllFindings = deduplicateFindings(allFindings);
+    const totals = computeSeverityCounts(dedupedAllFindings);
+    const totalFindings = totals.critical_findings + totals.high_findings + totals.medium_findings + totals.low_findings;
     
     // Calculate compliance percentage (green if no critical/high, yellow if some, red if many)
     const compliancePercentage = totalFindings === 0 ? 100 : 
-      Math.max(0, Math.round(100 - ((totalCritical * 10 + totalHigh * 5 + totalMedium * 2 + totalLow) / totalFindings * 100)));
+      Math.max(0, Math.round(100 - ((totals.critical_findings * 10 + totals.high_findings * 5 + totals.medium_findings * 2 + totals.low_findings) / totalFindings * 100)));
 
     // Get top 5 critical findings for executive summary
-    const allFindings = allScans.flatMap(s => s.findings || []);
-    const criticalFindings = allFindings
+    const criticalFindings = dedupedAllFindings
       .filter((f: any) => (f.severity || '').toLowerCase() === 'critical')
       .slice(0, 5);
 
     const executiveSummary = {
-      critical_findings: totalCritical,
-      high_findings: totalHigh,
-      medium_findings: totalMedium,
-      low_findings: totalLow,
+      critical_findings: totals.critical_findings,
+      high_findings: totals.high_findings,
+      medium_findings: totals.medium_findings,
+      low_findings: totals.low_findings,
       total_findings: totalFindings,
       compliance_percentage: compliancePercentage,
       scans_analyzed: allScans.length,
@@ -371,18 +365,17 @@ export function Reports({ reports }: ReportsProps) {
       const allScans = getAllScanResults();
       if (allScans.length > 0) {
         // Combine all scan results into one comprehensive report
+        const allFindings = allScans.flatMap(s => s.findings || []);
+        const dedupedAllFindings = deduplicateFindings(allFindings);
+        const totals = computeSeverityCounts(dedupedAllFindings);
+
         const combinedSummary = {
-          critical_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0),
-          high_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0),
-          medium_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0),
-          low_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0),
+          ...totals,
           users: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.users || 0,
           roles: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.roles || 0,
           policies: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.policies || 0,
           groups: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.groups || 0
         };
-        
-        const allFindings = allScans.flatMap(s => s.findings || []);
         
         scanData = {
           scan_id: `comprehensive-${Date.now()}`,
@@ -392,7 +385,7 @@ export function Reports({ reports }: ReportsProps) {
           timestamp: new Date().toISOString(),
           results: { scans: allScans },
           scan_summary: combinedSummary,
-          findings: allFindings
+          findings: dedupedAllFindings
         };
         
         toast.info('Comprehensive report generated', {

@@ -1,3 +1,10 @@
+
+## Dashboard Finding Suppression (for actionable triage)
+The dashboard reduces noise by suppressing low-value findings and collapsing duplicate findings across scanner sources.
+
+Rules are configured in `src/config/findings-rules.json` and documented in `docs/data/Findings-Visualization.md`.
+If a finding is known-acceptable for your environment, add a regex entry under `suppression.fieldMatches` rather than editing UI logic.
+
 Type: Public S3 bucket for static site (CKV_AWS_70 – S3 bucket allows any Principal)
 
 Resource: module.s3.aws_s3_bucket_policy.frontend (bucket iam-dashboard-project)

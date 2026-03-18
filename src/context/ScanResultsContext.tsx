@@ -5,6 +5,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { ScanResponse } from '../services/api';
+import { applySuppression, computeSeverityCounts, deduplicateFindings } from '../utils/findingsDedup';
+
+const STORAGE_KEY = 'iam-dashboard-scan-results';
 
 const STORAGE_KEY = 'iam-dashboard-scan-results';
 
@@ -76,7 +79,14 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
     }
     
     // Extract findings - try multiple locations
-    let findings = extractFindings(result.results);
+    const rawFindings = extractFindings(result.results);
+    const suppressedFindings = applySuppression(rawFindings);
+    const findings = deduplicateFindings(suppressedFindings);
+    const computedSeverityCounts = computeSeverityCounts(findings);
+    const scanSummaryWithCounts: StoredScanResult['scan_summary'] = {
+      ...(scanSummary ?? {}),
+      ...computedSeverityCounts,
+    };
     
     const storedResult: StoredScanResult = {
       scan_id: result.scan_id,
@@ -85,7 +95,7 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
       status: result.status,
       timestamp: result.timestamp,
       results: result.results,
-      scan_summary: scanSummary,
+      scan_summary: scanSummaryWithCounts,
       findings: findings
     };
     
@@ -191,11 +201,12 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
   // For findings-based scans
   if (Array.isArray(results.findings)) {
     const findings = results.findings;
+    const norm = (f: any) => String(f?.severity ?? '').toLowerCase();
     return {
-      critical_findings: findings.filter((f: any) => f.severity === 'Critical').length,
-      high_findings: findings.filter((f: any) => f.severity === 'High').length,
-      medium_findings: findings.filter((f: any) => f.severity === 'Medium').length,
-      low_findings: findings.filter((f: any) => f.severity === 'Low').length
+      critical_findings: findings.filter((f: any) => norm(f) === 'critical').length,
+      high_findings: findings.filter((f: any) => norm(f) === 'high').length,
+      medium_findings: findings.filter((f: any) => norm(f) === 'medium').length,
+      low_findings: findings.filter((f: any) => norm(f) === 'low').length
     };
   }
 
@@ -207,104 +218,34 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
  */
 function extractFindings(results: any): any[] {
   if (!results) return [];
-  
-  // For full scan, extract findings from IAM only
-  if (results.scan_type === 'full' || results.iam) {
-    const allFindings: any[] = [];
-    
-    // Extract findings from IAM only
-    if (results.iam?.findings) allFindings.push(...results.iam.findings);
-    
-    if (allFindings.length > 0) {
-      return allFindings;
-    }
-  }
-  
-  // Direct findings array
-  if (Array.isArray(results.findings) && results.findings.length > 0) {
-    return results.findings;
-  }
-  
-  // IAM-specific findings
-  if (Array.isArray(results.iam_findings) && results.iam_findings.length > 0) {
-    return results.iam_findings;
-  }
-  
-  // Security Hub findings
-  if (Array.isArray(results.security_hub_findings) && results.security_hub_findings.length > 0) {
-    return results.security_hub_findings;
-  }
-  
-  // GuardDuty findings
-  if (Array.isArray(results.guardduty_findings) && results.guardduty_findings.length > 0) {
-    return results.guardduty_findings;
-  }
-  
-  // Inspector findings
-  if (Array.isArray(results.inspector_findings) && results.inspector_findings.length > 0) {
-    return results.inspector_findings;
-  }
-  
-  // Config findings
-  if (Array.isArray(results.config_findings) && results.config_findings.length > 0) {
-    return results.config_findings;
-  }
-  
-  // Macie findings
-  if (Array.isArray(results.macie_findings) && results.macie_findings.length > 0) {
-    return results.macie_findings;
-  }
-  
-  // For IAM scans, check if findings are nested in users/roles
-  if (results.users || results.roles) {
-    const iamFindings: any[] = [];
-    
-    // Check users for findings
-    if (results.users?.findings && Array.isArray(results.users.findings)) {
-      iamFindings.push(...results.users.findings);
-    }
-    
-    // Check roles for findings
-    if (results.roles?.findings && Array.isArray(results.roles.findings)) {
-      iamFindings.push(...results.roles.findings);
-    }
-    
-    // Check policies for findings
-    if (results.policies?.findings && Array.isArray(results.policies.findings)) {
-      iamFindings.push(...results.policies.findings);
-    }
-    
-    if (iamFindings.length > 0) {
-      return iamFindings;
-    }
-  }
-  
-  // For S3 scans, check buckets for findings
-  if (results.buckets) {
-    const s3Findings: any[] = [];
-    
-    if (results.buckets.findings && Array.isArray(results.buckets.findings)) {
-      s3Findings.push(...results.buckets.findings);
-    }
-    
-    if (s3Findings.length > 0) {
-      return s3Findings;
-    }
-  }
-  
-  // For EC2 scans, check instances for findings
-  if (results.instances) {
-    const ec2Findings: any[] = [];
-    
-    if (results.instances.findings && Array.isArray(results.instances.findings)) {
-      ec2Findings.push(...results.instances.findings);
-    }
-    
-    if (ec2Findings.length > 0) {
-      return ec2Findings;
-    }
-  }
-  
-  return [];
+
+  // Collect findings from every known location; deduplication later collapses duplicates.
+  const allFindings: any[] = [];
+  const addArray = (maybeArr: unknown) => {
+    if (Array.isArray(maybeArr) && maybeArr.length > 0) allFindings.push(...maybeArr);
+  };
+
+  // Top-level conventions
+  addArray(results.findings);
+  addArray(results.iam_findings);
+  addArray(results.security_hub_findings);
+  addArray(results.guardduty_findings);
+  addArray(results.inspector_findings);
+  addArray(results.config_findings);
+  addArray(results.macie_findings);
+
+  // IAM nested
+  addArray(results.iam?.findings);
+  if (results.users?.findings) addArray(results.users.findings);
+  if (results.roles?.findings) addArray(results.roles.findings);
+  if (results.policies?.findings) addArray(results.policies.findings);
+
+  // S3 nested
+  if (results.buckets?.findings) addArray(results.buckets.findings);
+
+  // EC2 nested
+  if (results.instances?.findings) addArray(results.instances.findings);
+
+  return allFindings;
 }
 

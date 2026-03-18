@@ -21,6 +21,7 @@ import {
 } from "./ui/dropdown-menu";
 import { maskSensitiveData } from "../utils/security";
 import { formatRelativeTime } from "../utils/ui";
+import { computeSeverityCounts, deduplicateFindings } from "../utils/findingsDedup";
 
 // Framework descriptions for tooltips
 const frameworkDescriptions: Record<string, string> = {
@@ -225,11 +226,10 @@ export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
 
   // Calculate compliance metrics from real scan data
   const complianceMetrics = useMemo(() => {
-    let totalCritical = 0;
-    let totalHigh = 0;
-    let totalMedium = 0;
-    let totalLow = 0;
-    const allFindings: any[] = [];
+    // Aggregate findings from all scans and collapse duplicates across scanner sources.
+    const allFindingsDeduped = deduplicateFindings(scanResults.flatMap(scan => scan.findings || []));
+    const totals = computeSeverityCounts(allFindingsDeduped);
+
     const frameworkFindings: Record<string, any[]> = {
       cis: [],
       soc2: [],
@@ -237,24 +237,12 @@ export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
       hipaa: []
     };
 
-    // Aggregate findings from all scans
-    scanResults.forEach(scan => {
-      const findings = scan.findings || [];
-      const summary = scan.scan_summary || {};
-      
-      totalCritical += summary.critical_findings || 0;
-      totalHigh += summary.high_findings || 0;
-      totalMedium += summary.medium_findings || 0;
-      totalLow += summary.low_findings || 0;
-      
-      // Map findings to frameworks
-      findings.forEach((finding: any) => {
-        allFindings.push(finding);
-        const frameworks = mapFindingToFrameworks(finding);
-        frameworks.forEach(fw => {
-          if (!frameworkFindings[fw]) frameworkFindings[fw] = [];
-          frameworkFindings[fw].push(finding);
-        });
+    // Map deduped findings to frameworks (drives framework scores and open actions).
+    allFindingsDeduped.forEach((finding: any) => {
+      const frameworks = mapFindingToFrameworks(finding);
+      frameworks.forEach((fw) => {
+        if (!frameworkFindings[fw]) frameworkFindings[fw] = [];
+        frameworkFindings[fw].push(finding);
       });
     });
 
@@ -318,7 +306,7 @@ export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
       });
 
     // Generate open actions from critical/high findings
-    const openActions = allFindings
+    const openActions = allFindingsDeduped
       .filter(f => {
         const severity = (f.severity || '').toLowerCase();
         return severity === 'critical' || severity === 'high';
@@ -343,12 +331,13 @@ export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
 
     return {
       overallScore,
-      criticalFindingsTotal: totalCritical,
+      criticalFindingsTotal: totals.critical_findings,
       frameworks: updatedFrameworks,
-      allFindings,
+      allFindings: allFindingsDeduped,
       frameworkFindings, // Expose framework-specific findings
       mostRecentScan: mostRecentScan ? formatTimestamp(mostRecentScan.timestamp) : 'Never',
-      totalFindings: totalCritical + totalHigh + totalMedium + totalLow,
+      totalFindings:
+        totals.critical_findings + totals.high_findings + totals.medium_findings + totals.low_findings,
       recentAudits: recentAudits.length > 0 ? recentAudits : [
         {
           name: 'No scans performed yet',
