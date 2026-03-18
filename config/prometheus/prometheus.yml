@@ -13,7 +13,7 @@ scrape_configs:
 
   # Application metrics (Flask backend)
   - job_name: 'backend'
-    metrics_path: /api/v1/metrics
+    metrics_path: /v1/metrics
     static_configs:
       - targets: ['app:5000']
     scrape_interval: 30s

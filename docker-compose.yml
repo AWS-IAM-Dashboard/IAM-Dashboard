@@ -11,7 +11,9 @@ services:
       - .:/app
       - /app/node_modules
     environment:
-      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-http://localhost:5001}
+      # Prefer an explicit local API URL, fall back to an externally supplied gateway URL,
+      # and otherwise leave the frontend service env empty so the app-level fallback applies.
+      - VITE_API_URL=${VITE_API_URL:-${VITE_API_GATEWAY_URL:-}}
     networks:
       - cybersecurity-network
     stdin_open: true
@@ -36,6 +38,8 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-no-reply@local.test}
+      # Local adapter should exercise Lambda scan logic without writing to AWS persistence sinks.
+      - LOCAL_LAMBDA_MODE=${LOCAL_LAMBDA_MODE:-true}
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data

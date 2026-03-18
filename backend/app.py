@@ -1,106 +1,138 @@
 """
-Cybersecurity Dashboard Flask Application
-Main application entry point with API endpoints for AWS integrations
+Local HTTP adapter for the production Lambda scanner.
+
+This keeps local scan behavior aligned with infra/lambda/lambda_function.py
+while still exposing the local-only observability endpoints expected by Docker,
+Prometheus, and Grafana.
 """
 
-import os
-import logging
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
-from flask_restful import Api
-from werkzeug.exceptions import NotFound
+from __future__ import annotations
 
-# Import API resources
-from api.aws_iam import IAMResource
-from api.aws_ec2 import EC2Resource
-from api.aws_s3 import S3Resource
-from api.aws_security_hub import SecurityHubResource
-from api.aws_config import ConfigResource
+import importlib.util
+import logging
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from flask import Flask, Response, jsonify, make_response, request
+from flask_cors import CORS
+
 from api.grafana import GrafanaResource
-from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
 
-# Import services
-from services.aws_service import AWSService
-from services.grafana_service import GrafanaService
-from services.database_service import DatabaseService
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
+SCAN_ROUTE_PREFIX = "/v1/scan"
+LAMBDA_MODULE_PATH = Path(__file__).resolve().parent.parent / "infra" / "lambda" / "lambda_function.py"
 
-def create_app():
-    """Create and configure the Flask application"""
-    app = Flask(__name__, static_folder='../static')
 
-    # Configuration
-    app.config['SECRET_KEY'] = os.environ.get(
-        'SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['DATABASE_URL'] = os.environ.get(
-        'DATABASE_URL', 'sqlite:///cybersecurity.db')
-    app.config['REDIS_URL'] = os.environ.get(
-        'REDIS_URL', 'redis://localhost:6379/0')
+def _normalize_resource_response(result: Any) -> Response:
+    """Convert existing resource-style return values into plain Flask responses."""
+    if isinstance(result, Response):
+        return result
 
-    # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3001', 'http://localhost:5173'])
+    if isinstance(result, tuple):
+        body, status_code = result
+        return make_response(jsonify(body), status_code)
 
-    # Register metrics collection hooks
+    return make_response(jsonify(result), 200)
+
+
+def _lambda_response_to_flask(lambda_response: dict[str, Any]) -> Response:
+    """Pass the Lambda's HTTP contract through without reshaping the payload."""
+    response = make_response(lambda_response.get("body", ""), lambda_response.get("statusCode", 500))
+    for header, value in lambda_response.get("headers", {}).items():
+        response.headers[header] = value
+    return response
+
+
+def _build_apigw_event(scanner_type: str) -> dict[str, Any]:
+    """Mirror the API Gateway shape that the production Lambda handler expects."""
+    raw_body = request.get_data(as_text=True)
+    return {
+        "httpMethod": request.method,
+        "path": f"{SCAN_ROUTE_PREFIX}/{scanner_type}",
+        "headers": dict(request.headers),
+        "queryStringParameters": request.args.to_dict(flat=True) or None,
+        "pathParameters": {"scanner_type": scanner_type},
+        "body": raw_body if raw_body else None,
+        "isBase64Encoded": False,
+        "requestContext": {
+            "http": {
+                "method": request.method,
+                "path": f"{SCAN_ROUTE_PREFIX}/{scanner_type}",
+            }
+        },
+    }
+
+
+@lru_cache(maxsize=1)
+def _load_lambda_module():
+    """
+    Import the production Lambda module once so local HTTP requests call the same
+    handler logic that API Gateway invokes in production.
+    """
+    os.environ.setdefault("LOCAL_LAMBDA_MODE", "true")
+    os.environ.setdefault("LOCAL_DISABLE_PERSISTENCE", "true")
+
+    spec = importlib.util.spec_from_file_location("local_lambda_function", LAMBDA_MODULE_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load Lambda module from {LAMBDA_MODULE_PATH}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def create_app() -> Flask:
+    """Create the local adapter application."""
+    app = Flask(__name__)
+    CORS(app, origins=["http://localhost:3001", "http://localhost:5173"])
     register_metrics_hooks(app)
 
-    # Initialize API
-    api = Api(app, prefix='/api/v1')
+    @app.post(f"{SCAN_ROUTE_PREFIX}/<scanner_type>")
+    def scan(scanner_type: str):
+        lambda_module = _load_lambda_module()
+        # The Lambda remains the source of truth for scan validation and payload shape,
+        # including 400 responses for unsupported scanner types.
+        lambda_response = lambda_module.lambda_handler(_build_apigw_event(scanner_type), None)
+        return _lambda_response_to_flask(lambda_response)
 
-    # Initialize services
-    aws_service = AWSService()
-    grafana_service = GrafanaService()
-    database_service = DatabaseService()
+    @app.get("/v1/health")
+    def health():
+        return _normalize_resource_response(HealthResource().get())
 
-    # Register API resources
-    api.add_resource(HealthResource, '/health')
-    api.add_resource(MetricsResource, '/metrics')
-    api.add_resource(DashboardResource, '/dashboard')
-    api.add_resource(IAMResource, '/aws/iam')
-    api.add_resource(EC2Resource, '/aws/ec2')
-    api.add_resource(S3Resource, '/aws/s3')
-    api.add_resource(SecurityHubResource, '/aws/security-hub')
-    api.add_resource(ConfigResource, '/aws/config')
-    api.add_resource(GrafanaResource, '/grafana')
+    @app.get("/v1/metrics")
+    def metrics():
+        return _normalize_resource_response(MetricsResource().get())
 
-    # Serve static files (React frontend)
-    @app.route('/')
-    def serve_frontend():
-        return send_from_directory(app.static_folder, 'index.html')
+    @app.get("/v1/grafana")
+    def grafana():
+        return _normalize_resource_response(GrafanaResource().get())
 
-    @app.route('/<path:path>')
-    def serve_static(path):
-        return send_from_directory(app.static_folder, path)
-
-    # Error handlers
     @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({'error': 'Not found'}), 404
+    def not_found(_: Exception):
+        return jsonify({"error": "Not found"}), 404
 
     @app.errorhandler(500)
-    def internal_error(error):
-        return jsonify({'error': 'Internal server error'}), 500
-
-    # Initialize database
-    with app.app_context():
-        database_service.init_db()
-        logger.info("Database initialized")
+    def internal_error(error: Exception):
+        logger.exception("Unhandled adapter error")
+        return jsonify({"error": "Internal server error"}), 500
 
     return app
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = create_app()
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 
-    logger.info(f"Starting Cybersecurity Dashboard on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    logger.info("Starting local Lambda adapter on port %s", port)
+    app.run(host="0.0.0.0", port=port, debug=debug)

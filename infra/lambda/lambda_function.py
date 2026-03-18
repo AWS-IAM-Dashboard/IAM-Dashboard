@@ -106,11 +106,24 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'iam-dashboard-scan-
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'iam-dashboard-project')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+LOCAL_LAMBDA_MODE = os.environ.get('LOCAL_LAMBDA_MODE', 'false').lower() == 'true'
+
+
+def should_skip_side_effects() -> bool:
+    """
+    Local adapter runs should execute the real scan logic but avoid writing scan
+    artifacts or metrics into shared AWS resources unless explicitly enabled.
+    """
+    return LOCAL_LAMBDA_MODE
 
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
     """Publish a custom CloudWatch metric"""
     try:
+        if should_skip_side_effects():
+            logger.info(f"Skipping CloudWatch metric in local mode: {metric_name}")
+            return
+
         cloudwatch.put_metric_data(
             Namespace='IAMDashboard/Scans',
             MetricData=[{
@@ -1597,6 +1610,10 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
 def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dict[str, Any]) -> None:
     """Store scan results in DynamoDB and S3"""
     try:
+        if should_skip_side_effects():
+            logger.info(f"Skipping DynamoDB/S3 persistence in local mode for scan: {scan_id}")
+            return
+
         timestamp = datetime.utcnow().isoformat()
         
         # Store in DynamoDB

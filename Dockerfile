@@ -44,9 +44,10 @@ COPY requirements.txt requirements-postgres.txt ./
 # Install Python dependencies (include PostgreSQL driver for Docker/Compose)
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-postgres.txt
 
-# Copy Flask application
+# Copy the local adapter and the production Lambda module it delegates to.
 COPY backend/ ./backend/
 COPY config/ ./config/
+COPY infra/lambda/ ./infra/lambda/
 
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/build ./static
@@ -68,7 +69,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/api/v1/health || exit 1
+    CMD curl -f http://localhost:5000/v1/health || exit 1
 
 # Run the application
 CMD ["python", "backend/app.py"]
