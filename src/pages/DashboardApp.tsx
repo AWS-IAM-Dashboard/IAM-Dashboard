@@ -8,8 +8,11 @@ import { AWSConfig } from "../components/AWSConfig";
 import { Inspector } from "../components/Inspector";
 import { Macie } from "../components/Macie";
 import { AWSIAMScan } from "../components/AWSIAMScan";
+import { AccessAnalyzer } from "../components/AccessAnalyzer";
 import { EC2Security } from "../components/EC2Security";
 import { S3Security } from "../components/S3Security";
+import { VPCSecurity } from "../components/VPCSecurity";
+import { DynamoDBSecurity } from "../components/DynamoDBSecurity";
 import { GrafanaIntegration } from "../components/GrafanaIntegration";
 import { CloudSecurityAlerts } from "../components/CloudSecurityAlerts";
 import { Reports } from "../components/Reports";
@@ -43,32 +46,20 @@ export function DashboardApp() {
         return <Macie />;
       case "iam-security":
         return <AWSIAMScan />;
+      case "access-analyzer":
+        return <AccessAnalyzer />;
       case "ec2-security":
         return <EC2Security />;
       case "s3-security":
         return <S3Security />;
+      case "vpc-security":
+        return <VPCSecurity />;
+      case "dynamodb-security":
+        return <DynamoDBSecurity />;
       case "network-security":
-        return (
-          <div className="p-6">
-            <div className="cyber-card p-8 text-center">
-              <h2 className="mb-4 text-xl">VPC & Network Security</h2>
-              <p className="text-muted-foreground">
-                Network security scanning coming soon...
-              </p>
-            </div>
-          </div>
-        );
+        return <VPCSecurity />;
       case "database-security":
-        return (
-          <div className="p-6">
-            <div className="cyber-card p-8 text-center">
-              <h2 className="mb-4 text-xl">RDS & Database Security</h2>
-              <p className="text-muted-foreground">
-                Database security scanning coming soon...
-              </p>
-            </div>
-          </div>
-        );
+        return <DynamoDBSecurity />;
       case "lambda-security":
         return (
           <div className="p-6">

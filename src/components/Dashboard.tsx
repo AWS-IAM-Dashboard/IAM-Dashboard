@@ -6,7 +6,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users } from "lucide-react";
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData, type SecurityAlert } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -640,6 +640,14 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               <Button 
                 variant="outline" 
                 className="border-border"
+                onClick={() => onNavigate?.('access-analyzer')}
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Access Analyzer
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-border"
                 onClick={() => onNavigate?.('ec2-security')}
               >
                 <Cloud className="h-4 w-4 mr-2" />
@@ -652,6 +660,22 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               >
                 <HardDrive className="h-4 w-4 mr-2" />
                 S3 Security
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-border"
+                onClick={() => onNavigate?.('vpc-security')}
+              >
+                <Network className="h-4 w-4 mr-2" />
+                VPC Security
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-border"
+                onClick={() => onNavigate?.('dynamodb-security')}
+              >
+                <Database className="h-4 w-4 mr-2" />
+                DynamoDB Security
               </Button>
               <Button 
                 variant="outline" 
