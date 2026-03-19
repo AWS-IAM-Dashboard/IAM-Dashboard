@@ -33,6 +33,7 @@ import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { EmptyState } from "./EmptyState";
 
 interface AWSIAMFinding {
   id: string;
@@ -304,6 +305,9 @@ export function AWSIAMScan() {
     }
   };
 
+  const hasScanResult = Boolean(scanResult);
+  const hasFindings = (scanResult?.findings?.length || 0) > 0;
+
   return (
     <div className="p-6 space-y-6">
       <DemoModeBanner />
@@ -436,6 +440,20 @@ export function AWSIAMScan() {
         </Alert>
       )}
 
+      {/* Empty State: No scan run yet */}
+      {!isScanning && !hasScanResult && (
+        <EmptyState
+          icon={<Shield className="h-5 w-5" />}
+          title="No IAM scan results yet"
+          description="Run your first scan to discover risky users, roles, policies, and groups. You’ll see findings and compliance impact here once a scan completes."
+          primaryAction={{
+            label: "Run your first scan",
+            onClick: handleStartScan,
+            icon: <Play className="h-4 w-4" />,
+          }}
+        />
+      )}
+
       {/* Scan Progress */}
       {(isScanning || scanResult) && (
         <Card className="cyber-card">
@@ -507,7 +525,7 @@ export function AWSIAMScan() {
       )}
 
       {/* Scan Results */}
-      {scanResult && scanResult.findings.length > 0 && (
+      {scanResult && scanResult.status === "Completed" && (
         <Card className="cyber-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -524,80 +542,93 @@ export function AWSIAMScan() {
               </TabsList>
               
               <TabsContent value="findings" className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border">
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Finding</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                      <TableHead>Recommendation</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 6 }).map((_, index) => (
-                        <TableRow key={index} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-64 bg-muted/20" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      scanResult.findings.map((finding) => (
-                        <TableRow 
-                          key={finding.id} 
-                          className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getResourceIcon(finding.type)}
-                              <div>
-                                <p className="font-mono text-sm">{finding.resource_name}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {finding.resource_arn}
-                                </p>
+                {!loading && !hasFindings ? (
+                  <EmptyState
+                    icon={<CheckCircle className="h-5 w-5" />}
+                    title="No findings detected"
+                    description="This scan completed, but no issues were found for the current account/region. You can re-run the scan later or adjust scope/compliance settings."
+                    primaryAction={{
+                      label: "Run scan again",
+                      onClick: handleStartScan,
+                      icon: <RefreshCw className="h-4 w-4" />,
+                    }}
+                  />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border">
+                        <TableHead>Resource</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Finding</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Risk Score</TableHead>
+                        <TableHead>Recommendation</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        Array.from({ length: 6 }).map((_, index) => (
+                          <TableRow key={index} className="border-border">
+                            <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-64 bg-muted/20" /></TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        scanResult.findings.map((finding) => (
+                          <TableRow 
+                            key={finding.id} 
+                            className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getResourceIcon(finding.type)}
+                                <div>
+                                  <p className="font-mono text-sm">{finding.resource_name}</p>
+                                  <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                    {finding.resource_arn}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {finding.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{finding.finding_type}</p>
-                              <p className="text-xs text-muted-foreground">{finding.description}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getSeverityColor(finding.severity)}>
-                              {finding.severity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className={
-                              finding.risk_score > 80 ? "text-[#ff0040]" :
-                              finding.risk_score > 60 ? "text-[#ff6b35]" :
-                              finding.risk_score > 40 ? "text-[#ffb000]" :
-                              "text-[#00ff88]"
-                            }>
-                              {finding.risk_score}/100
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm max-w-xs">
-                            {finding.recommendation}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {finding.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{finding.finding_type}</p>
+                                <p className="text-xs text-muted-foreground">{finding.description}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getSeverityColor(finding.severity)}>
+                                {finding.severity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className={
+                                finding.risk_score > 80 ? "text-[#ff0040]" :
+                                finding.risk_score > 60 ? "text-[#ff6b35]" :
+                                finding.risk_score > 40 ? "text-[#ffb000]" :
+                                "text-[#00ff88]"
+                              }>
+                                {finding.risk_score}/100
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-xs">
+                              {finding.recommendation}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </TabsContent>
 
               <TabsContent value="resources" className="space-y-4">
