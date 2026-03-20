@@ -78,7 +78,7 @@ module "lambda" {
   lambda_function_name   = var.lambda_function_name
   dynamodb_table_name    = var.dynamodb_table_name
   s3_bucket_name         = var.s3_bucket_name
-  lambda_ses_bucket_name = var.scan_results_s3_bucket_name
+  lambda_ses_bucket_name = var.s3_bucket_name
   ses_from_email         = module.ses.sender_email
   scan_alert_recipients  = module.ses.recipient_email
   lambda_kms_key_arn     = data.aws_kms_key.logs.arn

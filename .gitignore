@@ -200,3 +200,4 @@ iam-2026-03-18T14_37_05.722997.json
 checkov-results.md
 .tfdata-s3-notify-validate
 .tfdata-ses-validate
+terraform_output.txt
