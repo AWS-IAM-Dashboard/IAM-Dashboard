@@ -140,6 +140,24 @@ def json_serial(obj):
     except:
         return None
 
+def get_security_headers():
+    """
+    Returns security-related HTTP headers for all Lambda responses.
+    Can be overridden via environment variables.
+    """
+    headers = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Strict-Transport-Security': os.environ.get(
+            'SECURITY_HSTS_HEADER_VALUE',
+            'max-age=31536000; includeSubDomains'
+        ),
+        'Content-Security-Policy': os.environ.get(
+            'SECURITY_CSP_HEADER_VALUE',
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        )
+    }
+    return headers
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -1643,16 +1661,19 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
     """Create API Gateway compatible response with proper JSON serialization"""
     try:
+        security_headers = get_security_headers()
         # Use json_serial to handle datetime, Decimal, bytes, etc.
         body_json = json.dumps(body, default=json_serial)
+        headers = {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+            **security_headers,
+        }
         return {
             'statusCode': status_code,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': headers,
             'body': body_json
         }
     except Exception as e:
@@ -1663,13 +1684,59 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
             'message': str(e)[:500],
             'status': 'error'
         }
+        security_headers = get_security_headers()
+        headers = {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+            **security_headers,
+        }
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': headers,
             'body': json.dumps(error_body, default=str)
         }
+
+
+def get_security_headers() -> Dict[str, str]:
+    """
+    Security headers applied to all Lambda -> API responses.
+
+    Notes:
+    - This Lambda returns JSON. These headers are safe defaults to reduce browser risks
+      (XSS/clickjacking/MIME sniffing) if responses are consumed by web clients.
+    - `OPTIONS` preflight responses are typically handled by API Gateway's CORS config,
+      not this Lambda integration.
+    """
+    # Allow configuration without Terraform changes.
+    # Example values:
+    #   SECURITY_HSTS_HEADER_VALUE="max-age=63072000; includeSubDomains"
+    #   SECURITY_CSP_HEADER_VALUE="default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+    hsts_value = os.environ.get('SECURITY_HSTS_HEADER_VALUE', '')
+    if not hsts_value:
+        max_age = os.environ.get('SECURITY_HSTS_MAX_AGE', '31536000').strip()
+        include_subdomains = os.environ.get('SECURITY_HSTS_INCLUDE_SUBDOMAINS', 'true').strip().lower() in {
+            '1', 'true', 'yes', 'y', 'on'
+        }
+        preload = os.environ.get('SECURITY_HSTS_PRELOAD', 'false').strip().lower() in {
+            '1', 'true', 'yes', 'y', 'on'
+        }
+        parts = [f"max-age={max_age}"]
+        if include_subdomains:
+            parts.append('includeSubDomains')
+        if preload:
+            parts.append('preload')
+        hsts_value = '; '.join(parts)
+
+    csp_value = os.environ.get(
+        'SECURITY_CSP_HEADER_VALUE',
+        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    )
+
+    return {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Strict-Transport-Security': hsts_value,
+        'Content-Security-Policy': csp_value,
+    }
