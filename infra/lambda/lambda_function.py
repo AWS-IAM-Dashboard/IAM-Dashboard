@@ -88,6 +88,74 @@ def mask_sensitive_data(text: str) -> str:
     masked = mask_access_key(masked)
     return masked
 
+
+# ---------------------------------------------------------------------------
+# IAM Finding Scoring Model (Impact × Likelihood → Severity)
+# See docs/security/SCORING.md for full documentation for auditors and maintainers.
+# ---------------------------------------------------------------------------
+
+IMPACT_LEVELS = {'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1}
+LIKELIHOOD_LEVELS = {'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1}
+
+
+def _risk_score_from_impact_likelihood(impact: str, likelihood: str) -> int:
+    i = IMPACT_LEVELS.get(impact, 1)
+    l = LIKELIHOOD_LEVELS.get(likelihood, 1)
+    return min(100, max(0, round((i * l / 16.0) * 100)))
+
+
+def _severity_from_impact_likelihood(impact: str, likelihood: str) -> str:
+    i = IMPACT_LEVELS.get(impact, 1)
+    l = LIKELIHOOD_LEVELS.get(likelihood, 1)
+    product = i * l
+    if product >= 12:
+        return 'Critical'
+    if product >= 8:
+        return 'High'
+    if product >= 4:
+        return 'Medium'
+    return 'Low'
+
+
+# IAM finding_type → (impact, likelihood). Severity and risk_score are derived.
+IAM_FINDING_SCORES = {
+    'admin_access': ('Critical', 'High'),
+    'public_trust_policy': ('Critical', 'High'),
+    'wildcard_permissions': ('Critical', 'High'),
+    'missing_mfa': ('High', 'High'),
+    'external_account_access': ('High', 'High'),
+    'service_wildcard_permissions': ('High', 'Medium'),
+    'wildcard_resource': ('High', 'Medium'),
+    'iam_privilege_escalation': ('High', 'Medium'),
+    's3_public_write': ('High', 'Medium'),
+    'lambda_public_invoke': ('High', 'Medium'),
+    'old_access_key': ('Medium', 'Medium'),
+    'inactive_user': ('Medium', 'Low'),
+    'dynamodb_broad_permissions': ('Medium', 'Medium'),
+    'unused_access_key': ('Low', 'Low'),
+}
+
+
+def get_iam_finding_score(finding_type: str, default_impact: str = 'Medium', default_likelihood: str = 'Medium') -> Dict[str, Any]:
+    """Return severity, impact, likelihood, and risk_score for an IAM finding type."""
+    impact, likelihood = IAM_FINDING_SCORES.get(finding_type, (default_impact, default_likelihood))
+    severity = _severity_from_impact_likelihood(impact, likelihood)
+    risk_score = _risk_score_from_impact_likelihood(impact, likelihood)
+    return {
+        'severity': severity,
+        'impact': impact,
+        'likelihood': likelihood,
+        'risk_score': risk_score,
+    }
+
+
+def apply_iam_score(finding: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge severity, impact, likelihood, risk_score into a finding from its finding_type."""
+    finding_type = finding.get('finding_type', '')
+    finding.update(get_iam_finding_score(finding_type))
+    return finding
+
+
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
@@ -671,10 +739,8 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
         
         # Check for overly permissive actions
         for action in actions:
-            # Check for full wildcard permissions
             if action == '*' or action == '*:*':
-                findings.append({
-                    'severity': 'Critical',
+                findings.append(apply_iam_score({
                     'type': 'role',
                     'resource_name': role_name,
                     'resource_arn': role_arn,
@@ -682,13 +748,10 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                     'recommendation': 'Replace wildcard permissions with specific actions following least privilege',
                     'finding_type': 'wildcard_permissions',
                     'service_type': ', '.join(service_types) if service_types else 'Unknown'
-                })
-            
-            # Check for service-wide wildcards
+                }))
             if ':*' in action and action.count(':') == 1:
                 service = action.split(':')[0]
-                findings.append({
-                    'severity': 'High',
+                findings.append(apply_iam_score({
                     'type': 'role',
                     'resource_name': role_name,
                     'resource_arn': role_arn,
@@ -696,14 +759,10 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                     'recommendation': f'Replace {action} with specific {service} actions only',
                     'finding_type': 'service_wildcard_permissions',
                     'service_type': ', '.join(service_types) if service_types else 'Unknown'
-                })
-            
-            # Service-specific security checks
+                }))
             if action.startswith('s3:'):
-                # S3 security checks
                 if action in ['s3:PutObject', 's3:PutObjectAcl'] and '*' in resources:
-                    findings.append({
-                        'severity': 'High',
+                    findings.append(apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -711,13 +770,10 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                         'recommendation': 'Restrict S3 permissions to specific buckets and enable public access block',
                         'finding_type': 's3_public_write',
                         'service_type': 'S3'
-                    })
-            
+                    }))
             if action.startswith('dynamodb:'):
-                # DynamoDB security checks
                 if action in ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'] and '*' in resources:
-                    findings.append({
-                        'severity': 'Medium',
+                    findings.append(apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -725,14 +781,11 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                         'recommendation': 'Restrict DynamoDB permissions to specific tables',
                         'finding_type': 'dynamodb_broad_permissions',
                         'service_type': 'DynamoDB'
-                    })
-            
+                    }))
             if action.startswith('lambda:'):
-                # Lambda security checks
                 if action == 'lambda:*' or action == 'lambda:InvokeFunction':
                     if '*' in resources:
-                        findings.append({
-                            'severity': 'High',
+                        findings.append(apply_iam_score({
                             'type': 'role',
                             'resource_name': role_name,
                             'resource_arn': mask_sensitive_data(role_arn),
@@ -740,13 +793,10 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                             'recommendation': 'Restrict Lambda invoke permissions to specific functions',
                             'finding_type': 'lambda_public_invoke',
                             'service_type': 'Lambda'
-                        })
-            
+                        }))
             if action.startswith('iam:'):
-                # IAM security checks
                 if action in ['iam:CreateUser', 'iam:CreateRole', 'iam:AttachRolePolicy', 'iam:PutRolePolicy']:
-                    findings.append({
-                        'severity': 'High',
+                    findings.append(apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -754,16 +804,12 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                         'recommendation': 'Review if this permission is necessary and restrict to specific resources',
                         'finding_type': 'iam_privilege_escalation',
                         'service_type': ', '.join(service_types) if service_types else 'IAM'
-                    })
-        
-        # Check for public/external resource access
+                    }))
         for resource in resources:
             if resource == '*':
-                # Check if this is combined with dangerous actions
                 dangerous_actions = [a for a in actions if any(x in a for x in ['Put', 'Delete', 'Modify', 'Create', 'Update'])]
                 if dangerous_actions:
-                    findings.append({
-                        'severity': 'High',
+                    findings.append(apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -771,7 +817,7 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
                         'recommendation': 'Restrict resource ARNs to specific resources only',
                         'finding_type': 'wildcard_resource',
                         'service_type': ', '.join(service_types) if service_types else 'Unknown'
-                    })
+                    }))
     
     return findings
 
@@ -807,9 +853,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 mfa_devices = iam.list_mfa_devices(UserName=user_name)
                 if not mfa_devices.get('MFADevices'):
                     users_without_mfa += 1
-                    high_findings += 1
-                    findings.append({
-                        'severity': 'High',
+                    f = apply_iam_score({
                         'type': 'user',
                         'resource_name': user_name,
                         'resource_arn': user_arn,
@@ -817,6 +861,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         'recommendation': 'Enable MFA for this user to enhance account security',
                         'finding_type': 'missing_mfa'
                     })
+                    findings.append(f)
+                    if f['severity'] == 'Critical': critical_findings += 1
+                    elif f['severity'] == 'High': high_findings += 1
+                    elif f['severity'] == 'Medium': medium_findings += 1
+                    else: low_findings += 1
                 else:
                     users_with_mfa += 1
                 
@@ -834,9 +883,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         from datetime import datetime, timezone
                         key_age = (datetime.now(timezone.utc) - create_date.replace(tzinfo=timezone.utc)).days
                         if key_age > 90:
-                            medium_findings += 1
-                            findings.append({
-                                'severity': 'Medium',
+                            f = apply_iam_score({
                                 'type': 'access_key',
                                 'resource_name': mask_sensitive_data(f'{user_name}/{key_id}'),
                                 'resource_arn': mask_sensitive_data(user_arn),
@@ -844,6 +891,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                                 'recommendation': 'Rotate access keys every 90 days for security best practices',
                                 'finding_type': 'old_access_key'
                             })
+                            findings.append(f)
+                            if f['severity'] == 'Critical': critical_findings += 1
+                            elif f['severity'] == 'High': high_findings += 1
+                            elif f['severity'] == 'Medium': medium_findings += 1
+                            else: low_findings += 1
                     
                     # Check last used
                     try:
@@ -852,9 +904,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         if last_used_date:
                             days_since_use = (datetime.now(timezone.utc) - last_used_date.replace(tzinfo=timezone.utc)).days
                             if days_since_use > 90:
-                                low_findings += 1
-                                findings.append({
-                                    'severity': 'Low',
+                                f = apply_iam_score({
                                     'type': 'access_key',
                                     'resource_name': mask_sensitive_data(f'{user_name}/{key_id}'),
                                     'resource_arn': mask_sensitive_data(user_arn),
@@ -862,6 +912,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                                     'recommendation': 'Consider removing unused access keys',
                                     'finding_type': 'unused_access_key'
                                 })
+                                findings.append(f)
+                                if f['severity'] == 'Critical': critical_findings += 1
+                                elif f['severity'] == 'High': high_findings += 1
+                                elif f['severity'] == 'Medium': medium_findings += 1
+                                else: low_findings += 1
                     except ClientError:
                         pass  # Skip if we can't get last used info
                 
@@ -873,9 +928,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     # Check for AdministratorAccess
                     for policy in attached_policies.get('AttachedPolicies', []):
                         if 'AdministratorAccess' in policy.get('PolicyArn', ''):
-                            critical_findings += 1
-                            findings.append({
-                                'severity': 'Critical',
+                            f = apply_iam_score({
                                 'type': 'user',
                                 'resource_name': user_name,
                                 'resource_arn': user_arn,
@@ -883,6 +936,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                                 'recommendation': 'Remove AdministratorAccess and use least privilege principles',
                                 'finding_type': 'admin_access'
                             })
+                            findings.append(f)
+                            if f['severity'] == 'Critical': critical_findings += 1
+                            elif f['severity'] == 'High': high_findings += 1
+                            elif f['severity'] == 'Medium': medium_findings += 1
+                            else: low_findings += 1
                             break
                 except ClientError:
                     pass  # Skip if we can't check policies
@@ -894,9 +952,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     days_inactive = (datetime.now(timezone.utc) - last_used).days
                     if days_inactive > 90:
                         inactive_users += 1
-                        medium_findings += 1
-                        findings.append({
-                            'severity': 'Medium',
+                        f = apply_iam_score({
                             'type': 'user',
                             'resource_name': user_name,
                             'resource_arn': user_arn,
@@ -904,6 +960,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                             'recommendation': 'Review and consider disabling inactive user accounts',
                             'finding_type': 'inactive_user'
                         })
+                        findings.append(f)
+                        if f['severity'] == 'Critical': critical_findings += 1
+                        elif f['severity'] == 'High': high_findings += 1
+                        elif f['severity'] == 'Medium': medium_findings += 1
+                        else: low_findings += 1
             except ClientError as e:
                 logger.warning(f"Error analyzing user {user_name}: {str(e)}")
                 continue
@@ -992,11 +1053,8 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                             if principal == '*':
                                 public_access = True
                 
-                # Flag public/external access
                 if public_access:
-                    critical_findings += 1
-                    findings.append({
-                        'severity': 'Critical',
+                    f = apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -1005,11 +1063,13 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         'finding_type': 'public_trust_policy',
                         'service_type': ', '.join(service_types) if service_types else 'Unknown'
                     })
-                
+                    findings.append(f)
+                    if f['severity'] == 'Critical': critical_findings += 1
+                    elif f['severity'] == 'High': high_findings += 1
+                    elif f['severity'] == 'Medium': medium_findings += 1
+                    else: low_findings += 1
                 if external_principals:
-                    high_findings += 1
-                    findings.append({
-                        'severity': 'High',
+                    f = apply_iam_score({
                         'type': 'role',
                         'resource_name': role_name,
                         'resource_arn': mask_sensitive_data(role_arn),
@@ -1018,17 +1078,19 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         'finding_type': 'external_account_access',
                         'service_type': ', '.join(service_types) if service_types else 'Unknown'
                     })
+                    findings.append(f)
+                    if f['severity'] == 'Critical': critical_findings += 1
+                    elif f['severity'] == 'High': high_findings += 1
+                    elif f['severity'] == 'Medium': medium_findings += 1
+                    else: low_findings += 1
                 
                 # Analyze attached policies
                 attached_policies = iam.list_attached_role_policies(RoleName=role_name)
                 for policy in attached_policies.get('AttachedPolicies', []):
                     policy_arn = policy.get('PolicyArn', '')
                     
-                    # Check for AdministratorAccess
                     if 'AdministratorAccess' in policy_arn:
-                        critical_findings += 1
-                        findings.append({
-                            'severity': 'Critical',
+                        f = apply_iam_score({
                             'type': 'role',
                             'resource_name': role_name,
                             'resource_arn': mask_sensitive_data(role_arn),
@@ -1037,6 +1099,11 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                             'finding_type': 'admin_access',
                             'service_type': ', '.join(service_types) if service_types else 'Unknown'
                         })
+                        findings.append(f)
+                        if f['severity'] == 'Critical': critical_findings += 1
+                        elif f['severity'] == 'High': high_findings += 1
+                        elif f['severity'] == 'Medium': medium_findings += 1
+                        else: low_findings += 1
                     
                     # Get and analyze policy document
                     try:

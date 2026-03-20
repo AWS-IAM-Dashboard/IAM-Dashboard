@@ -437,6 +437,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
           <tr>
             <th>Resource</th>
             <th>Type</th>
+            <th>Impact / Likelihood</th>
+            <th>Risk Score</th>
             <th>Description</th>
             <th>Recommendation</th>
             <th>ARN</th>
@@ -447,6 +449,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
             <tr>
               <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
               <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
+              <td>${finding.impact && finding.likelihood ? `${finding.impact} / ${finding.likelihood}` : '—'}</td>
+              <td>${finding.risk_score != null ? finding.risk_score : '—'}</td>
               <td>${finding.description || finding.title || 'No description available'}</td>
               <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
               <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
@@ -465,6 +469,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
           <tr>
             <th>Resource</th>
             <th>Type</th>
+            <th>Impact / Likelihood</th>
+            <th>Risk Score</th>
             <th>Description</th>
             <th>Recommendation</th>
             <th>ARN</th>
@@ -475,6 +481,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
             <tr>
               <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
               <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
+              <td>${finding.impact && finding.likelihood ? `${finding.impact} / ${finding.likelihood}` : '—'}</td>
+              <td>${finding.risk_score != null ? finding.risk_score : '—'}</td>
               <td>${finding.description || finding.title || 'No description available'}</td>
               <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
               <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
@@ -493,6 +501,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
           <tr>
             <th>Resource</th>
             <th>Type</th>
+            <th>Impact / Likelihood</th>
+            <th>Risk Score</th>
             <th>Description</th>
             <th>Recommendation</th>
           </tr>
@@ -502,6 +512,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
             <tr>
               <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
               <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
+              <td>${finding.impact && finding.likelihood ? `${finding.impact} / ${finding.likelihood}` : '—'}</td>
+              <td>${finding.risk_score != null ? finding.risk_score : '—'}</td>
               <td>${finding.description || finding.title || 'No description available'}</td>
               <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
             </tr>
@@ -519,6 +531,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
           <tr>
             <th>Resource</th>
             <th>Type</th>
+            <th>Impact / Likelihood</th>
+            <th>Risk Score</th>
             <th>Description</th>
             <th>Recommendation</th>
           </tr>
@@ -528,6 +542,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
             <tr>
               <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
               <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
+              <td>${finding.impact && finding.likelihood ? `${finding.impact} / ${finding.likelihood}` : '—'}</td>
+              <td>${finding.risk_score != null ? finding.risk_score : '—'}</td>
               <td>${finding.description || finding.title || 'No description available'}</td>
               <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
             </tr>
@@ -581,20 +597,25 @@ export function exportScanResultToJSON(data: ScanResultData, filename?: string):
 }
 
 /**
- * Download scan result as CSV file
+ * Download scan result as CSV file.
+ * Includes severity, impact, likelihood, and risk_score when present (IAM scoring model).
  */
 export function exportScanResultToCSV(data: ScanResultData, filename?: string): void {
-  if (!data.findings || data.findings.length === 0) {
+  const findings = extractFindings(data);
+  if (!findings || findings.length === 0) {
     throw new Error('No findings to export');
   }
 
-  const headers = ['Severity', 'Type', 'Resource Name', 'Resource ARN', 'Description', 'Recommendation'];
-  const rows = data.findings.map((finding: any) => [
+  const headers = ['Severity', 'Impact', 'Likelihood', 'Risk Score', 'Type', 'Resource Name', 'Resource ARN', 'Description', 'Recommendation'];
+  const rows = findings.map((finding: any) => [
     finding.severity || '',
+    finding.impact || '',
+    finding.likelihood || '',
+    finding.risk_score != null ? String(finding.risk_score) : '',
     finding.type || finding.finding_type || '',
     finding.resource_name || '',
     finding.resource_arn || '',
-    (finding.description || '').replace(/,/g, ';'), // Replace commas to avoid CSV issues
+    (finding.description || '').replace(/,/g, ';'),
     (finding.recommendation || '').replace(/,/g, ';')
   ]);
 
