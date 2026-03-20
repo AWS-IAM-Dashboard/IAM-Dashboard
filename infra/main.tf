@@ -42,7 +42,7 @@ module "s3" {
   s3_kms_key_arn               = data.aws_kms_key.logs.arn
   s3_logging_bucket_name       = "${var.s3_bucket_name}-access-logs"
   scan_notification_lambda_arn = module.lambda.lambda_ses_function_arn
-  scan_notification_prefix     = var.scan_results_notification_prefix
+  scan_notification_prefix     = var.scan_notification_prefix
 
   depends_on = [module.lambda]
 }

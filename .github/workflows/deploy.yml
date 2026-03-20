@@ -3,7 +3,7 @@ name: Deploy IAM Dashboard
 on:
   push:
     branches:
-      - feature/backend/Add-SES
+      - main
   pull_request:
     branches:
       - main
