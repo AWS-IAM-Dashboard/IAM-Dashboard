@@ -28,6 +28,12 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
+variable "lambda_ses_function" {
+  description = "Name of the SES notification Lambda function"
+  type        = string
+  default     = "iam-dashboard-ses"
+}
+
 variable "lambda_runtime" {
   description = "Lambda runtime (e.g., python3.13, python3.9)"
   type        = string
@@ -66,6 +72,33 @@ variable "lambda_environment_variables" {
   description = "Additional environment variables for Lambda function"
   type        = map(string)
   default     = {}
+}
+
+variable "lambda_ses_environment_variables" {
+  description = "Additional environment variables for the SES notification Lambda function"
+  type        = map(string)
+  default     = {}
+}
+
+variable "ses_from_email" {
+  description = "Verified SES sender email address for scan notifications"
+  type        = string
+}
+
+variable "scan_alert_recipients" {
+  description = "Comma-separated recipient list for SES scan notifications"
+  type        = string
+}
+
+variable "lambda_ses_bucket_name" {
+  description = "S3 bucket name referenced in SES scan notifications"
+  type        = string
+}
+
+variable "ses_subject_prefix" {
+  description = "Optional subject prefix for SES scan notification emails"
+  type        = string
+  default     = "IAM Dashboard"
 }
 
 variable "lambda_kms_key_arn" {

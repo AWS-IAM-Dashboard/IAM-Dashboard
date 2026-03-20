@@ -204,3 +204,14 @@ resource "aws_s3_bucket_logging" "frontend" {
   target_bucket = aws_s3_bucket.frontend_logs.id
   target_prefix = "access-logs/"
 }
+
+resource "aws_s3_bucket_notification" "scan_results" {
+  bucket = aws_s3_bucket.frontend.id
+
+  lambda_function {
+    lambda_function_arn = var.scan_notification_lambda_arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = var.scan_notification_prefix
+    filter_suffix       = ".json"
+  }
+}

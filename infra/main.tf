@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.14.7"
+  required_version = ">= 1.12.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -35,12 +35,16 @@ data "aws_kms_key" "logs" {
 module "s3" {
   source = "./s3"
 
-  aws_region             = var.aws_region
-  environment            = var.environment
-  project_name           = var.project_name
-  s3_bucket_name         = var.s3_bucket_name
-  s3_kms_key_arn         = data.aws_kms_key.logs.arn
-  s3_logging_bucket_name = "${var.s3_bucket_name}-access-logs"
+  aws_region                   = var.aws_region
+  environment                  = var.environment
+  project_name                 = var.project_name
+  s3_bucket_name               = var.s3_bucket_name
+  s3_kms_key_arn               = data.aws_kms_key.logs.arn
+  s3_logging_bucket_name       = "${var.s3_bucket_name}-access-logs"
+  scan_notification_lambda_arn = module.lambda.lambda_ses_function_arn
+  scan_notification_prefix     = var.scan_results_notification_prefix
+
+  depends_on = [module.lambda]
 }
 
 # DynamoDB Module
@@ -55,17 +59,29 @@ module "dynamodb" {
   enable_point_in_time_recovery = true
 }
 
+# SES Module
+module "ses" {
+  source = "./ses"
+
+  aws_region   = var.aws_region
+  environment  = var.environment
+  project_name = var.project_name
+}
+
 # Lambda Module
 module "lambda" {
   source = "./lambda"
 
-  aws_region           = var.aws_region
-  environment          = var.environment
-  project_name         = var.project_name
-  lambda_function_name = var.lambda_function_name
-  dynamodb_table_name  = var.dynamodb_table_name
-  s3_bucket_name       = var.s3_bucket_name
-  lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+  aws_region             = var.aws_region
+  environment            = var.environment
+  project_name           = var.project_name
+  lambda_function_name   = var.lambda_function_name
+  dynamodb_table_name    = var.dynamodb_table_name
+  s3_bucket_name         = var.s3_bucket_name
+  lambda_ses_bucket_name = var.scan_results_s3_bucket_name
+  ses_from_email         = module.ses.sender_email
+  scan_alert_recipients  = module.ses.recipient_email
+  lambda_kms_key_arn     = data.aws_kms_key.logs.arn
 }
 
 # API Gateway Module

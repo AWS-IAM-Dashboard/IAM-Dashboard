@@ -40,6 +40,12 @@ variable "scan_results_s3_bucket_name" {
   default     = "iam-dashboard-scan-results"
 }
 
+variable "scan_notification_prefix" {
+  description = "S3 object prefix used for SES notification filtering"
+  type        = string
+  default     = "scan-result/prod"
+}
+
 variable "dynamodb_table_name" {
   description = "DynamoDB table name for scan results"
   type        = string
