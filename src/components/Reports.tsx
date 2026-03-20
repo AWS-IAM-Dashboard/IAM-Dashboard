@@ -12,6 +12,7 @@ import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, t
 import { toast } from "sonner@2.0.3";
 import { useScanResults } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
+import { EmptyState } from "./EmptyState";
 
 const REPORT_TYPE_TABS = [
   {
@@ -649,130 +650,141 @@ export function Reports({ reports }: ReportsProps) {
         </CardContent>
       </Card>
 
-      {reports.length > 0 && (
-      <Card className="cyber-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Report History</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search reports..."
-                  className="pl-10 bg-input border-border w-64"
-                />
+      {reports.length === 0 ? (
+        <EmptyState
+          icon={<FileText className="h-5 w-5" />}
+          title="No reports yet"
+          description="Generate your first report to build a history of exports and shareable summaries."
+          primaryAction={{
+            label: "Generate a report",
+            onClick: () => setShowGenerateDialog(true),
+            icon: <Plus className="h-4 w-4" />,
+          }}
+        />
+      ) : (
+        <Card className="cyber-card">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Report History</CardTitle>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search reports..."
+                    className="pl-10 bg-input border-border w-64"
+                  />
+                </div>
+                <Button variant="outline" className="border-border">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                </Button>
               </div>
-              <Button variant="outline" className="border-border">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead>Report Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Threats Found</TableHead>
-                <TableHead>Processes</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {reports.map((report) => (
-                <TableRow key={report.id} className="border-border">
-                  <TableCell className="font-medium">{report.name}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className={getTypeColor(report.type)}
-                    >
-                      {report.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono">{report.date}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      className={getStatusColor(report.status)}
-                    >
-                      {report.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className={report.threats > 10 ? "text-[#ff0040]" : report.threats > 0 ? "text-[#ffb000]" : "text-[#00ff88]"}>
-                      {report.threats}
-                    </span>
-                  </TableCell>
-                  <TableCell>{report.processes}</TableCell>
-                  <TableCell>{report.size}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => {
-                            // Find corresponding scan result and generate report
-                            const scanResult = getScanResult('full');
-                            if (scanResult) {
-                              // Generate PDF from scan result
-                              const scanData: ScanResultData = {
-                                scan_id: scanResult.scan_id,
-                                scanner_type: scanResult.scanner_type,
-                                region: scanResult.region,
-                                status: scanResult.status,
-                                timestamp: scanResult.timestamp,
-                                results: scanResult.results,
-                                scan_summary: scanResult.scan_summary,
-                                findings: scanResult.findings
-                              };
-                              exportScanResultToPDF(scanData, report.name);
-                            } else {
-                              toast.warning('Scan data not available', {
-                                description: 'The scan results for this report are no longer available'
-                              });
-                            }
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          disabled={report.status === "In Progress"}
-                          onClick={() => {
-                            const scanResult = getScanResult('full');
-                            if (scanResult) {
-                              const scanData: ScanResultData = {
-                                scan_id: scanResult.scan_id,
-                                scanner_type: scanResult.scanner_type,
-                                region: scanResult.region,
-                                status: scanResult.status,
-                                timestamp: scanResult.timestamp,
-                                results: scanResult.results,
-                                scan_summary: scanResult.scan_summary,
-                                findings: scanResult.findings
-                              };
-                              exportScanResultToPDF(scanData, report.name);
-                            }
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border">
+                  <TableHead>Report Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Threats Found</TableHead>
+                  <TableHead>Processes</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                  {reports.map((report) => (
+                  <TableRow key={report.id} className="border-border">
+                    <TableCell className="font-medium">{report.name}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={getTypeColor(report.type)}
+                      >
+                        {report.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono">{report.date}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={getStatusColor(report.status)}
+                      >
+                        {report.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={report.threats > 10 ? "text-[#ff0040]" : report.threats > 0 ? "text-[#ffb000]" : "text-[#00ff88]"}>
+                        {report.threats}
+                      </span>
+                    </TableCell>
+                    <TableCell>{report.processes}</TableCell>
+                    <TableCell>{report.size}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            onClick={() => {
+                              // Find corresponding scan result and generate report
+                              const scanResult = getScanResult('full');
+                              if (scanResult) {
+                                // Generate PDF from scan result
+                                const scanData: ScanResultData = {
+                                  scan_id: scanResult.scan_id,
+                                  scanner_type: scanResult.scanner_type,
+                                  region: scanResult.region,
+                                  status: scanResult.status,
+                                  timestamp: scanResult.timestamp,
+                                  results: scanResult.results,
+                                  scan_summary: scanResult.scan_summary,
+                                  findings: scanResult.findings
+                                };
+                                exportScanResultToPDF(scanData, report.name);
+                              } else {
+                                toast.warning('Scan data not available', {
+                                  description: 'The scan results for this report are no longer available'
+                                });
+                              }
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:bg-accent/20"
+                            disabled={report.status === "In Progress"}
+                            onClick={() => {
+                              const scanResult = getScanResult('full');
+                              if (scanResult) {
+                                const scanData: ScanResultData = {
+                                  scan_id: scanResult.scan_id,
+                                  scanner_type: scanResult.scanner_type,
+                                  region: scanResult.region,
+                                  status: scanResult.status,
+                                  timestamp: scanResult.timestamp,
+                                  results: scanResult.results,
+                                  scan_summary: scanResult.scan_summary,
+                                  findings: scanResult.findings
+                                };
+                                exportScanResultToPDF(scanData, report.name);
+                              }
+                            }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Report Templates */}
