@@ -208,6 +208,7 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
 function extractFindings(results: any): any[] {
   if (!results) return [];
   
+  
   // For full scan, extract findings from IAM only
   if (results.scan_type === 'full' || results.iam) {
     const allFindings: any[] = [];
