@@ -21,6 +21,11 @@ from flask_cors import CORS
 from api.grafana import GrafanaResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.aws_iam import IAMResource
+from api.aws_ec2 import EC2Resource
+from api.aws_s3 import S3Resource
+from api.aws_security_hub import SecurityHubResource
+from api.aws_config import ConfigResource
 
 
 logging.basicConfig(
@@ -116,6 +121,26 @@ def create_app() -> Flask:
     @app.get("/v1/grafana")
     def grafana():
         return _normalize_resource_response(GrafanaResource().get())
+
+    @app.get("/v1/aws/iam")
+    def aws_iam():
+        return _normalize_resource_response(IAMResource().get())
+
+    @app.get("/v1/aws/ec2")
+    def aws_ec2():
+        return _normalize_resource_response(EC2Resource().get())
+
+    @app.get("/v1/aws/s3")
+    def aws_s3():
+        return _normalize_resource_response(S3Resource().get())
+
+    @app.get("/v1/aws/security-hub")
+    def aws_security_hub():
+        return _normalize_resource_response(SecurityHubResource().get())
+
+    @app.get("/v1/aws/config")
+    def aws_config():
+        return _normalize_resource_response(ConfigResource().get())
 
     @app.errorhandler(404)
     def not_found(_: Exception):
