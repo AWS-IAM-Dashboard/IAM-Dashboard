@@ -19,11 +19,11 @@ variable "project_name" {
 variable "sender_email" {
   description = "SES sender identity for sandbox-mode scan notifications"
   type        = string
-  default     = "verified-sender@example.com"
+  default     = "jport081@fiu.edu"
 }
 
 variable "recipient_email" {
   description = "SES recipient identity for sandbox-mode scan notifications"
   type        = string
-  default     = "verified-recipient@example.com"
+  default     = "jport081@fiu.edu"
 }
