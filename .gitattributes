@@ -1,3 +1,0 @@
-# Enforce Unix line endings for scripts (prevents CRLF breaking Linux containers)
-*.sh   text eol=lf
-*.bash text eol=lf
