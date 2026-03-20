@@ -26,7 +26,7 @@ when the `db` container starts. No manual setup is needed beyond `docker-compose
 | `compliance_status` | Per-framework compliance scores (SOC2, PCI_DSS, HIPAA) |
 | `performance_metrics` | Generic performance metrics (CPU, memory, disk, response time) |
 
-All tables are seeded with realistic mock data scoped to account `123456789012` in `us-east-1`.
+All tables are seeded with realistic mock data scoped to a placeholder account (`000000000000`) in `us-east-1`.
 
 ---
 
@@ -218,9 +218,9 @@ All endpoints accept query parameters only (no request body). All responses are 
       "severity": "CRITICAL",
       "status": "NEW",
       "resource_type": "AWS::EC2::SecurityGroup",
-      "resource_id": "sg-0123456789",
+      "resource_id": "sg-example-id",
       "region": "us-east-1",
-      "account_id": "123456789012",
+      "account_id": "000000000000",
       "resolved": false,
       "created_at": "2026-03-20T00:00:00"
     }
