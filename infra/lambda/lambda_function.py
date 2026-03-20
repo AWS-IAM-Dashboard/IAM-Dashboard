@@ -8,7 +8,7 @@ import os
 import logging
 import boto3
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from botocore.exceptions import ClientError
 from decimal import Decimal
 
@@ -106,11 +106,24 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'iam-dashboard-scan-
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'iam-dashboard-project')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+LOCAL_LAMBDA_MODE = os.environ.get('LOCAL_LAMBDA_MODE', 'false').lower() == 'true'
+
+
+def should_skip_side_effects() -> bool:
+    """
+    Local adapter runs should execute the real scan logic but avoid writing scan
+    artifacts or metrics into shared AWS resources unless explicitly enabled.
+    """
+    return LOCAL_LAMBDA_MODE
 
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
     """Publish a custom CloudWatch metric"""
     try:
+        if should_skip_side_effects():
+            logger.info(f"Skipping CloudWatch metric in local mode: {metric_name}")
+            return
+
         cloudwatch.put_metric_data(
             Namespace='IAMDashboard/Scans',
             MetricData=[{
@@ -139,6 +152,110 @@ def json_serial(obj):
         return str(obj)
     except:
         return None
+
+
+def _normalize_scan_result(scanner_type: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Inline normalization helper"""
+    if raw is None:
+        raw = {}
+
+    normalized: Dict[str, Any] = dict(raw)
+
+    # Ensure minimal fields
+    normalized.setdefault('scan_type', scanner_type)
+    normalized.setdefault('status', raw.get('status', 'completed'))
+
+    # Extract findings from common locations
+    findings: List[Dict[str, Any]] = []
+
+    if isinstance(raw.get('findings'), list):
+        findings.extend(raw.get('findings') or [])
+
+    # iam findings
+    if not findings and isinstance(raw.get('iam', {}).get('findings'), list):
+        findings.extend(raw['iam']['findings'])
+
+    # other named arrays
+    for key in ('security_hub_findings', 'guardduty_findings', 'inspector_findings', 'macie_findings', 'config_findings', 'iam_findings'):
+        if not findings and isinstance(raw.get(key), list):
+            findings.extend(raw.get(key) or [])
+
+    # nested IAM structures
+    if not findings and isinstance(raw.get('users'), dict):
+        if isinstance(raw['users'].get('findings'), list):
+            findings.extend(raw['users']['findings'])
+    if not findings and isinstance(raw.get('roles'), dict):
+        if isinstance(raw['roles'].get('findings'), list):
+            findings.extend(raw['roles']['findings'])
+
+    # S3/EC2 style
+    if not findings and isinstance(raw.get('buckets'), dict) and isinstance(raw['buckets'].get('findings'), list):
+        findings.extend(raw['buckets']['findings'])
+    if not findings and isinstance(raw.get('instances'), dict) and isinstance(raw['instances'].get('findings'), list):
+        findings.extend(raw['instances']['findings'])
+
+    # results subobject
+    if not findings and isinstance(raw.get('results'), dict) and isinstance(raw['results'].get('findings'), list):
+        findings.extend(raw['results']['findings'])
+
+    # final fallback
+    if not findings and isinstance(raw, list):
+        findings = list(raw)
+
+    normalized['findings'] = findings
+
+    # Build summary
+    summary = raw.get('summary') or raw.get('scan_summary') or None
+    if not summary:
+        if findings:
+            # count severities (tolerant)
+            counts = {
+                'total_findings': len(findings),
+                'critical_findings': 0,
+                'high_findings': 0,
+                'medium_findings': 0,
+                'low_findings': 0,
+            }
+            for f in findings:
+                sev = (f.get('severity') or f.get('Severity') or '')
+                if isinstance(sev, str):
+                    s = sev.lower()
+                    if s.startswith('critical'):
+                        counts['critical_findings'] += 1
+                    elif s.startswith('high'):
+                        counts['high_findings'] += 1
+                    elif s.startswith('medium'):
+                        counts['medium_findings'] += 1
+                    elif s.startswith('low'):
+                        counts['low_findings'] += 1
+            summary = counts
+        else:
+            # infer from iam.scan_summary if present
+            if isinstance(raw.get('iam', {}).get('scan_summary'), dict):
+                iam_sum = raw['iam']['scan_summary']
+                summary = {
+                    'critical_findings': iam_sum.get('critical_findings', 0),
+                    'high_findings': iam_sum.get('high_findings', 0),
+                    'medium_findings': iam_sum.get('medium_findings', 0),
+                    'low_findings': iam_sum.get('low_findings', 0),
+                }
+                summary['total_findings'] = sum(summary.get(k, 0) for k in ('critical_findings', 'high_findings', 'medium_findings', 'low_findings'))
+
+    if summary is None:
+        summary = {'total_findings': 0, 'critical_findings': 0, 'high_findings': 0, 'medium_findings': 0, 'low_findings': 0}
+    else:
+        for k in ('total_findings', 'critical_findings', 'high_findings', 'medium_findings', 'low_findings'):
+            summary.setdefault(k, 0)
+
+    normalized['summary'] = summary
+
+    # preserve raw under details
+    details = normalized.get('details') or {}
+    if scanner_type not in details:
+        details[scanner_type] = raw
+    normalized['details'] = details
+
+    return normalized
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -210,6 +327,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         try:
             scan_result = execute_scan(scanner_type, region, scan_params, scan_id)
+            # Normalize & provide canonical fields for consumers
+            try:
+                scan_result = _normalize_scan_result(scanner_type, scan_result)
+            except Exception as e:
+                logger.warning(f"Failed to normalize scan result: {str(e)}")
+
             scan_duration = (datetime.utcnow() - scan_start_time).total_seconds()
             
             # Ensure scan_result is a dict
@@ -1597,6 +1720,10 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
 def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dict[str, Any]) -> None:
     """Store scan results in DynamoDB and S3"""
     try:
+        if should_skip_side_effects():
+            logger.info(f"Skipping DynamoDB/S3 persistence in local mode for scan: {scan_id}")
+            return
+
         timestamp = datetime.utcnow().isoformat()
         
         # Store in DynamoDB
