@@ -2,17 +2,19 @@ import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
 import logoImage from "@/assets/logo.png";
 
 export function LoginPage() {
+  const auth = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    navigate("/app");
+    await auth.signinRedirect();
   };
 
   return (
@@ -68,6 +70,7 @@ export function LoginPage() {
           <div className="mb-6 space-y-3">
             <button
               type="button"
+              onClick={() => void auth.signinRedirect()}
               className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
@@ -94,6 +97,7 @@ export function LoginPage() {
 
             <button
               type="button"
+              onClick={() => void auth.signinRedirect()}
               className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
@@ -170,9 +174,10 @@ export function LoginPage() {
 
             <button
               type="submit"
+              disabled={auth.isLoading}
               className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
             >
-              <span className="relative z-10">Sign In</span>
+              <span className="relative z-10">{auth.isLoading ? "Loading..." : "Sign In"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           </form>

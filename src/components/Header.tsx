@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "react-oidc-context";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Search, Bell, Settings, User, LogOut, Shield } from "lucide-react";
 import { Button } from "./ui/button";
@@ -40,8 +41,39 @@ const mockNotifications = [
 ];
 
 export function Header({ onNavigate }: HeaderProps) {
+  const auth = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const profile = auth.user?.profile;
+  const userEmail = typeof profile?.email === "string" ? profile.email : "Authenticated User";
+  const displayName =
+    (typeof profile?.name === "string" && profile.name) ||
+    (typeof profile?.preferred_username === "string" && profile.preferred_username) ||
+    userEmail;
+  const initials = displayName
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AU";
+
+  const handleSignOut = async () => {
+    const cognitoDomain = import.meta.env.VITE_COGNITO_DOMAIN;
+    const cognitoClientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+    const cognitoLogoutUri = import.meta.env.VITE_COGNITO_LOGOUT_URI;
+
+    await auth.removeUser();
+
+    if (cognitoDomain && cognitoClientId && cognitoLogoutUri) {
+      const logoutUrl = new URL("/logout", cognitoDomain);
+      logoutUrl.searchParams.set("client_id", cognitoClientId);
+      logoutUrl.searchParams.set("logout_uri", cognitoLogoutUri);
+      window.location.assign(logoutUrl.toString());
+      return;
+    }
+
+    window.location.assign("/");
+  };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
@@ -207,14 +239,14 @@ export function Header({ onNavigate }: HeaderProps) {
             <Button variant="ghost" className="h-8 w-8 rounded-full p-0">
               <Avatar className="h-8 w-8 border border-border">
                 <AvatarImage src="" />
-                <AvatarFallback className="bg-secondary text-xs">AD</AvatarFallback>
+                <AvatarFallback className="bg-secondary text-xs">{initials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="cyber-card border-border w-64" align="end">
             <div className="px-3 py-2 border-b border-border">
-              <p className="text-sm font-medium">Cloud Security Admin</p>
-              <p className="text-xs text-muted-foreground">admin@cloudsec.com</p>
+              <p className="text-sm font-medium">{displayName}</p>
+              <p className="text-xs text-muted-foreground">{userEmail}</p>
             </div>
             
             <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer">
@@ -237,7 +269,7 @@ export function Header({ onNavigate }: HeaderProps) {
             
             <DropdownMenuSeparator className="bg-border" />
             
-            <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer text-destructive">
+            <DropdownMenuItem className="hover:bg-accent/20 cursor-pointer text-destructive" onClick={() => void handleSignOut()}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </DropdownMenuItem>
