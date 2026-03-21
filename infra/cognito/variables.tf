@@ -19,11 +19,13 @@ variable "project_name" {
 variable "test_user_email" {
   description = "Email address for the seeded testUser account"
   type        = string
+  default = "ajant001@fiu.edu"
 }
 
 variable "cognito_domain_prefix" {
   description = "Hosted UI domain prefix for the Cognito user pool"
   type        = string
+  default = "iam-dashboard-test-login"
 }
 
 variable "seed_user_password" {
@@ -36,11 +38,11 @@ variable "seed_user_password" {
 variable "callback_urls" {
   description = "OAuth callback URLs for the Cognito app client"
   type        = list(string)
-  default     = ["http://localhost:3001/callback"]
+  default     = ["http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"]
 }
 
 variable "logout_urls" {
   description = "OAuth logout URLs for the Cognito app client"
   type        = list(string)
-  default     = ["http://localhost:3001/logout"]
+  default     = ["http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"]
 }
