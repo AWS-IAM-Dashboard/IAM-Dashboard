@@ -52,6 +52,16 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
+variable "test_user_email" {
+  description = "Email address for the seeded Cognito testUser account"
+  type        = string
+}
+
+variable "cognito_domain_prefix" {
+  description = "Hosted UI domain prefix for the Cognito user pool"
+  type        = string
+}
+
 # Existing KMS key: alias or key ID. Use so Terraform does not create a key (CI has no kms:CreateKey).
 # IMPORTANT: Do not hard-code real key IDs or aliases in code; set per-environment via
 # TF_VAR_kms_key_id, terraform.tfvars (not committed), or CI environment/secrets.

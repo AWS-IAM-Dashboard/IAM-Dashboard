@@ -78,6 +78,16 @@ module "api_gateway" {
   kms_key_arn  = data.aws_kms_key.logs.arn
 }
 
+module "cognito" {
+  source = "./cognito"
+
+  aws_region            = var.aws_region
+  environment           = var.environment
+  project_name          = var.project_name
+  test_user_email       = var.test_user_email
+  cognito_domain_prefix = var.cognito_domain_prefix
+}
+
 # GitHub Actions OIDC Module
 module "github_actions" {
   source = "./github-actions"

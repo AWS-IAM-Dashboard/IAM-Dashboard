@@ -200,3 +200,4 @@ checkov-results.md
 .tfdata-s3-notify-validate
 .tfdata-ses-validate
 terraform_output.txt
+get_session_token.ps1
