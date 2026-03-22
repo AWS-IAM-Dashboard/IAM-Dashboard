@@ -16,6 +16,8 @@ jobs:
   test:
     name: Test Assume Role
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
