@@ -1,0 +1,30 @@
+name: Test Role
+
+on:
+  push:
+    branches: [feature/backend/Cognito-JWT]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: test-role-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test Assume Role
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Print assumed identity
+        run: aws sts get-caller-identity
