@@ -494,22 +494,22 @@ export function DynamoDBSecurity() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Database className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_tables}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.total_tables ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Total Tables</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Lock className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.unencrypted_tables}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.unencrypted_tables ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Unencrypted</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Backup className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.no_pitr}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.no_pitr ?? 0}</p>
                     <p className="text-sm text-muted-foreground">No PITR</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.no_deletion_protection}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.no_deletion_protection ?? 0}</p>
                     <p className="text-sm text-muted-foreground">No Deletion Protection</p>
                   </div>
                 </div>
@@ -519,20 +519,20 @@ export function DynamoDBSecurity() {
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Encryption Status</h4>
                     <p className="text-2xl font-medium text-[#00ff88]">
-                      {scanResult.scan_summary.total_tables - scanResult.scan_summary.unencrypted_tables}/
-                      {scanResult.scan_summary.total_tables}
+                      {(scanResult.scan_summary?.total_tables ?? 0) - (scanResult.scan_summary?.unencrypted_tables ?? 0)}/
+                      {scanResult.scan_summary?.total_tables ?? 0}
                     </p>
                     <p className="text-sm text-muted-foreground">Tables encrypted</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Point-in-Time Recovery</h4>
-                    <p className="text-2xl font-medium text-[#ffb000]">{scanResult.scan_summary.no_pitr}</p>
+                    <p className="text-2xl font-medium text-[#ffb000]">{scanResult.scan_summary?.no_pitr ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Tables without PITR</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">High Priority</h4>
                     <p className="text-2xl font-medium text-[#ff0040]">
-                      {scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings}
+                      {(scanResult.scan_summary?.critical_findings ?? 0) + (scanResult.scan_summary?.high_findings ?? 0)}
                     </p>
                     <p className="text-sm text-muted-foreground">Critical + High findings</p>
                   </div>

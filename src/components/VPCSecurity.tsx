@@ -510,22 +510,22 @@ export function VPCSecurity() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Network className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_vpcs}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.total_vpcs ?? 0}</p>
                     <p className="text-sm text-muted-foreground">VPCs</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Globe className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_subnets}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.total_subnets ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Subnets</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.security_groups}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.security_groups ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Security Groups</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <Activity className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.open_security_groups}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary?.open_security_groups ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Open SGs</p>
                   </div>
                 </div>
@@ -534,21 +534,21 @@ export function VPCSecurity() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Public Exposure</h4>
-                    <p className="text-2xl font-medium text-[#ffb000]">{scanResult.scan_summary.public_subnets}</p>
+                    <p className="text-2xl font-medium text-[#ffb000]">{scanResult.scan_summary?.public_subnets ?? 0}</p>
                     <p className="text-sm text-muted-foreground">Public subnets</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Flow Logs</h4>
-                    <p className="text-2xl font-medium text-[#ff0040]">{scanResult.scan_summary.flow_logs_missing}</p>
+                    <p className="text-2xl font-medium text-[#ff0040]">{scanResult.scan_summary?.flow_logs_missing ?? 0}</p>
                     <p className="text-sm text-muted-foreground">VPCs without flow logs</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Total Findings</h4>
                     <p className="text-2xl font-medium">
-                      {scanResult.scan_summary.critical_findings +
-                        scanResult.scan_summary.high_findings +
-                        scanResult.scan_summary.medium_findings +
-                        scanResult.scan_summary.low_findings}
+                      {(scanResult.scan_summary?.critical_findings ?? 0) +
+                        (scanResult.scan_summary?.high_findings ?? 0) +
+                        (scanResult.scan_summary?.medium_findings ?? 0) +
+                        (scanResult.scan_summary?.low_findings ?? 0)}
                     </p>
                     <p className="text-sm text-muted-foreground">Network issues</p>
                   </div>
