@@ -28,3 +28,14 @@ jobs:
 
       - name: Print assumed identity
         run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: infra
+        run: terraform init -input=false
+
+      - name: Terraform import CloudFront distribution
+        working-directory: infra
+        run: terraform import 'module.cloudfront.aws_cloudfront_distribution.iam_dashboard' E1ASA8I59U9PNG
