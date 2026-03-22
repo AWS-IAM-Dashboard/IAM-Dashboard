@@ -88,6 +88,68 @@ def mask_sensitive_data(text: str) -> str:
     masked = mask_access_key(masked)
     return masked
 
+
+def _mask_in_structure(obj: Any) -> Any:
+    """Recursively mask sensitive strings inside dict/list/tuple structures.
+    Keeps non-string primitives unchanged.
+    """
+    if obj is None:
+        return None
+    if isinstance(obj, str):
+        return mask_sensitive_data(obj)
+    if isinstance(obj, (int, float, bool)):
+        return obj
+    if isinstance(obj, list):
+        return [_mask_in_structure(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_mask_in_structure(v) for v in obj)
+    if isinstance(obj, dict):
+        out: Dict[str, Any] = {}
+        secret_keys = {'password', 'passwd', 'secret', 'client_secret', 'access_key', 'secret_key', 'aws_secret_access_key', 'aws_access_key_id', 'token', 'authorization', 'api_key', 'apikey'}
+        for k, v in obj.items():
+            if isinstance(k, str) and k.lower() in secret_keys:
+                out[k] = mask_sensitive_data(str(v)) if v is not None else None
+            else:
+                out[k] = _mask_in_structure(v)
+        return out
+    # Fallback: convert to string and mask
+    try:
+        return mask_sensitive_data(str(obj))
+    except Exception:
+        return None
+
+
+def _sanitize_event_for_logging(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Return an event copy with headers and body masked to avoid logging secrets."""
+    if not isinstance(event, dict):
+        return {'event': '***masked***'}
+
+    safe: Dict[str, Any] = {}
+    for k, v in event.items():
+        lk = k.lower() if isinstance(k, str) else k
+        if lk in ('headers', 'header') and isinstance(v, dict):
+            headers: Dict[str, Any] = {}
+            for hk, hv in v.items():
+                if isinstance(hk, str) and hk.lower() in ('authorization', 'x-api-key', 'cookie'):
+                    headers[hk] = '***masked***'
+                else:
+                    headers[hk] = mask_sensitive_data(hv) if isinstance(hv, str) else hv
+            safe[k] = headers
+        elif lk == 'body':
+            # Attempt to parse JSON body and mask contents; otherwise hide it
+            try:
+                if isinstance(v, str):
+                    parsed = json.loads(v)
+                else:
+                    parsed = v
+                safe[k] = _mask_in_structure(parsed)
+            except Exception:
+                safe[k] = '***masked_body***'
+        else:
+            safe[k] = mask_sensitive_data(v) if isinstance(v, str) else v
+
+    return safe
+
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
@@ -283,7 +345,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     scan_start_time = datetime.utcnow()
     
     try:
-        logger.info(f"Received event: {json.dumps(event)}")
+        # Mask sensitive parts of the event before logging to avoid leaking secrets
+        try:
+            safe_event = _sanitize_event_for_logging(event)
+            logger.info(f"Received event: {json.dumps(safe_event)}")
+        except Exception:
+            logger.info("Received event: <masked>")
         
         # Parse event (API Gateway or direct invocation)
         if 'httpMethod' in event or 'requestContext' in event:
@@ -425,7 +492,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'scan_type': 'full',
                     'status': 'completed',
                     'error': 'Some scanners failed',
-                    'message': str(scan_error)[:500],
+                    'message': mask_sensitive_data(str(scan_error))[:500],
                     'iam': {
                         'findings': [],
                         'scan_summary': {'critical_findings': 0, 'high_findings': 0, 'medium_findings': 0, 'low_findings': 0}
@@ -437,7 +504,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'scan_type': 'iam',
                     'status': 'completed',
                     'error': 'IAM scan encountered an error',
-                    'message': str(scan_error)[:500],
+                    'message': mask_sensitive_data(str(scan_error))[:500],
                     'findings': [],
                     'scan_summary': {
                         'critical_findings': 0,
@@ -454,7 +521,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             else:
                 return create_response(500, {
                     'error': 'Scan execution failed',
-                    'message': str(scan_error)[:500],
+                    'message': mask_sensitive_data(str(scan_error))[:500],
                     'scan_id': scan_id,
                     'scanner_type': scanner_type
                 })
@@ -466,12 +533,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.warning(f"Error storing results (non-fatal): {str(storage_error)}")
         
         # Return response - ALWAYS return 200 to show results (even for errors in IAM/full scans)
+        safe_results = _mask_in_structure(scan_result)
         return create_response(200, {
             'scan_id': scan_id,
             'scanner_type': scanner_type,
             'region': region,
-            'status': scan_result.get('status', 'completed'),
-            'results': scan_result,
+            'status': safe_results.get('status', 'completed'),
+            'results': safe_results,
             'timestamp': datetime.utcnow().isoformat()
         })
         
@@ -1665,7 +1733,7 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
             # Return error dict instead of crashing - this allows scan to continue
             error_result = {
                 'error': f'{scanner_name} scan failed',
-                'message': str(e)[:500],  # Limit message length
+                'message': mask_sensitive_data(str(e))[:500],  # Limit message length
                 'scan_type': scanner_name.replace('_', '-'),
                 'findings': [],
                 'scan_summary': {
@@ -1707,7 +1775,7 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
                 'region': region,
                 'scan_id': scan_id,
                 'error': 'Failed to serialize scan results',
-                'message': str(e)[:500],
+                'message': mask_sensitive_data(str(e))[:500],
                 'iam': {
                     'findings': [],
                     'scan_summary': {'critical_findings': 0, 'high_findings': 0, 'medium_findings': 0, 'low_findings': 0}
@@ -1729,13 +1797,15 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
         # Store in DynamoDB
         try:
             table = dynamodb.Table(DYNAMODB_TABLE_NAME)
+            # Store a sanitized copy of results to avoid persisting raw secrets
+            sanitized_results = _mask_in_structure(scan_result)
             table.put_item(
                 Item={
                     'scan_id': scan_id,
                     'scanner_type': scanner_type,
                     'region': region,
                     'timestamp': timestamp,
-                    'results': scan_result,
+                    'results': sanitized_results,
                     'project': PROJECT_NAME,
                     'environment': ENVIRONMENT
                 }
@@ -1755,7 +1825,7 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
                     'scanner_type': scanner_type,
                     'region': region,
                     'timestamp': timestamp,
-                    'results': scan_result
+                    'results': sanitized_results
                 }, indent=2),
                 ContentType='application/json'
             )
@@ -1787,7 +1857,7 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
         # Return error response if serialization fails
         error_body = {
             'error': 'Failed to serialize response',
-            'message': str(e)[:500],
+            'message': mask_sensitive_data(str(e))[:500],
             'status': 'error'
         }
         return {
