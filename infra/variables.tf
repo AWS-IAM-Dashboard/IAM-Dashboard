@@ -107,10 +107,10 @@ variable "cognito_logout_urls" {
   default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/"]
 }
 
-variable "test_s3_endpoint"{
+variable "test_s3_endpoint" {
   description = "S3 endpoint for test s3 bucket"
-  type = string
-  default = "http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
+  type        = string
+  default     = "http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
 }
 
 
