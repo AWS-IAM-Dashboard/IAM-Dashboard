@@ -113,3 +113,4 @@ variable "test_s3_endpoint"{
   default = "http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
 }
 
+
