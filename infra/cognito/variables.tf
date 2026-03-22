@@ -38,11 +38,19 @@ variable "seed_user_password" {
 variable "callback_urls" {
   description = "OAuth callback URLs for the Cognito app client"
   type        = list(string)
-  default     = ["http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"]
+  default = [
+    "http://localhost:3001/",
+    "http://localhost:5173/",
+    "http://localhost:5000/"
+  ]
 }
 
 variable "logout_urls" {
   description = "OAuth logout URLs for the Cognito app client"
   type        = list(string)
-  default     = ["http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"]
+  default = [
+    "http://localhost:3001/",
+    "http://localhost:5173/",
+    "http://localhost:5000/"
+  ]
 }
