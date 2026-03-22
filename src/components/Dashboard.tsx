@@ -10,7 +10,7 @@ import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, Refres
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData, type SecurityAlert } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
 
