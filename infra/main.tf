@@ -88,6 +88,17 @@ module "cognito" {
   cognito_domain_prefix = var.cognito_domain_prefix
 }
 
+# CloudFront Module (frontend SPA behind S3 website)
+module "cloudfront" {
+  source = "./cloudfront"
+
+  aws_region          = var.aws_region
+  environment         = var.environment
+  project_name        = var.project_name
+  s3_website_endpoint = var.test_s3_endpoint
+  web_acl_id          = var.cloudfront_web_acl_id
+}
+
 # GitHub Actions OIDC Module
 module "github_actions" {
   source = "./github-actions"

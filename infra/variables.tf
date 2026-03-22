@@ -77,3 +77,39 @@ variable "kms_key_id" {
   }
 }
 
+variable "cloudfront_web_acl_id" {
+  description = "Optional WAF Web ACL ARN for CloudFront"
+  type        = string
+  default     = null
+}
+
+variable "cognito_user_pool_name" {
+  description = "Cognito User Pool name"
+  type        = string
+  default     = "iam-dashboard-user-pool"
+}
+
+variable "cognito_domain" {
+  description = "Cognito Hosted UI domain prefix (globally unique)"
+  type        = string
+  default     = "iam-dashboard-auth"
+}
+
+variable "cognito_callback_urls" {
+  description = "Allowed OAuth callback URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/"]
+}
+
+variable "cognito_logout_urls" {
+  description = "Allowed sign-out URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/"]
+}
+
+variable "test_s3_endpoint"{
+  description = "S3 endpoint for test s3 bucket"
+  type = string
+  default = "http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
+}
+
