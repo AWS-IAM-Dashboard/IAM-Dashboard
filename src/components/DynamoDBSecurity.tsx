@@ -23,7 +23,7 @@ import {
   HardDrive,
   Activity,
   BarChart3,
-  Backup,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
@@ -503,7 +503,7 @@ export function DynamoDBSecurity() {
                     <p className="text-sm text-muted-foreground">Unencrypted</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Backup className="h-8 w-8 text-primary mx-auto mb-2" />
+                    <History className="h-8 w-8 text-primary mx-auto mb-2" />
                     <p className="text-2xl font-medium">{scanResult.scan_summary?.no_pitr ?? 0}</p>
                     <p className="text-sm text-muted-foreground">No PITR</p>
                   </div>

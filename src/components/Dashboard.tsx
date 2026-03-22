@@ -550,7 +550,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       {/* AWS Security Status */}
       <Card 
         className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
-        onClick={() => onNavigate?.('aws-iam-scan')}
+        onClick={() => onNavigate?.('iam-security')}
       >
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
