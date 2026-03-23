@@ -88,41 +88,5 @@ resource "aws_cognito_user_pool_domain" "this" {
 resource "aws_cognito_user_group" "admin" {
   name         = "admin"
   user_pool_id = aws_cognito_user_pool.this.id
-  description  = "Admin group for seeded Cognito users"
-}
-
-resource "aws_cognito_user" "admin" {
-  user_pool_id   = aws_cognito_user_pool.this.id
-  username       = "admin"
-  message_action = "SUPPRESS"
-  password       = var.seed_user_password
-
-  attributes = {
-    email          = "admin@email.com"
-    email_verified = "true"
-  }
-}
-
-resource "aws_cognito_user" "test_user" {
-  user_pool_id   = aws_cognito_user_pool.this.id
-  username       = "testUser"
-  message_action = "SUPPRESS"
-  password       = var.seed_user_password
-
-  attributes = {
-    email          = var.test_user_email
-    email_verified = "true"
-  }
-}
-
-resource "aws_cognito_user_in_group" "admin_user" {
-  user_pool_id = aws_cognito_user_pool.this.id
-  group_name   = aws_cognito_user_group.admin.name
-  username     = aws_cognito_user.admin.username
-}
-
-resource "aws_cognito_user_in_group" "test_user" {
-  user_pool_id = aws_cognito_user_pool.this.id
-  group_name   = aws_cognito_user_group.admin.name
-  username     = aws_cognito_user.test_user.username
+  description  = "Admin group for Cognito users"
 }

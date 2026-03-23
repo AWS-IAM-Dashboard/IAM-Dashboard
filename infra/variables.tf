@@ -52,12 +52,6 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
-variable "test_user_email" {
-  description = "Email address for the seeded Cognito testUser account"
-  type        = string
-  default     = "ajant001@fiu.edu"
-}
-
 variable "cognito_domain_prefix" {
   description = "Hosted UI domain prefix for the Cognito user pool"
   type        = string
@@ -115,8 +109,8 @@ variable "test_s3_endpoint" {
 
 variable "prod_s3_endpoint" {
   description = "S3 endpoint for production S3 bucket"
-  type = string
-  default = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
+  type        = string
+  default     = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
 }
 
 

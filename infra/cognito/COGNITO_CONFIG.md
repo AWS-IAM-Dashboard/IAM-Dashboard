@@ -35,9 +35,7 @@ The key inputs are:
 - `aws_region`
 - `environment`
 - `project_name`
-- `test_user_email`
 - `cognito_domain_prefix`
-- `seed_user_password`
 - `callback_urls`
 - `logout_urls`
 

@@ -16,23 +16,10 @@ variable "project_name" {
   default     = "IAMDash"
 }
 
-variable "test_user_email" {
-  description = "Email address for the seeded testUser account"
-  type        = string
-  default     = "ajant001@fiu.edu"
-}
-
 variable "cognito_domain_prefix" {
   description = "Hosted UI domain prefix for the Cognito user pool"
   type        = string
   default     = "iam-dashboard-project-test"
-}
-
-variable "seed_user_password" {
-  description = "Shared permanent password for seeded Cognito users"
-  type        = string
-  default     = "Admin123!"
-  sensitive   = true
 }
 
 variable "callback_urls" {
