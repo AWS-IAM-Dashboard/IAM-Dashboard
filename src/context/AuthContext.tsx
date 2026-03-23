@@ -174,7 +174,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       signIn: async (username: string, password: string) => {
         setError(null);
-        setIsLoading(true);
 
         try {
           const response = await initiateAuth(endpoint, {
@@ -195,8 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             signInError instanceof Error ? signInError.message : "Unable to sign in with Cognito.";
           setUser(null);
           throw new Error(message);
-        } finally {
-          setIsLoading(false);
         }
       },
       signOut: () => {

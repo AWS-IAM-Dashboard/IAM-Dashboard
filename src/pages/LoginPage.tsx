@@ -12,16 +12,20 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrorMessage(null);
+    setIsSubmitting(true);
 
     try {
       await auth.signIn(username, password);
       navigate("/app", { replace: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to sign in.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -188,10 +192,10 @@ export function LoginPage() {
 
             <button
               type="submit"
-              disabled={auth.isLoading}
+              disabled={isSubmitting}
               className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
             >
-              <span className="relative z-10">{auth.isLoading ? "Signing In..." : "Sign In"}</span>
+              <span className="relative z-10">{isSubmitting ? "Signing In..." : "Sign In"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           </form>
