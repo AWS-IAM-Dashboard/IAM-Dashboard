@@ -12,6 +12,8 @@ const API_BASE_URL =
   import.meta.env.VITE_API_GATEWAY_URL ||
   'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1';
 
+const AUTH_SESSION_STORAGE_KEY = 'iam-dashboard-auth-session';
+
 export type ScannerType = 
   | 'security-hub'
   | 'guardduty'
@@ -46,6 +48,24 @@ export interface APIError {
   scanner_type?: string;
 }
 
+type StoredAuthSession = {
+  accessToken?: string;
+};
+
+function getAccessToken(): string | null {
+  const rawSession = window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+  if (!rawSession) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(rawSession) as StoredAuthSession;
+    return session.accessToken || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Make a request to the API Gateway
  */
@@ -54,9 +74,11 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const accessToken = getAccessToken();
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
 
   const response = await fetch(url, {
