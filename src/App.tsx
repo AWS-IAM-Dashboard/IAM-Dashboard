@@ -1,5 +1,5 @@
-import { useAuth } from "react-oidc-context";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardApp } from "./pages/DashboardApp";
@@ -24,7 +24,7 @@ function AppRouter() {
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
         <div className="max-w-md rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
           <p className="text-lg font-medium text-red-200">Authentication failed</p>
-          <p className="mt-2 text-sm text-red-100/80">{auth.error.message}</p>
+          <p className="mt-2 text-sm text-red-100/80">{auth.error}</p>
         </div>
       </div>
     );

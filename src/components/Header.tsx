@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "react-oidc-context";
+import { useAuth } from "../context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Search, Bell, Settings, User, LogOut, Shield } from "lucide-react";
 import { Button } from "./ui/button";
@@ -58,21 +58,8 @@ export function Header({ onNavigate }: HeaderProps) {
     .join("") || "AU";
 
   const handleSignOut = async () => {
-    const cognitoDomain = import.meta.env.VITE_COGNITO_DOMAIN;
-    const cognitoClientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
-    const cognitoLogoutUri = import.meta.env.VITE_COGNITO_LOGOUT_URI;
-
-    await auth.removeUser();
-
-    if (cognitoDomain && cognitoClientId && cognitoLogoutUri) {
-      const logoutUrl = new URL("/logout", cognitoDomain);
-      logoutUrl.searchParams.set("client_id", cognitoClientId);
-      logoutUrl.searchParams.set("logout_uri", cognitoLogoutUri);
-      window.location.assign(logoutUrl.toString());
-      return;
-    }
-
-    window.location.assign("/");
+    auth.signOut();
+    window.location.assign("/login");
   };
 
   const getNotificationColor = (type: string) => {
