@@ -68,7 +68,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [devsecops_scan, plan]
-    if: github.event_name == 'push' && github.ref_name =='main'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       # Use the same KMS key alias/ID for apply as for plan.
