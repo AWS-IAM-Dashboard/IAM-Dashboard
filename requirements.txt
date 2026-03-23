@@ -30,7 +30,7 @@ structlog==23.2.0
 # Development and testing
 pytest==7.4.3
 pytest-flask==1.3.0
-pytest-cov==4.1.0
+pytest-cov==7.1.0
 black==26.3.1
 flake8==6.1.0
 
