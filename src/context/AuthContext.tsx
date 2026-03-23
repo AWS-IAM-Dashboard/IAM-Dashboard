@@ -194,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const message =
             signInError instanceof Error ? signInError.message : "Unable to sign in with Cognito.";
           setUser(null);
-          setError(message);
           throw new Error(message);
         } finally {
           setIsLoading(false);
