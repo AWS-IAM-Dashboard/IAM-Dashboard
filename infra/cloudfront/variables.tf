@@ -21,5 +21,4 @@ variable "s3_website_endpoint" {
 variable "web_acl_id" {
   description = "Optional WAF Web ACL ARN to associate with the distribution"
   type        = string
-  default     = null
 }
