@@ -54,8 +54,8 @@ const navItems = [
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border h-full relative flex flex-col">
-      <div className="flex-1 p-6 pb-24 overflow-y-auto">
+    <div className="w-64 bg-sidebar border-r border-sidebar-border h-full flex flex-col">
+      <div className="flex-1 p-6 overflow-y-auto">
         <div className="space-y-1">
           {navItems.map((item) => {
             if (item.type === "separator") {
@@ -99,7 +99,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </div>
       </div>
       
-      <div className="absolute bottom-0 left-0 right-0 p-6">
+      <div className="p-6 pt-0 border-t border-sidebar-border">
         <div className="cyber-glass p-4 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
