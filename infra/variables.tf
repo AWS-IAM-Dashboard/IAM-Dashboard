@@ -80,7 +80,7 @@ variable "kms_key_id" {
 variable "cloudfront_web_acl_id" {
   description = "Optional WAF Web ACL ARN for CloudFront"
   type        = string
-  default     = null
+  default     = "arn:aws:wafv2:us-east-1:562559071105:global/webacl/CreatedByCloudFront-b037e429/f6be343d-057b-4338-b575-12c061f47e05"
 }
 
 variable "cognito_user_pool_name" {
@@ -110,7 +110,7 @@ variable "cognito_logout_urls" {
 variable "test_s3_endpoint" {
   description = "S3 endpoint for test s3 bucket"
   type        = string
-  default     = "http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
+  default     = "test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
 }
 
 
