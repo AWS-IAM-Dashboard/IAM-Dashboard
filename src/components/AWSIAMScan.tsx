@@ -35,7 +35,7 @@ import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 
 interface AWSIAMFinding {
-  id: string;
+  id?: string;
   type: 'user' | 'role' | 'policy' | 'group';
   resource_name: string;
   resource_arn: string;
@@ -43,10 +43,12 @@ interface AWSIAMFinding {
   finding_type: string;
   description: string;
   recommendation: string;
-  compliance_frameworks: string[];
+  compliance_frameworks?: string[];
   last_accessed?: string;
-  created_date: string;
-  risk_score: number;
+  created_date?: string;
+  risk_score?: number;
+  impact?: 'Critical' | 'High' | 'Medium' | 'Low';
+  likelihood?: 'Critical' | 'High' | 'Medium' | 'Low';
 }
 
 interface AWSScanResult {
@@ -184,6 +186,7 @@ export function AWSIAMScan() {
   const [selectedRegion, setSelectedRegion] = useState('us-east-1');
   const [awsProfile, setAwsProfile] = useState('default');
   const [loading, setLoading] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
   const { addScanResult } = useScanResults();
 
   // Toast notifications for scan events
@@ -524,6 +527,26 @@ export function AWSIAMScan() {
               </TabsList>
               
               <TabsContent value="findings" className="space-y-4">
+                <div className="flex flex-wrap items-center gap-4 mb-4">
+                  <Label htmlFor="severity-filter" className="text-sm font-medium">Filter by severity</Label>
+                  <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                    <SelectTrigger id="severity-filter" className="w-[180px] bg-input border-border">
+                      <SelectValue placeholder="All severities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All severities</SelectItem>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">
+                    {severityFilter === 'all'
+                      ? `Showing all ${scanResult.findings.length} findings`
+                      : `Showing ${scanResult.findings.filter((f) => f.severity === severityFilter).length} of ${scanResult.findings.length}`}
+                  </span>
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border">
@@ -531,6 +554,7 @@ export function AWSIAMScan() {
                       <TableHead>Type</TableHead>
                       <TableHead>Finding</TableHead>
                       <TableHead>Severity</TableHead>
+                      <TableHead>Impact / Likelihood</TableHead>
                       <TableHead>Risk Score</TableHead>
                       <TableHead>Recommendation</TableHead>
                     </TableRow>
@@ -543,12 +567,15 @@ export function AWSIAMScan() {
                           <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-64 bg-muted/20" /></TableCell>
                         </TableRow>
                       ))
                     ) : (
-                      scanResult.findings.map((finding) => (
+                      scanResult.findings
+                        .filter((f) => severityFilter === 'all' || f.severity === severityFilter)
+                        .map((finding) => (
                         <TableRow 
                           key={finding.id} 
                           className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
@@ -580,14 +607,19 @@ export function AWSIAMScan() {
                               {finding.severity}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {finding.impact && finding.likelihood
+                              ? `${finding.impact} / ${finding.likelihood}`
+                              : '—'}
+                          </TableCell>
                           <TableCell>
                             <span className={
-                              finding.risk_score > 80 ? "text-[#ff0040]" :
-                              finding.risk_score > 60 ? "text-[#ff6b35]" :
-                              finding.risk_score > 40 ? "text-[#ffb000]" :
+                              (finding.risk_score ?? 0) > 80 ? "text-[#ff0040]" :
+                              (finding.risk_score ?? 0) > 60 ? "text-[#ff6b35]" :
+                              (finding.risk_score ?? 0) > 40 ? "text-[#ffb000]" :
                               "text-[#00ff88]"
                             }>
-                              {finding.risk_score}/100
+                              {finding.risk_score != null ? `${finding.risk_score}/100` : '—'}
                             </span>
                           </TableCell>
                           <TableCell className="text-sm max-w-xs">
