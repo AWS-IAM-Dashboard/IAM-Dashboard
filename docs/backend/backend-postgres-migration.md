@@ -26,7 +26,7 @@ when the `db` container starts. No manual setup is needed beyond `docker-compose
 | `compliance_status` | Per-framework compliance scores (SOC2, PCI_DSS, HIPAA) |
 | `performance_metrics` | Generic performance metrics (CPU, memory, disk, response time) |
 
-All tables are seeded with realistic mock data scoped to a placeholder account (`000000000000`) in `us-east-1`.
+All tables are seeded with realistic mock data scoped to a placeholder account (`000000000000`) in `us-east-1`
 
 ---
 

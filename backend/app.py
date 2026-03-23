@@ -3,7 +3,7 @@ Local HTTP adapter for the production Lambda scanner.
 
 This keeps local scan behavior aligned with infra/lambda/lambda_function.py
 while still exposing the local-only observability endpoints expected by Docker,
-Prometheus, and Grafana.
+Prometheus, and Grafana
 """
 
 from __future__ import annotations

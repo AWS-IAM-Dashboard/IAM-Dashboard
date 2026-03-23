@@ -1,5 +1,5 @@
 -- Initialize Cybersecurity Dashboard Database
--- Creates all tables and seeds mock resource data for local development
+-- Creates all tables and seeds mock resource data for local access and development
 
 -- Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

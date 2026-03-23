@@ -1,6 +1,6 @@
 """
 AWS Config API endpoint — serves compliance and resource inventory data from PostgreSQL.
-Replaces direct boto3 calls with DatabaseService queries for local development.
+Replaces direct boto3 calls with DatabaseService queries for local development
 """
 
 import logging

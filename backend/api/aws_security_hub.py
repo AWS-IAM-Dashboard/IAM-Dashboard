@@ -1,6 +1,6 @@
 """
 AWS Security Hub API endpoint — serves findings and compliance data from PostgreSQL.
-Replaces direct boto3 calls with DatabaseService queries for local development.
+Replaces direct boto3 calls with DatabaseService queries for local development
 """
 
 import logging

@@ -1,6 +1,6 @@
 """
 AWS IAM API endpoints for identity and access management analysis.
-Data is sourced from the local PostgreSQL database via DatabaseService.
+Data is sourced from the local PostgreSQL database via DatabaseService
 """
 
 from datetime import datetime, timezone

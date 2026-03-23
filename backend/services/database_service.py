@@ -1,5 +1,5 @@
 """
-Database Service for data persistence and management
+Database Service for data persistence and management.
 """
 
 import os

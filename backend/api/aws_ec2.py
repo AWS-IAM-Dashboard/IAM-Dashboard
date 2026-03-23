@@ -1,6 +1,6 @@
 """
 AWS EC2 API endpoints for compute security analysis.
-Data is sourced from the local PostgreSQL database via DatabaseService.
+Data is sourced from the local PostgreSQL database via DatabaseService
 """
 
 from flask_restful import Resource, reqparse
