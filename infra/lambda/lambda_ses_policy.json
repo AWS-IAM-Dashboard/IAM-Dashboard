@@ -17,7 +17,7 @@
       "Action": [
         "s3:GetObject"
       ],
-      "Resource": "*"
+      "Resource": "arn:aws:s3:::iam-dashboard-project"
     },
     {
       "Sid": "AllowSesEmailSend",
