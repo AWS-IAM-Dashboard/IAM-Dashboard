@@ -17,7 +17,7 @@ import {
   Filter,
   Download
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";

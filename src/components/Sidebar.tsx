@@ -19,7 +19,8 @@ import {
   DollarSign,
   Monitor,
   Search,
-  Eye
+  Eye,
+  BadgeCheck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -29,16 +30,20 @@ interface SidebarProps {
 
 const navItems = [
   { id: "dashboard", label: "Security Overview", icon: LayoutDashboard },
+  { id: "separator-free", label: "Free Tier", icon: null, type: "section-header" },
+  { id: "iam-security", label: "IAM & Access Control", icon: Users },
+  { id: "access-analyzer", label: "Access Analyzer", icon: BadgeCheck },
+  { id: "ec2-security", label: "EC2 & Compute", icon: Cloud },
+  { id: "s3-security", label: "S3 & Storage", icon: HardDrive },
+  { id: "vpc-security", label: "VPC & Network", icon: Network },
+  { id: "dynamodb-security", label: "DynamoDB", icon: Database },
   { id: "separator-scanners", label: "", icon: null, type: "separator" },
+  { id: "separator-paid", label: "Paid Services", icon: null, type: "section-header" },
   { id: "security-hub", label: "Security Hub", icon: Shield },
   { id: "guardduty", label: "GuardDuty", icon: AlertTriangle },
   { id: "config", label: "Config", icon: Settings },
   { id: "inspector", label: "Inspector", icon: Search },
   { id: "macie", label: "Macie", icon: Eye },
-  { id: "separator-resources", label: "", icon: null, type: "separator" },
-  { id: "iam-security", label: "IAM & Access Control", icon: Users },
-  { id: "ec2-security", label: "EC2 & Compute", icon: Cloud },
-  { id: "s3-security", label: "S3 & Storage", icon: HardDrive },
   { id: "separator-other", label: "", icon: null, type: "separator" },
   { id: "alerts", label: "Security Alerts", icon: AlertTriangle },
   { id: "compliance", label: "Compliance Dashboard", icon: Shield },
@@ -57,6 +62,15 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               return (
                 <div key={item.id} className="px-3 py-2">
                   <div className="h-px bg-sidebar-border"></div>
+                </div>
+              );
+            }
+            if (item.type === "section-header" && item.label) {
+              return (
+                <div key={item.id} className="px-3 pt-4 pb-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {item.label}
+                  </span>
                 </div>
               );
             }

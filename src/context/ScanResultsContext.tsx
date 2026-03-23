@@ -188,6 +188,21 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
     };
   }
 
+  // Access Analyzer
+  if (results.access_analyzer?.scan_summary) {
+    return results.access_analyzer.scan_summary;
+  }
+
+  // VPC scan
+  if (results.vpc?.scan_summary) {
+    return results.vpc.scan_summary;
+  }
+
+  // DynamoDB scan
+  if (results.dynamodb?.scan_summary) {
+    return results.dynamodb.scan_summary;
+  }
+
   // For findings-based scans
   if (Array.isArray(results.findings)) {
     const findings = results.findings;
@@ -303,6 +318,21 @@ function extractFindings(results: any): any[] {
     if (ec2Findings.length > 0) {
       return ec2Findings;
     }
+  }
+
+  // Access Analyzer findings
+  if (results.access_analyzer?.findings && Array.isArray(results.access_analyzer.findings)) {
+    return results.access_analyzer.findings;
+  }
+
+  // VPC scan findings
+  if (results.vpc?.findings && Array.isArray(results.vpc.findings)) {
+    return results.vpc.findings;
+  }
+
+  // DynamoDB scan findings
+  if (results.dynamodb?.findings && Array.isArray(results.dynamodb.findings)) {
+    return results.dynamodb.findings;
   }
   
   return [];
