@@ -113,4 +113,10 @@ variable "test_s3_endpoint" {
   default     = "test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
 }
 
+variable "prod_s3_endpoint" {
+  description = "S3 endpoint for production S3 bucket"
+  type = string
+  default = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
+}
+
 

@@ -99,7 +99,7 @@ module "cloudfront" {
   aws_region          = var.aws_region
   environment         = var.environment
   project_name        = var.project_name
-  s3_website_endpoint = var.test_s3_endpoint
+  s3_website_endpoint = var.prod_s3_endpoint
   web_acl_id          = var.cloudfront_web_acl_id
 }
 

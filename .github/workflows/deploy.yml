@@ -3,7 +3,7 @@ name: Deploy IAM Dashboard
 on:
   push:
     branches:
-      - main
+      - feature/backend/Cognito-JWT
   pull_request:
     branches:
       - main

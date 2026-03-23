@@ -120,42 +120,48 @@ resource "aws_lambda_permission" "api_gateway" {
 resource "aws_apigatewayv2_route" "security_hub" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/security-hub"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "guardduty" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/guardduty"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "config" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/config"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "inspector" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/inspector"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "macie" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/macie"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "iam" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/iam"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
@@ -170,13 +176,15 @@ resource "aws_apigatewayv2_route" "ec2" {
 resource "aws_apigatewayv2_route" "s3" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/s3"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "full" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/full"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

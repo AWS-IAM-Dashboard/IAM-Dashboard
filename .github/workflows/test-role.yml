@@ -38,7 +38,11 @@ jobs:
         working-directory: infra
         run: terraform init -input=false
 
-      - name: Terraform import CloudFront distribution
+      - name: Terraform remove seeded Cognito users from state
         working-directory: infra
-        run: terraform import 'module.cloudfront.aws_cloudfront_distribution.iam_dashboard' E1ASA8I59U9PNG
+        run: |
+          terraform state rm module.cognito.aws_cognito_user.admin
+          terraform state rm module.cognito.aws_cognito_user.test_user
+          terraform state rm module.cognito.aws_cognito_user_in_group.admin_user
+          terraform state rm module.cognito.aws_cognito_user_in_group.test_user
 

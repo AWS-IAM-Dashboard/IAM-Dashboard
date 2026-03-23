@@ -2,76 +2,63 @@
 
 ## Summary
 
-This document describes how the **backend** integrates with **Amazon Cognito** and the rest of the IAM Dashboard stack. It is the backend-facing companion to `infra/cognito/COGNITO_CONFIG.md` (which focuses on Terraform).
+This document describes how the IAM Dashboard uses **Amazon Cognito** for authentication and how that fits into the current frontend and API stack. It is the backend-facing companion to [`infra/cognito/COGNITO_CONFIG.md`](../../infra/cognito/COGNITO_CONFIG.md), which focuses on Terraform resources and deployment inputs.
 
 At a high level we use:
 
-- **Cognito User Pool + Hosted UI** for sign-in
-- **React SPA (Vite)** as the OAuth client
+- **Cognito User Pool** for authentication and JWT issuance
+- **React SPA (Vite)** with an in-app username/password login UI
 - **CloudFront + S3** to serve the SPA in production
 - **API Gateway + Lambda** (and/or Flask locally) as the backend API
-- **JWT validation** (B10) planned on the backend using Cognito-issued tokens
+- **API Gateway JWT authorizers** to validate Cognito-issued bearer tokens on protected routes
 
 ---
 
 ## Components and responsibilities
 
 - **Cognito User Pool**
-  - Users sign in with **email** as the username attribute.
-  - Enforces a strong password policy.
-  - Issues **ID**, **Access**, and **Refresh** tokens.
+  - Users sign in with a **username**.
+  - `email` is still a required user attribute.
+  - Cognito issues **ID**, **Access**, and **Refresh** tokens.
 
-- **Cognito App Client (`iam-dashboard-client`)**
-  - OAuth flow: **Authorization Code** (`code`) with PKCE via `react-oidc-context`.
-  - Scopes: `openid`, `email`, `profile`.
-  - Callback / logout URLs:
-    - Local Vite: `http://localhost:5173/`
-    - Local Docker: `http://localhost:3001/`
-    - Production: `https://d33ytnxd7i6mo9.cloudfront.net/`
+- **Cognito App Client**
+  - Supports the frontend's direct Cognito authentication flow.
+  - Provides the audience/client ID used by API Gateway JWT validation.
+  - Still keeps callback/logout URLs on the app client configuration because those are standard Cognito settings, even though the current SPA does not use redirect-based login as the primary flow.
 
 - **Hosted UI Domain**
-  - Domain: `https://us-east-1h7e0irb5v.auth.us-east-1.amazoncognito.com`
-  - Provides the login page and logout endpoint.
+  - Still provisioned by Terraform.
+  - Not the primary login experience for the current SPA.
+  - Should be treated as supporting Cognito infrastructure, not the main user journey.
 
 - **Frontend SPA**
-  - Dev: Vite on `http://localhost:5173/` (`npm run dev`).
-  - Docker dev: `http://localhost:3001/` via `docker-compose`.
-  - Prod: CloudFront distribution in front of S3.
-  - Uses `react-oidc-context` + `oidc-client-ts` for all OAuth logic.
+  - Dev: Vite on `http://localhost:5173/`.
+  - Docker dev: `http://localhost:3001/`.
+  - Production: CloudFront in front of the S3-hosted SPA.
+  - Uses the app's own login form for username/password sign-in.
+  - Persists the authenticated session in browser storage so reloads and normal browser restarts keep the user signed in.
 
 - **Backend API**
-  - Dev: Flask app at `http://localhost:5001` (via Docker).
+  - Dev: local API adapter / Flask-based path used for local runs.
   - Prod: API Gateway + Lambda (`iam-dashboard-scanner`).
-  - Will validate **Cognito JWTs** (B10) before serving protected endpoints.
+  - API Gateway now performs JWT validation on protected routes before Lambda runs.
+  - Fine-grained authorization inside Lambda is still future work.
 
 ---
 
 ## Environment variables (frontend)
 
-The SPA is configured via Vite env vars (see `.env` and `src/env.example`):
+The current custom login flow depends primarily on:
 
 ```bash
-VITE_API_GATEWAY_URL=https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1
-
-VITE_COGNITO_AUTHORITY=https://cognito-idp.us-east-1.amazonaws.com/us-east-1_H7e0Irb5V
-VITE_COGNITO_CLIENT_ID=3593qhqul52rgr79mi033f9v1l
-
-# Dev redirect (Vite)
-VITE_COGNITO_REDIRECT_URI=http://localhost:5173/
-
-# Hosted UI domain and logout redirect
-VITE_COGNITO_DOMAIN=https://us-east-1h7e0irb5v.auth.us-east-1.amazoncognito.com
-VITE_COGNITO_LOGOUT_URI=http://localhost:5173/
+VITE_API_GATEWAY_URL=https://<api-id>.execute-api.us-east-1.amazonaws.com/v1
+VITE_COGNITO_AUTHORITY=https://cognito-idp.<region>.amazonaws.com/<user_pool_id>
+VITE_COGNITO_CLIENT_ID=<cognito_app_client_id>
 ```
 
-In production set:
+These values let the frontend authenticate directly against Cognito, store the resulting session locally, and send Cognito access tokens to the API.
 
-```bash
-VITE_COGNITO_REDIRECT_URI=https://d33ytnxd7i6mo9.cloudfront.net/
-VITE_COGNITO_LOGOUT_URI=https://d33ytnxd7i6mo9.cloudfront.net/
-```
-
-These must match the **Allowed callback URLs** and **Allowed sign-out URLs** in the Cognito app client, or Cognito returns `redirect_mismatch`.
+Legacy redirect/logout variables from the earlier Hosted UI redirect flow may still exist in local env files or older notes. They should not be treated as the primary login path for the current implementation.
 
 ---
 
@@ -80,73 +67,95 @@ These must match the **Allowed callback URLs** and **Allowed sign-out URLs** in 
 ```mermaid
 flowchart LR
   A[User] --> B[React SPA]
-  B --> C[Cognito Hosted UI]
-  C --> D[SPA callback]
-  D --> E[Tokens]
-  E --> F[API Gateway]
-  F --> G[JWT validation]
+  B --> C[Cognito User Pool]
+  C --> D[JWTs]
+  D --> E[API Gateway]
+  E --> F[JWT authorizer]
+  F --> G[Lambda]
   G --> H[AWS services]
 ```
 
 ---
 
-## Login and token flow (detailed)
+## Login and token flow (current)
 
 1. **User opens the dashboard**
    - Dev: `http://localhost:5173/`
-   - Prod: `https://d33ytnxd7i6mo9.cloudfront.net/`
+   - Docker dev: `http://localhost:3001/`
+   - Prod: CloudFront in front of the S3-hosted SPA
 
-2. **SPA initializes OIDC client**
-   - `AuthProvider` from `react-oidc-context` is configured with:
-     - `authority = VITE_COGNITO_AUTHORITY`
-     - `client_id = VITE_COGNITO_CLIENT_ID`
-     - `redirect_uri = VITE_COGNITO_REDIRECT_URI`
-     - `scope = "openid email profile"`
+2. **User signs in inside the app UI**
+   - The login page collects **username** and **password**.
+   - The browser stays on the application UI during normal login.
 
-3. **User clicks "Sign in"**
-   - SPA calls `auth.signinRedirect()`.
-   - Browser is redirected to `https://us-east-1h7e0irb5v.auth.us-east-1.amazoncognito.com/login?...`.
+3. **Frontend authenticates against Cognito**
+   - The custom auth layer calls Cognito directly using the configured User Pool authority and app client ID.
+   - On success Cognito returns **ID**, **Access**, and **Refresh** tokens.
 
-4. **Cognito Hosted UI handles authentication**
-   - User enters credentials.
-   - Cognito validates user against the User Pool.
-   - On success, Cognito redirects back to `redirect_uri` with `?code=...&state=...`.
+4. **Frontend stores and restores the session**
+   - The SPA stores the Cognito session in browser storage.
+   - On app load it restores the session and refreshes it when needed.
 
-5. **SPA callback and token exchange**
-   - The SPA at `redirect_uri` bootstraps `react-oidc-context`.
-   - The library verifies `state`, exchanges the `code` for tokens (ID, Access, Refresh) against Cognito, and stores them.
-   - `useAuth()` in `App.tsx` sees `auth.isAuthenticated = true` and renders the full dashboard.
+5. **Authenticated API calls**
+   - The SPA sends `Authorization: Bearer <access_token>` in API requests.
+   - `src/services/api.ts` reads the access token from the existing frontend auth session store and attaches the header automatically.
 
-6. **Authenticated API calls**
-   - SPA sends `Authorization: Bearer <access_token>` in requests (e.g. via `src/services/api.ts`) to API Gateway (prod) or Flask (dev).
+6. **API Gateway validates JWTs**
+   - Protected HTTP API routes use an API Gateway JWT authorizer backed by the Cognito User Pool issuer and app client audience.
+   - If the bearer token is invalid or missing, API Gateway returns `401` before Lambda runs.
 
-7. **Backend JWT validation (B10)**
-   - Backend uses Cognito JWKS (`https://cognito-idp.us-east-1.amazonaws.com/us-east-1_H7e0Irb5V/.well-known/jwks.json`) to validate signature, `iss`, `aud`/`client_id`, `exp`.
-   - If valid → process request; if invalid → `401 Unauthorized`.
+7. **Lambda handles the authorized request**
+   - Lambda receives requests only after API Gateway JWT validation on protected routes.
+   - Fine-grained authorization inside Lambda is still future work.
 
 8. **Sign out**
-   - SPA calls logout handler: `auth.removeUser()` then redirects to Cognito logout URL with `client_id` and `logout_uri`. Cognito redirects back to `VITE_COGNITO_LOGOUT_URI`.
+   - The SPA clears the persisted local session and returns the user to the login page.
 
 ---
 
-## Backend responsibilities (B1, B6, B7, B10)
+## Current responsibilities
 
-- **B6 – Add Cognito User Pool via Terraform**
-  - `infra/cognito/` creates User Pool, App Client, and Domain; `terraform.tfvars` controls pool name, domain prefix, callback and logout URLs.
+- **Cognito infrastructure via Terraform**
+  - `infra/cognito/` creates the User Pool, app client, hosted UI domain, seeded users, and outputs used elsewhere in the stack.
 
-- **B1 – Document AWS infra for OAuth + Cognito**
-  - This file plus `infra/cognito/COGNITO_CONFIG.md` document resources, env vars, and how SPA and backend use them.
+- **Frontend authentication**
+  - The SPA uses a custom in-app Cognito username/password flow rather than redirecting users to Hosted UI for normal login.
 
-- **B7 – Implement OAuth login flow (Hosted UI)**
-  - SPA uses `react-oidc-context` and Cognito Hosted UI; no custom backend `/auth/login` route for the MVP.
+- **Protected API routes**
+  - API Gateway currently performs JWT validation on protected routes using the Cognito issuer and app client audience.
 
-- **B10 – Secure APIs with JWT validation**
-  - Backend will validate Access Tokens using Cognito JWKS on protected routes. Flask middleware from `backend/auth/JWT Validator.md` can be adapted to use Cognito instead of `DEV_BEARER_TOKEN`.
+- **Future backend authorization**
+  - Backend/Lambda claim-based authorization remains future work and is not yet the main enforcement layer.
 
 ---
 
-## Future enhancements
+## IMPORTANT: CURRENT CONFIGURATION
 
-- Manage all Cognito settings in Terraform as the single source of truth.
-- Add backend session introspection/revocation for high-risk operations.
-- Add claims-based authorization (RBAC) on top of validated tokens.
+- **Production website URL**
+  - The current production website URL is the CloudFront domain: `https://d33ytnxd7i6mo9.cloudfront.net/`
+
+- **Local / dev URLs**
+  - `http://localhost:3001/`
+  - `http://localhost:5173/`
+
+- **Direct S3 website endpoint usage**
+  - You can use the S3 website endpoint directly, but you may run into issues if you try to sign out or if authentication fails because the S3 URL is not one of the listed callback or logout URLs in Cognito.
+  - If that happens, go to the browser address bar and remove everything after the base URL.
+  - Example:
+
+```text
+http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com/login -> ERROR
+http://test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com       -> WORKS
+```
+
+  - Replace the example above with the actual S3 website endpoint you are testing against.
+
+---
+
+## Future work
+
+- Add finer-grained authorization decisions inside Lambda based on Cognito claims or groups.
+- Document exactly which API routes are protected as JWT rollout continues.
+- Remove or clean up any remaining legacy Hosted UI env/config paths once they are no longer needed anywhere in the repo.
+- Add functionality for resetting your password.
+- Add the ability to create an account with attributes such as email, username, password, password reset, and group association.
