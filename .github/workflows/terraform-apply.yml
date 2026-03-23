@@ -9,7 +9,7 @@ on:
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ main, feature/backend/Cognito-JWT ]
+    branches: [ main ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply.yml"

@@ -98,7 +98,7 @@ variable "cognito_callback_urls" {
 variable "cognito_logout_urls" {
   description = "Allowed sign-out URLs for Cognito app client"
   type        = list(string)
-  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/", "http://localhost:5173"/]
+  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/", "http://localhost:5173/"]
 }
 
 variable "test_s3_endpoint" {
