@@ -95,6 +95,18 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_authorizer" "cognito_jwt" {
+  api_id           = aws_apigatewayv2_api.api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-jwt-authorizer"
+
+  jwt_configuration {
+    audience = [var.cognito_audience]
+    issuer   = var.cognito_issuer_url
+  }
+}
+
 # Permission for API Gateway to invoke Lambda
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowExecutionFromAPIGateway"
@@ -150,7 +162,8 @@ resource "aws_apigatewayv2_route" "iam" {
 resource "aws_apigatewayv2_route" "ec2" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "POST /scan/ec2"
-  authorization_type = var.route_authorization_type
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
