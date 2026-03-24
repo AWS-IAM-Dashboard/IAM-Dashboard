@@ -189,3 +189,15 @@ nul
 # File I use to think
 temp.txt
 temp.md
+backend_role.json
+checkov-results.json
+devops_role_policy.json
+ec2-2026-03-18T14_40_16.095785.json
+GitHub_Role.json
+iam-2026-03-18T14_37_05.722997.json
+lambda_role.json
+s3-2026-03-18T14_40_25.394352.json
+.tfdata-s3-notify-validate
+.tfdata-ses-validate
+checkov-results.md
+terraform_output.txt

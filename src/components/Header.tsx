@@ -353,3 +353,4 @@ export function Header({ onNavigate }: HeaderProps) {
     </header>
   );
 }
+}
