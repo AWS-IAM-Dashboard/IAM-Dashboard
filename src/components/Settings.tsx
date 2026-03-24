@@ -140,7 +140,7 @@ export function Settings() {
   ] as const;
 
   return (
-    <div style={{ display: "flex", height: "100%", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={{ display: "flex", height: "100%",  }}>
 
       {/* ── Left nav ── */}
       <div style={{ width: "200px", flexShrink: 0, padding: "24px 0 24px 24px" }}>

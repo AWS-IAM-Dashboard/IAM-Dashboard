@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
 import {
   AlertTriangle, Bell, CheckCircle, Clock, RefreshCw, Settings,
-  Shield, Users, ChevronDown, ChevronRight, Copy, Download,
-  Search, X,
+  Shield, Users, ChevronDown, ChevronRight, Copy, Download, Play,
+  Search, X, GitBranch, Eye, Activity, Bot, Zap, Ticket, ExternalLink, UserCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
@@ -38,6 +38,25 @@ interface AlertRule {
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 const TEAM = ["Alice Chen", "Bob Patel", "Carlos Martinez", "Diana Lee", "Ethan Wright"];
+const ALERT_ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Dev Patel", "Priya Singh", "Infra Team", "Platform Eng", "SOC L2"];
+type WorkflowStage = "NEW" | "TRIAGED" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_VERIFY" | "REMEDIATED" | "FALSE_POSITIVE";
+const WORKFLOW_PIPELINE: WorkflowStage[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
+const WORKFLOW_META: Record<WorkflowStage, { label: string; color: string; bg: string }> = {
+  NEW: { label: "NEW", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+  TRIAGED: { label: "TRIAGED", color: "#818cf8", bg: "rgba(129,140,248,0.12)" },
+  ASSIGNED: { label: "ASSIGNED", color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  IN_PROGRESS: { label: "IN PROGRESS", color: "#ffb000", bg: "rgba(255,176,0,0.12)" },
+  PENDING_VERIFY: { label: "PENDING VERIFY", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  REMEDIATED: { label: "REMEDIATED", color: "#00ff88", bg: "rgba(0,255,136,0.12)" },
+  FALSE_POSITIVE: { label: "FALSE POSITIVE", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
+};
+const NEXT_STATUS: Partial<Record<WorkflowStage, WorkflowStage>> = {
+  NEW: "TRIAGED",
+  TRIAGED: "ASSIGNED",
+  ASSIGNED: "IN_PROGRESS",
+  IN_PROGRESS: "PENDING_VERIFY",
+  PENDING_VERIFY: "REMEDIATED",
+};
 
 const SEV: Record<string, { bar: string; text: string; bg: string; border: string }> = {
   Critical: { bar: "#ff0040", text: "#ff0040", bg: "rgba(255,0,64,0.1)",   border: "rgba(255,0,64,0.28)"   },
@@ -181,6 +200,14 @@ export function CloudSecurityAlerts() {
   const [noteInput,  setNoteInput]  = useState<Record<string, string>>({});
   const [expanded,   setExpanded]   = useState<string | null>(null);
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
+  const [activeTab,  setActiveTab]  = useState<Record<string, string>>({});
+  const [workflowByAlert, setWorkflowByAlert] = useState<Record<string, WorkflowStage>>({});
+  const [ticketByAlert, setTicketByAlert] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRegion, setSelectedRegion] = useState("us-east-1");
+  const [isScanning, setIsScanning] = useState(false);
+  const [headerRefreshSpin, setHeaderRefreshSpin] = useState(false);
+  const pageSize = 10;
 
   /* ── Alert rules ── */
   const [rules, setRules] = useState<AlertRule[]>(MOCK_RULES);
@@ -231,12 +258,19 @@ export function CloudSecurityAlerts() {
     const q = search.trim().toLowerCase();
     return alerts.filter((a) => {
       if (sevFilter    !== "all" && a.severity !== sevFilter)    return false;
-      if (statusFilter !== "all" && a.status   !== statusFilter) return false;
+      const workflow = workflowByAlert[a.id] ?? (a.status === "Resolved" ? "REMEDIATED" : a.status === "Acknowledged" ? "IN_PROGRESS" : "NEW");
+      if (statusFilter !== "all" && workflow !== statusFilter) return false;
       if (serviceFilter !== "all" && a.service !== serviceFilter) return false;
       if (q && !`${a.title} ${a.description} ${a.resource_id} ${a.service}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [alerts, sevFilter, statusFilter, serviceFilter, search]);
+  }, [alerts, sevFilter, statusFilter, serviceFilter, search, workflowByAlert]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedAlerts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage]);
 
   const stats = useMemo(() => ({
     total:    alerts.length,
@@ -246,6 +280,18 @@ export function CloudSecurityAlerts() {
     inReview: alerts.filter((a) => a.status === "Acknowledged").length,
     resolved: alerts.filter((a) => a.status === "Resolved").length,
   }), [alerts]);
+
+  const pipelineCounts = useMemo(() => {
+    const counts = WORKFLOW_PIPELINE.reduce((acc, stage) => {
+      acc[stage] = 0;
+      return acc;
+    }, {} as Record<WorkflowStage, number>);
+    alerts.forEach((a) => {
+      const stage = workflowByAlert[a.id] ?? (a.status === "Resolved" ? "REMEDIATED" : a.status === "Acknowledged" ? "IN_PROGRESS" : "NEW");
+      if (WORKFLOW_PIPELINE.includes(stage)) counts[stage] += 1;
+    });
+    return counts;
+  }, [alerts, workflowByAlert]);
 
   /* ── Actions ── */
   const ackAlert     = (id: string) => { setAcked(p => new Set([...p, id])); toast.success("Acknowledged — moved to In Review"); };
@@ -269,6 +315,31 @@ export function CloudSecurityAlerts() {
     toast.success(`${ids.length} alerts assigned to ${m}`);
     setSelected(new Set());
   };
+  const advanceWorkflow = (id: string, current: WorkflowStage) => {
+    const next = NEXT_STATUS[current];
+    if (!next) return;
+    setWorkflowByAlert((p) => ({ ...p, [id]: next }));
+    if (next === "REMEDIATED") setResolved((p) => new Set([...p, id]));
+    if (next === "TRIAGED") setAcked((p) => new Set([...p, id]));
+  };
+
+  const handleRunScan = () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    toast.info("Security alert sync started", { description: selectedRegion });
+    window.setTimeout(() => {
+      setIsScanning(false);
+      toast.success("Security alert sync completed", { description: selectedRegion });
+    }, 1600);
+  };
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sevFilter, statusFilter, serviceFilter]);
 
   /* ── Shared button style ── */
   const ghostBtn = {
@@ -276,6 +347,7 @@ export function CloudSecurityAlerts() {
     border: "1px solid rgba(255,255,255,0.08)",
     color: "rgba(148,163,184,0.8)",
   } as const;
+  const ms = { fontFamily: "'JetBrains Mono', monospace" } as const;
 
   /* ─────────────────────────────────────────────────────────────────────────
      RENDER
@@ -284,67 +356,118 @@ export function CloudSecurityAlerts() {
     <div className="p-6 space-y-4">
       <DemoModeBanner />
 
-      {/* ── Page header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground tracking-tight">Security Alerts</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Alert queue · triage · remediation
-          </p>
+      {/* ── Page header (EC2 style) ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(255,64,96,0.14)", border: "1px solid rgba(255,64,96,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <AlertTriangle size={22} color="#ff4060" />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.01em" }}>Security Alerts</h1>
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(100,116,139,0.7)", marginTop: 2 }}>
+              Alert queue · Workflow triage · Runbook remediation · Agent automation
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <select
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            style={{ ...ms, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#e2e8f0", padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
+          >
+            <option value="us-east-1">us-east-1</option>
+            <option value="us-west-2">us-west-2</option>
+            <option value="eu-west-1">eu-west-1</option>
+            <option value="ap-southeast-1">ap-southeast-1</option>
+          </select>
           <button
+            type="button"
+            onClick={handleRunScan}
+            disabled={isScanning}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: isScanning ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)", color: "#818cf8", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}
+          >
+            <Play size={13} />
+            {isScanning ? "Scanning…" : "Run Scan"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setHeaderRefreshSpin(true);
+              window.setTimeout(() => setHeaderRefreshSpin(false), 800);
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
+          >
+            <RefreshCw size={13} style={{ animation: headerRefreshSpin ? "spin 1s linear infinite" : "none" }} />
+            Refresh
+          </button>
+          <button
+            type="button"
             onClick={() => setView((v) => v === "queue" ? "rules" : "queue")}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all"
-            style={
-              view === "rules"
-                ? { background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.28)", color: "#00ff88" }
-                : ghostBtn
+            style={view === "rules"
+              ? { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,64,96,0.12)", border: "1px solid rgba(255,64,96,0.35)", color: "#ff4060", fontSize: 12, fontWeight: 600, cursor: "pointer" }
+              : { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" }
             }
           >
-            <Settings className="h-3.5 w-3.5" />
-            {view === "queue" ? "Detection Rules" : "← Alert Queue"}
+            <Settings size={13} />
+            {view === "queue" ? "Detection Rules" : "Alert Queue"}
           </button>
           <button
+            type="button"
             onClick={() => toast.info("Exporting CSV…")}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
-            style={ghostBtn}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
           >
-            <Download className="h-3.5 w-3.5" /> Export
-          </button>
-          <button
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
-            style={ghostBtn}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            <Download size={13} />
+            Export
           </button>
         </div>
       </div>
 
-      {/* ── KPI strip ── */}
-      <div className="flex flex-wrap gap-2">
-        {([
-          { label: "Critical",   val: stats.critical, color: "#ff0040" },
-          { label: "High",       val: stats.high,     color: "#ff6b35" },
-          { label: "Active",     val: stats.active,   color: "#ff4060" },
-          { label: "In Review",  val: stats.inReview, color: "#ffb000" },
-          { label: "Resolved",   val: stats.resolved, color: "#00ff88" },
-          { label: "Total",      val: stats.total,    color: "rgba(148,163,184,0.7)" },
-        ] as const).map((s) => (
-          <div
-            key={s.label}
-            className="flex items-baseline gap-2 rounded-lg px-3.5 py-2"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            <span
-              className="text-xl font-bold tabular-nums leading-none"
-              style={{ color: s.color, fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              {s.val}
-            </span>
-            <span className="text-xs" style={{ color: "rgba(100,116,139,0.85)" }}>{s.label}</span>
+      {/* ── KPI Metrics Row (EC2 style cards) ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        {[
+          { label: "Total Alerts", value: stats.total, color: "#94a3b8", sub: "Across all services" },
+          { label: "Critical", value: stats.critical, color: "#ff0040", sub: "Immediate response" },
+          { label: "High", value: stats.high, color: "#ff6b35", sub: "Escalate within SLA" },
+          { label: "Active", value: stats.active, color: "#ff4060", sub: "Open and unassigned" },
+          { label: "In Review", value: stats.inReview, color: "#ffb000", sub: "Triaged by analyst" },
+          { label: "Resolved", value: stats.resolved, color: "#00ff88", sub: "Closed findings" },
+        ].map((card) => (
+          <div key={card.label} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px" }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", margin: "0 0 6px" }}>{card.label}</p>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{card.value}</p>
+            <p style={{ margin: "5px 0 0", fontSize: 10, color: "rgba(100,116,139,0.6)" }}>{card.sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Workflow Pipeline ── */}
+      <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 20px" }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 10 }}>
+          Workflow Pipeline
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          {WORKFLOW_PIPELINE.map((stage, idx) => {
+            const meta = WORKFLOW_META[stage];
+            const count = pipelineCounts[stage] ?? 0;
+            const isLast = idx === WORKFLOW_PIPELINE.length - 1;
+            return (
+              <div key={stage} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                <div
+                  onClick={() => setStatusFilter(statusFilter === stage ? "all" : stage)}
+                  style={{ flex: 1, padding: "8px 12px", borderRadius: 6, background: statusFilter === stage ? meta.bg : "rgba(255,255,255,0.02)", border: `1px solid ${statusFilter === stage ? `${meta.color}50` : "rgba(255,255,255,0.06)"}`, cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 700, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>{count}</div>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", letterSpacing: "0.1em", marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{meta.label}</div>
+                </div>
+                {!isLast && (
+                  <div style={{ width: 20, height: 1, background: "rgba(255,255,255,0.08)", flexShrink: 0, position: "relative" }}>
+                    <div style={{ position: "absolute", right: -3, top: -4, color: "rgba(100,116,139,0.3)", fontSize: 8 }}>▶</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -400,20 +523,20 @@ export function CloudSecurityAlerts() {
 
             <div className="h-5 w-px hidden sm:block" style={{ background: "rgba(255,255,255,0.08)" }} />
 
-            {/* Status chips */}
+            {/* Workflow status chips */}
             <div className="flex gap-1">
-              {(["all", "Active", "Acknowledged", "Resolved"] as const).map((s) => {
-                const c = s !== "all" ? STA[s] : null;
+              {(["all", ...WORKFLOW_PIPELINE] as const).map((s) => {
+                const c = s !== "all" ? WORKFLOW_META[s] : null;
                 return (
                   <Chip
                     key={s}
                     active={statusFilter === s}
-                    color={c?.text}
+                    color={c?.color}
                     bg={c?.bg}
-                    border={c?.border}
+                    border={c ? `${c.color}55` : undefined}
                     onClick={() => setStatusFilter(s)}
                   >
-                    {s === "all" ? "All Status" : s === "Acknowledged" ? "In Review" : s}
+                    {s === "all" ? "All Status" : WORKFLOW_META[s].label}
                   </Chip>
                 );
               })}
@@ -551,56 +674,33 @@ export function CloudSecurityAlerts() {
           ) : (
 
             /* ── Alert table ── */
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid rgba(255,255,255,0.07)" }}
-            >
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
               {/* Table header */}
-              <div
-                className="flex items-center gap-3 px-5 py-2.5 select-none"
-                style={{
-                  background: "rgba(255,255,255,0.025)",
-                  borderBottom: "1px solid rgba(255,255,255,0.07)",
-                  color: "rgba(71,85,105,0.8)",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.12em",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                {/* Select all */}
-                <button onClick={toggleSelectAll} className="shrink-0 flex items-center justify-center w-4 h-4">
-                  <div
-                    className="w-3.5 h-3.5 rounded-sm"
-                    style={{
-                      border: `1.5px solid ${selected.size > 0 ? "#00ff88" : "rgba(71,85,105,0.4)"}`,
-                      background: selected.size === filtered.length && filtered.length > 0 ? "#00ff88" : "transparent",
-                    }}
-                  />
-                </button>
-                <span className="w-[88px] shrink-0">Sev.</span>
-                <span className="flex-1">Alert / Resource</span>
-                <span className="w-24 shrink-0 hidden md:block">Service</span>
-                <span className="w-24 shrink-0 hidden lg:block">Status</span>
-                <span className="w-10 text-right shrink-0 hidden sm:block">Age</span>
-                <span className="w-[88px] text-right shrink-0 hidden xl:block">Owner</span>
-                <span className="w-24 text-right shrink-0">Actions</span>
+              <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+                <div />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", paddingLeft: 12 }}>Alert / Resource</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Severity</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Status</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>SLA</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Assignee</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Risk /10</span>
               </div>
 
               {/* Rows */}
-              {filtered.map((alert, idx) => {
+              {paginatedAlerts.map((alert, idx) => {
                 const isExpanded = expanded === alert.id;
                 const isSelected = selected.has(alert.id);
                 const sv = SEV[alert.severity] ?? SEV.Medium;
-                const st = STA[alert.status]   ?? STA.Active;
                 const steps = remediation(alert.service, alert.title, alert.description);
+                const workflow = workflowByAlert[alert.id] ?? (alert.status === "Resolved" ? "REMEDIATED" : alert.status === "Acknowledged" ? "IN_PROGRESS" : "NEW");
+                const workflowMeta = WORKFLOW_META[workflow];
+                const tab = activeTab[alert.id] ?? "runbook";
 
                 return (
                   <div
                     key={alert.id}
                     style={{
-                      borderBottom: idx < filtered.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                      borderBottom: idx < paginatedAlerts.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
                       background: isSelected
                         ? "rgba(0,255,136,0.04)"
                         : isExpanded
@@ -609,308 +709,293 @@ export function CloudSecurityAlerts() {
                     }}
                   >
                     {/* ─ Main row ─ */}
-                    <div className="flex items-center gap-3 px-5 py-3.5 group relative">
-                      {/* Severity accent bar */}
-                      <div
-                        className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full"
-                        style={{ background: sv.bar }}
-                      />
-
-                      {/* Checkbox */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleSelect(alert.id); }}
-                        className="shrink-0 w-4 h-4 flex items-center justify-center transition-opacity"
-                        style={{ opacity: isSelected ? 1 : 0 }}
-                        onMouseEnter={(e) => (e.currentTarget.parentElement!.classList.contains("group") && (e.currentTarget.style.opacity = "1"))}
-                      >
-                        <div
-                          className="w-3.5 h-3.5 rounded-sm"
-                          style={{
-                            border: `1.5px solid ${isSelected ? "#00ff88" : "rgba(71,85,105,0.4)"}`,
-                            background: isSelected ? "#00ff88" : "transparent",
-                          }}
-                        />
-                      </button>
-
-                      {/* Severity badge */}
-                      <span
-                        className="shrink-0 w-[88px] text-center text-[10px] font-bold py-0.5 rounded"
-                        style={{
-                          background: sv.bg,
-                          border: `1px solid ${sv.border}`,
-                          color: sv.text,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                      >
-                        {alert.severity.toUpperCase()}
-                      </span>
-
-                      {/* Title + resource — clicking expands */}
-                      <button
-                        onClick={() => setExpanded(isExpanded ? null : alert.id)}
-                        className="flex-1 text-left min-w-0"
-                      >
-                        <p className="text-sm font-medium text-slate-200 truncate leading-snug">{alert.title}</p>
-                        <p
-                          className="text-[11px] truncate mt-0.5 leading-snug"
-                          style={{ color: "rgba(100,116,139,0.75)", fontFamily: "'JetBrains Mono', monospace" }}
-                        >
-                          {alert.resource_id}
-                        </p>
-                      </button>
-
-                      {/* Service */}
-                      <span
-                        className="shrink-0 w-24 text-center text-[10px] py-0.5 rounded hidden md:block"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          color: "rgba(148,163,184,0.75)",
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                      >
-                        {alert.service}
-                      </span>
-
-                      {/* Status */}
-                      <span
-                        className="shrink-0 w-24 text-center text-[10px] font-semibold py-0.5 rounded hidden lg:block"
-                        style={{
-                          background: st.bg,
-                          border: `1px solid ${st.border}`,
-                          color: st.text,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                      >
-                        {alert.status === "Acknowledged" ? "IN REVIEW" : alert.status.toUpperCase()}
-                      </span>
-
-                      {/* Age */}
-                      <span
-                        className="shrink-0 w-10 text-right text-xs hidden sm:block"
-                        style={{ color: "rgba(71,85,105,0.85)", fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {age(alert.timestamp)}
-                      </span>
-
-                      {/* Owner */}
-                      <div className="shrink-0 w-[88px] hidden xl:flex justify-end">
+                    <div
+                      onClick={() => setExpanded(isExpanded ? null : alert.id)}
+                      style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isExpanded && idx < filtered.length - 1) ? "1px solid rgba(255,255,255,0.04)" : "none", background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                    >
+                      <div style={{ position: "relative", height: "100%" }}>
+                        <div style={{ position: "absolute", left: 0, width: 4, top: -12, bottom: -12, background: sv.bar, borderRadius: "0 2px 2px 0", opacity: 0.85 }} />
+                      </div>
+                      <div style={{ paddingLeft: 12, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <div style={{ flexShrink: 0 }}>{isExpanded ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{alert.title}</div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>{alert.service}</div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{alert.resource_id}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, background: sv.bg, color: sv.text, fontFamily: "'JetBrains Mono', monospace" }}>{alert.severity.toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: workflowMeta.bg, color: workflowMeta.color, fontFamily: "'JetBrains Mono', monospace" }}>{workflowMeta.label}</span>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", fontFamily: "'JetBrains Mono', monospace" }}>{age(alert.timestamp)} old</span>
+                      </div>
+                      <div>
                         {alert.assignee ? (
-                          <div
-                            className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs"
-                            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(148,163,184,0.8)" }}
-                          >
-                            <div
-                              className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                              style={{ background: "rgba(0,255,136,0.15)", color: "#00ff88" }}
-                            >
-                              {initials(alert.assignee)}
-                            </div>
-                            <span className="truncate max-w-[48px]">{alert.assignee.split(" ")[0]}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#818cf8", flexShrink: 0 }}>{initials(alert.assignee)}</div>
+                            <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{alert.assignee}</span>
                           </div>
                         ) : (
-                          <span className="text-[10px]" style={{ color: "rgba(51,65,85,0.7)" }}>—</span>
+                          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>Unassigned</span>
                         )}
                       </div>
-
-                      {/* Quick actions (visible on hover) */}
-                      <div
-                        className="shrink-0 w-24 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {alert.status === "Active" && (
-                          <button
-                            onClick={() => ackAlert(alert.id)}
-                            title="Acknowledge — move to In Review"
-                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                            style={{ background: "rgba(255,176,0,0.1)", border: "1px solid rgba(255,176,0,0.28)", color: "#ffb000", fontFamily: "'JetBrains Mono', monospace" }}
-                          >
-                            ACK
-                          </button>
-                        )}
-                        {alert.status !== "Resolved" && (
-                          <button
-                            onClick={() => resolveAlert(alert.id)}
-                            title="Mark resolved"
-                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                            style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.28)", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}
-                          >
-                            DONE
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setExpanded(isExpanded ? null : alert.id)}
-                          title="Expand details"
-                          className="p-0.5 rounded transition-colors"
-                          style={{ color: "rgba(71,85,105,0.7)" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = "#e2e8f0")}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(71,85,105,0.7)")}
-                        >
-                          {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                        </button>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: alert.severity === "Critical" ? "#ff0040" : alert.severity === "High" ? "#ff6b35" : alert.severity === "Medium" ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                          {alert.severity === "Critical" ? "10" : alert.severity === "High" ? "8" : alert.severity === "Medium" ? "6" : "3"}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>/10</span>
+                        </span>
                       </div>
                     </div>
 
                     {/* ─ Expanded panel ─ */}
                     {isExpanded && (
                       <div
-                        className="px-6 pb-6 pt-4"
+                        className="pt-4"
                         style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.01)" }}
                       >
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                          {/* ─ Left column: context + assignment + notes ─ */}
-                          <div className="space-y-5">
-
-                            {/* Description */}
-                            <div>
-                              <p className="section-label">Description</p>
-                              <p className="text-sm text-slate-300 leading-relaxed">{alert.description}</p>
-                            </div>
-
-                            {/* Resource with copy */}
-                            <div>
-                              <p className="section-label">Resource</p>
-                              <div
-                                className="flex items-center gap-3 rounded-lg px-3 py-2.5"
-                                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                        <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginRight: 6 }}>Workflow</span>
+                          {NEXT_STATUS[workflow] && (
+                            <button
+                              onClick={() => advanceWorkflow(alert.id, workflow)}
+                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              <Activity size={11} />
+                              Advance → {WORKFLOW_META[NEXT_STATUS[workflow]!].label}
+                            </button>
+                          )}
+                          <select
+                            value={alert.assignee ?? ""}
+                            onChange={(e) => { if (e.target.value) assignAlert(alert.id, e.target.value); }}
+                            style={{ padding: "4px 8px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            <option value="" disabled>Assign to…</option>
+                            {ALERT_ASSIGNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                          {ticketByAlert[alert.id] ? (
+                            <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#00ff88", background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 5, padding: "4px 10px", fontFamily: "'JetBrains Mono', monospace" }}><Ticket size={11} />{ticketByAlert[alert.id]}</span>
+                          ) : (
+                            <button
+                              onClick={() => setTicketByAlert((p) => ({ ...p, [alert.id]: `SEC-${5400 + idx}` }))}
+                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              <Ticket size={11} /> Create Ticket
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { setWorkflowByAlert((p) => ({ ...p, [alert.id]: "FALSE_POSITIVE" })); toast.success("Marked as false positive"); }}
+                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            <AlertTriangle size={11} />
+                            False Positive
+                          </button>
+                          <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {ticketByAlert[alert.id] ? `Ticket: ${ticketByAlert[alert.id]} · ` : ""}First seen: {new Date(alert.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <div style={{ padding: "0 20px 0 36px" }}>
+                          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
+                            {[
+                              { id: "runbook", label: "Runbook", icon: GitBranch },
+                              { id: "overview", label: "Overview", icon: Eye },
+                              { id: "timeline", label: "Timeline", icon: Activity },
+                              { id: "agents", label: "Agent Actions", icon: Bot },
+                            ].map((t) => (
+                              <button
+                                key={t.id}
+                                onClick={() => setActiveTab((p) => ({ ...p, [alert.id]: t.id }))}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  padding: "10px 14px",
+                                  background: "transparent",
+                                  border: "none",
+                                  borderBottom: `2px solid ${tab === t.id ? "#818cf8" : "transparent"}`,
+                                  color: tab === t.id ? "#818cf8" : "rgba(100,116,139,0.65)",
+                                  fontSize: 12,
+                                  fontWeight: tab === t.id ? 600 : 400,
+                                  cursor: "pointer",
+                                  marginBottom: -1,
+                                }}
                               >
-                                <span
-                                  className="flex-1 text-xs truncate"
-                                  style={{ color: "#cbd5e1", fontFamily: "'JetBrains Mono', monospace" }}
-                                >
-                                  {alert.resource_id}
+                                <t.icon size={12} />
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ padding: "12px 20px 20px 36px" }}>
+                        {tab === "runbook" && (
+                          <div>
+                            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                              {["IDENTIFY", "CONTAIN", "REMEDIATE", "VERIFY"].map((ph, i) => (
+                                <span key={ph} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: i === 0 ? "rgba(129,140,248,0.18)" : i === 1 ? "rgba(255,107,53,0.18)" : i === 2 ? "rgba(255,176,0,0.18)" : "rgba(0,255,136,0.18)", border: i === 0 ? "1px solid rgba(129,140,248,0.3)" : i === 1 ? "1px solid rgba(255,107,53,0.3)" : i === 2 ? "1px solid rgba(255,176,0,0.3)" : "1px solid rgba(0,255,136,0.3)", color: i === 0 ? "#818cf8" : i === 1 ? "#ff6b35" : i === 2 ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                                  {ph}
                                 </span>
-                                <button
-                                  onClick={() => { navigator.clipboard.writeText(alert.resource_id); toast.success("Copied"); }}
-                                  title="Copy resource ID"
-                                  style={{ color: "rgba(71,85,105,0.7)" }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.color = "#00ff88")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(71,85,105,0.7)")}
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
+                              ))}
+                              <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)" }}>
+                                Est. total: {Math.max(steps.length * 4, 8)} min
+                              </span>
                             </div>
-
-                            {/* Assign */}
-                            <div>
-                              <p className="section-label">Assign Owner</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {TEAM.map((m) => {
-                                  const isOwner = alert.assignee === m;
-                                  return (
-                                    <button
-                                      key={m}
-                                      onClick={() => assignAlert(alert.id, m)}
-                                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all"
-                                      style={{
-                                        background: isOwner ? "rgba(0,255,136,0.1)" : "rgba(255,255,255,0.04)",
-                                        border: `1px solid ${isOwner ? "rgba(0,255,136,0.3)" : "rgba(255,255,255,0.08)"}`,
-                                        color: isOwner ? "#00ff88" : "rgba(148,163,184,0.8)",
-                                      }}
-                                      onMouseEnter={(e) => { if (!isOwner) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
-                                      onMouseLeave={(e) => { if (!isOwner) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                                    >
-                                      <div
-                                        className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                                        style={{
-                                          background: isOwner ? "rgba(0,255,136,0.2)" : "rgba(255,255,255,0.1)",
-                                          color: isOwner ? "#00ff88" : "#94a3b8",
-                                        }}
-                                      >
-                                        {initials(m)}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                              {steps.map((step, i) => {
+                                const phase = i < 2 ? "IDENTIFY" : i < steps.length - 1 ? "REMEDIATE" : "VERIFY";
+                                const phaseColor = phase === "IDENTIFY" ? "#818cf8" : phase === "CONTAIN" ? "#ff6b35" : phase === "REMEDIATE" ? "#ffb000" : "#00ff88";
+                                const command = alert.service === "EC2"
+                                  ? "aws ec2 describe-security-groups --group-ids <sg-id> --region us-east-1"
+                                  : alert.service === "S3"
+                                  ? "aws s3api get-bucket-policy --bucket <bucket-name>"
+                                  : alert.service === "IAM"
+                                  ? "aws iam get-role --role-name <role-name>"
+                                  : "aws securityhub get-findings --filters <alert-filter>";
+                                return (
+                                  <div key={i} style={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: 12, alignItems: "start" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${phaseColor}18`, border: `1px solid ${phaseColor}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: phaseColor, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                                        {i + 1}
                                       </div>
-                                      {m.split(" ")[0]}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Investigation notes */}
-                            <div>
-                              <p className="section-label">Investigation Notes</p>
-                              {notes[alert.id] && (
-                                <div
-                                  className="rounded-lg px-3 py-2.5 mb-2 text-sm text-slate-300 leading-relaxed"
-                                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-                                >
-                                  {notes[alert.id]}
-                                </div>
-                              )}
-                              <div className="flex gap-2">
-                                <Textarea
-                                  placeholder="Add investigation note… (Enter to save)"
-                                  value={noteInput[alert.id] ?? ""}
-                                  onChange={(e) => setNoteInput((p) => ({ ...p, [alert.id]: e.target.value }))}
-                                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(alert.id); } }}
-                                  rows={2}
-                                  className="flex-1 text-sm rounded-lg border-0 resize-none"
-                                  style={{
-                                    background: "rgba(255,255,255,0.04)",
-                                    border: "1px solid rgba(255,255,255,0.08)",
-                                    color: "#cbd5e1",
-                                  }}
-                                />
-                                <button
-                                  onClick={() => saveNote(alert.id)}
-                                  className="px-3 self-end mb-0.5 h-8 text-xs rounded-lg font-medium"
-                                  style={{ background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.28)", color: "#00ff88" }}
-                                >
-                                  Save
-                                </button>
-                              </div>
+                                      {i < steps.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 12, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />}
+                                    </div>
+                                    <div style={{ paddingBottom: 8 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                        <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: `${phaseColor}18`, color: phaseColor, fontFamily: "'JetBrains Mono', monospace" }}>{phase}</span>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Remediation Step {i + 1}</span>
+                                        <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>~4 min</span>
+                                      </div>
+                                      <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step}</p>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "6px 10px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', monospace" }}>
+                                          <span style={{ flex: 1, fontSize: 11, color: "#a5b4fc", wordBreak: "break-all", lineHeight: 1.5 }}>{command}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
+                        )}
 
-                          {/* ─ Right column: remediation playbook + resolve actions ─ */}
-                          <div className="flex flex-col gap-4">
+                        {tab === "overview" && (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                             <div>
-                              <p className="section-label">Remediation Playbook</p>
-                              <div className="space-y-2">
-                                {steps.map((step, i) => (
-                                  <div
-                                    key={i}
-                                    className="flex items-start gap-3 rounded-xl px-3.5 py-2.5"
-                                    style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
-                                  >
-                                    <span
-                                      className="h-5 w-5 rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5"
-                                      style={{ background: "rgba(0,255,136,0.1)", color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}
-                                    >
-                                      {i + 1}
-                                    </span>
-                                    <p className="text-xs text-slate-300 leading-relaxed">{step}</p>
+                              <p className="section-label">Description</p>
+                              <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.7, margin: 0 }}>{alert.description}</p>
+                              <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
+                                <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,176,0,0.8)", margin: "0 0 6px", fontFamily: "'JetBrains Mono', monospace" }}>Recommendation</p>
+                                <p style={{ fontSize: 12, color: "#fcd34d", lineHeight: 1.7, margin: 0 }}>{steps[0] ?? "Follow runbook actions to remediate and verify closure."}</p>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="section-label">Alert Details</p>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                                {[
+                                  ["Service", alert.service],
+                                  ["Severity", alert.severity],
+                                  ["Workflow", workflowMeta.label],
+                                  ["Age", age(alert.timestamp)],
+                                  ["Owner", alert.assignee ?? "Unassigned"],
+                                  ["Resource", alert.resource_id],
+                                ].map(([k, v]) => (
+                                  <div key={String(k)}>
+                                    <span style={{ color: "rgba(100,116,139,0.6)" }}>{k}: </span>
+                                    <span style={{ color: "#94a3b8" }}>{String(v)}</span>
                                   </div>
                                 ))}
                               </div>
-                            </div>
-
-                            {/* Resolve actions */}
-                            <div className="flex gap-2 mt-auto pt-2">
-                              {alert.status === "Active" && (
-                                <button
-                                  onClick={() => ackAlert(alert.id)}
-                                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium"
-                                  style={{ background: "rgba(255,176,0,0.1)", border: "1px solid rgba(255,176,0,0.28)", color: "#ffb000" }}
-                                >
-                                  <Clock className="h-3.5 w-3.5" />
-                                  Acknowledge — In Review
-                                </button>
-                              )}
-                              {alert.status !== "Resolved" && (
-                                <button
-                                  onClick={() => resolveAlert(alert.id)}
-                                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium"
-                                  style={{ background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.28)", color: "#00ff88" }}
-                                >
-                                  <CheckCircle className="h-3.5 w-3.5" />
-                                  Mark Resolved
-                                </button>
-                              )}
+                              <div style={{ marginTop: 10 }}>
+                                <p className="section-label">Investigation Notes</p>
+                                {notes[alert.id] && (
+                                  <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, color: "#cbd5e1", marginBottom: 8 }}>
+                                    {notes[alert.id]}
+                                  </div>
+                                )}
+                                <div style={{ display: "flex", gap: 8 }}>
+                                  <Textarea
+                                    placeholder="Add investigation note…"
+                                    value={noteInput[alert.id] ?? ""}
+                                    onChange={(e) => setNoteInput((p) => ({ ...p, [alert.id]: e.target.value }))}
+                                    rows={2}
+                                    className="flex-1 text-sm rounded-lg border-0 resize-none"
+                                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#cbd5e1" }}
+                                  />
+                                  <button onClick={() => saveNote(alert.id)} style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(0,255,136,0.12)", border: "1px solid rgba(0,255,136,0.3)", color: "#00ff88", fontSize: 11, cursor: "pointer" }}>
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                        )}
+
+                        {tab === "timeline" && (
+                          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                            {[
+                              { actor: "System", actorType: "system", action: `Detected ${alert.title}`, note: "Auto-ingested from scan findings", ts: new Date(alert.timestamp).toLocaleString() },
+                              { actor: alert.assignee ?? "Analyst", actorType: "analyst", action: alert.assignee ? `Assigned to ${alert.assignee}` : "Awaiting owner assignment", note: alert.assignee ? "Owner selected in workflow actions" : "No assignee selected yet", ts: "Just now" },
+                              { actor: "Workflow Engine", actorType: "engineer", action: `Current status: ${workflowMeta.label}`, note: `Service: ${alert.service}`, ts: "Just now" },
+                            ].map((ev, i, arr) => {
+                              const actorColors: Record<string, string> = { system: "#64748b", analyst: "#06b6d4", engineer: "#00ff88", automation: "#818cf8" };
+                              return (
+                                <div key={i} style={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 12, marginBottom: 12 }}>
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: actorColors[ev.actorType], border: `1px solid ${actorColors[ev.actorType]}40`, flexShrink: 0, marginTop: 3 }} />
+                                    {i < arr.length - 1 && <div style={{ width: 1, flex: 1, minHeight: 8, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />}
+                                  </div>
+                                  <div style={{ paddingBottom: 4 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                                      <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{ev.action}</span>
+                                      <span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${actorColors[ev.actorType]}20`, color: actorColors[ev.actorType], fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>{ev.actorType}</span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{ev.actor}</span>
+                                      <span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>{ev.ts}</span>
+                                    </div>
+                                    <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0", lineHeight: 1.5 }}>{ev.note}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {tab === "agents" && (
+                          <div>
+                            <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, background: "rgba(167,139,250,0.07)", border: "1px solid rgba(167,139,250,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
+                              <Bot size={14} color="#a78bfa" />
+                              <span style={{ fontSize: 11, color: "#a78bfa" }}>
+                                AI Agent integration ready — wire endpoints below to <code style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(167,139,250,0.15)", padding: "1px 5px", borderRadius: 3 }}>/api/agents</code>
+                              </span>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                              {[
+                                { icon: <Zap size={16} color="#818cf8" />, title: "AI Triage Analysis", desc: "Send finding context to LLM agent for automated severity validation, false-positive scoring, and enrichment from threat intel feeds.", endpoint: "POST /api/agents/triage", color: "#818cf8" },
+                                { icon: <Bot size={16} color="#a78bfa" />, title: "Auto-Remediate", desc: "Trigger Lambda-backed remediation agent to execute the runbook steps automatically. Requires approval workflow.", endpoint: "POST /api/agents/remediate", color: "#a78bfa" },
+                                { icon: <Ticket size={16} color="#06b6d4" />, title: "Create Ticket", desc: "Auto-generate a Jira/ServiceNow incident with pre-filled description, severity, assignee, and runbook link.", endpoint: "POST /api/integrations/ticket", color: "#06b6d4" },
+                                { icon: <ExternalLink size={16} color="#fb923c" />, title: "Enrich with Threat Intel", desc: "Query Shodan, VirusTotal, and internal threat feeds for the public IP / resource to assess active exploitation.", endpoint: "POST /api/agents/enrich", color: "#fb923c" },
+                                { icon: <UserCircle size={16} color="#34d399" />, title: "Blast Radius Analysis", desc: "Identify all resources reachable from this alert context using identity, network, and policy relationships.", endpoint: "POST /api/agents/blast-radius", color: "#34d399" },
+                                { icon: <CheckCircle size={16} color="#00ff88" />, title: "Verify Remediation", desc: "Re-scan this specific finding post-remediation to confirm the issue is resolved and advance workflow to REMEDIATED.", endpoint: "POST /api/agents/verify", color: "#00ff88" },
+                              ].map((a) => (
+                                <div key={a.title} style={{ padding: 14, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                    {a.icon}
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{a.title}</span>
+                                  </div>
+                                  <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px", lineHeight: 1.5 }}>{a.desc}</p>
+                                  <div style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(0,0,0,0.3)", marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}>
+                                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{a.endpoint}</span>
+                                  </div>
+                                  <button onClick={() => toast.info(`${a.title} stub`, { description: `${a.endpoint} for ${alert.id}` })} style={{ width: "100%", padding: "6px 0", borderRadius: 6, background: `${a.color}15`, border: `1px solid ${a.color}35`, color: a.color, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Run Agent</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         </div>
                       </div>
                     )}
@@ -926,8 +1011,33 @@ export function CloudSecurityAlerts() {
               className="text-xs text-right"
               style={{ color: "rgba(71,85,105,0.7)", fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Showing {filtered.length} of {alerts.length} alerts
+              Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} alerts
             </p>
+          )}
+
+          {/* Pagination */}
+          {filtered.length > pageSize && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: "4px 12px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: currentPage === 1 ? "rgba(100,116,139,0.3)" : "rgba(100,116,139,0.8)", fontSize: 11, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: "4px 12px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: currentPage === totalPages ? "rgba(100,116,139,0.3)" : "rgba(100,116,139,0.8)", fontSize: 11, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </>
 
@@ -1021,6 +1131,7 @@ export function CloudSecurityAlerts() {
 
       {/* Shared label style injected once */}
       <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .section-label {
           font-size: 10px;
           font-weight: 600;

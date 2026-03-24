@@ -656,6 +656,7 @@ const ms: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 export function S3Security() {
   const [scanResult, setScanResult] = useState<S3ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState("all-regions");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -776,9 +777,13 @@ export function S3Security() {
   const openCritical = findings.filter(f => f.severity === "CRITICAL" && !["REMEDIATED","FALSE_POSITIVE"].includes(workflows[f.id]?.status ?? "NEW")).length;
   const openHigh = findings.filter(f => f.severity === "HIGH" && !["REMEDIATED","FALSE_POSITIVE"].includes(workflows[f.id]?.status ?? "NEW")).length;
   const remediated = Object.values(workflows).filter(w => w.status === "REMEDIATED").length;
+  const pipelineCounts = PIPELINE_STAGES.reduce((acc, stage) => {
+    acc[stage] = Object.values(workflows).filter(w => w.status === stage).length;
+    return acc;
+  }, {} as Record<WorkflowStatus, number>);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24, minHeight: "100%", background: "linear-gradient(160deg, #000814 0%, #001025 100%)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -801,6 +806,13 @@ export function S3Security() {
           <button onClick={handleStartScan} disabled={isScanning} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: isScanning ? "rgba(0,255,136,0.05)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: 8, color: "#00ff88", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}>
             {isScanning ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
             {isScanning ? "Scanning…" : "Run Scan"}
+          </button>
+          <button
+            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
+          >
+            <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+            Refresh
           </button>
           <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
             <Download size={13} />Export
@@ -827,87 +839,182 @@ export function S3Security() {
 
       {/* Workflow Pipeline */}
       <div style={{ ...cs, padding: "14px 16px" }}>
-        <div style={{ ...ls, marginBottom: 10 }}>Workflow Pipeline</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {PIPELINE_STAGES.map((stage, i) => {
-            const count = Object.values(workflows).filter(w => w.status === stage).length;
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <GitBranch size={13} color="rgba(100,116,139,0.7)" />
+          <span style={ls}>Workflow Pipeline</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          {PIPELINE_STAGES.map((stage, idx) => {
             const meta = WORKFLOW_META[stage];
-            const active = statusFilter === stage;
+            const count = pipelineCounts[stage] ?? 0;
+            const isLast = idx === PIPELINE_STAGES.length - 1;
             return (
-              <button key={stage} onClick={() => setStatusFilter(active ? "ALL" : stage)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: 20, border: `1px solid ${active ? meta.color : "rgba(255,255,255,0.08)"}`, background: active ? meta.bg : "transparent", cursor: "pointer", transition: "all 0.15s" }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: active ? meta.color : "rgba(100,116,139,0.7)", ...ms }}>{meta.label}</span>
-                <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: count > 0 ? meta.bg : "rgba(255,255,255,0.05)", border: `1px solid ${count > 0 ? meta.color + "60" : "rgba(255,255,255,0.08)"}`, color: count > 0 ? meta.color : "rgba(100,116,139,0.5)", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", ...ms }}>{count}</span>
-                {i < PIPELINE_STAGES.length - 1 && <ChevronRight size={12} style={{ color: "rgba(100,116,139,0.3)" }} />}
-              </button>
+              <div key={stage} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                <div
+                  onClick={() => setStatusFilter(statusFilter === stage ? "ALL" : stage)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    background: statusFilter === stage ? meta.bg : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${statusFilter === stage ? `${meta.color}50` : "rgba(255,255,255,0.06)"}`,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 700, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", ...ms }}>{count}</div>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", letterSpacing: "0.1em", marginTop: 2, ...ms }}>
+                    {meta.label.toUpperCase()}
+                  </div>
+                </div>
+                {!isLast && (
+                  <div style={{ width: 20, height: 1, background: "rgba(255,255,255,0.08)", flexShrink: 0, position: "relative" }}>
+                    <div style={{ position: "absolute", right: -3, top: -4, color: "rgba(100,116,139,0.3)", fontSize: 8 }}>▶</div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      {/* Risk Indicators Strip */}
+      <div style={{ ...cs, padding: "10px 18px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ ...ls, marginRight: 4 }}>Risk Indicators</span>
+        {[
+          { label: `Public Buckets: ${summary.public_buckets}`, color: "#ff0040" },
+          { label: `Unencrypted: ${summary.unencrypted_buckets} buckets`, color: "#ff6b35" },
+          { label: `No Logging: ${summary.no_logging} buckets`, color: "#ffb000" },
+          { label: `SLA Breaches: ${slaBreaches}`, color: slaBreaches > 0 ? "#ff0040" : "#00ff88" },
+          { label: `Open Critical: ${openCritical}`, color: openCritical > 0 ? "#ff0040" : "#00ff88" },
+          { label: `Open High: ${openHigh}`, color: openHigh > 0 ? "#ff6b35" : "#00ff88" },
+        ].map(chip => (
+          <span key={chip.label} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...ms }}>
+            {chip.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {(["ALL","CRITICAL","HIGH","MEDIUM","LOW"] as const).map(sev => {
           const active = severityFilter === sev;
           const col = sev === "ALL" ? "#00ff88" : SEVERITY_COLORS[sev];
           return <button key={sev} onClick={() => setSeverityFilter(sev)} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", ...ms, background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)" }}>{sev}</button>;
         })}
+        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
+        {statusFilter !== "ALL" && (
+          <button
+            onClick={() => setStatusFilter("ALL")}
+            style={{ padding: "2px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)", color: "#94a3b8", fontSize: 10, cursor: "pointer", ...ms }}
+          >
+            {WORKFLOW_META[statusFilter as WorkflowStatus]?.label} ✕
+          </button>
+        )}
         <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
           <input value={findingSearch} onChange={e => setFindingSearch(e.target.value)} placeholder="Search findings, buckets…" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...ms }} />
         </div>
+        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", ...ms }}>{filteredFindings.length} findings</span>
       </div>
 
       {/* Findings Table */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {filteredFindings.map(f => {
+      <div style={cs}>
+        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+          <div />
+          <span style={{ ...ls, paddingLeft: 12 }}>Resource / Finding</span>
+          <span style={ls}>Severity</span>
+          <span style={ls}>Status</span>
+          <span style={ls}>Exposure</span>
+          <span style={ls}>Encryption</span>
+          <span style={ls}>Risk /10</span>
+        </div>
+
+        {filteredFindings.length === 0 ? (
+          <div style={{ ...cs, padding: 40, textAlign: "center", border: "none", background: "transparent" }}>
+            <Archive size={32} style={{ color: "rgba(100,116,139,0.3)", margin: "0 auto 12px" }} />
+            <p style={{ color: "rgba(100,116,139,0.6)", fontSize: 14, margin: 0 }}>No findings match current filters</p>
+          </div>
+        ) : filteredFindings.map((f, idx) => {
           const wf = workflows[f.id] ?? S3_WORKFLOWS[f.id];
           const isExpanded = expandedRows.has(f.id);
           const tab = activeTab[f.id] ?? "runbook";
           const sevBg = SEVERITY_BG[f.severity];
           const wfMeta = WORKFLOW_META[wf.status];
           const playbook = S3_PLAYBOOKS[f.id] ?? [];
+          const isLast = idx === filteredFindings.length - 1;
+          const exposureLabel = f.public_read || f.public_write ? "Public" : "Private";
+          const exposureColor = f.public_read || f.public_write ? "#ff0040" : "#00ff88";
 
           return (
-            <div key={f.id} style={{ ...cs, overflow: "hidden" }}>
-              {/* Row header */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", cursor: "pointer" }} onClick={() => toggleRow(f.id)}>
-                {isExpanded ? <ChevronDown size={15} style={{ color: "#00ff88", flexShrink: 0 }} /> : <ChevronRight size={15} style={{ color: "rgba(100,116,139,0.5)", flexShrink: 0 }} />}
-                <span style={{ ...sevBg, padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, flexShrink: 0, ...ms }}>{f.severity}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.finding_type}</div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", ...ms }}>{f.bucket_name}</span>
-                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", ...ms }}>· {f.region}</span>
-                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", ...ms }}>· {f.object_count.toLocaleString()} objects · {f.size_gb.toLocaleString()} GB</span>
+            <div key={f.id}>
+              <div
+                onClick={() => toggleRow(f.id)}
+                style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || isExpanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
+                onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+              >
+                <div style={{ position: "relative", height: "100%" }}>
+                  <div style={{ position: "absolute", left: 0, width: 4, top: -12, bottom: -12, background: SEVERITY_COLORS[f.severity], borderRadius: "0 2px 2px 0", opacity: 0.85 }} />
+                </div>
+                <div style={{ paddingLeft: 12, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <div style={{ flexShrink: 0 }}>{isExpanded ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.bucket_name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", ...ms, marginTop: 1 }}>{f.region}</div>
+                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.finding_type}</div>
                   </div>
                 </div>
-                {/* Workflow action bar */}
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                  {wf.sla_breached && <span style={{ fontSize: 9, ...ms, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.3)", borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>SLA BREACH</span>}
-                  <span style={{ ...wfMeta, padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, ...ms }}>{wfMeta.label}</span>
-                  {NEXT_STATUS[wf.status] && (
-                    <button onClick={() => { advanceStatus(f.id); toast.success(`${f.bucket_name}: ${WORKFLOW_META[wf.status].label} → ${WORKFLOW_META[NEXT_STATUS[wf.status]!].label}`); }} style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", cursor: "pointer", ...ms }}>
-                      Advance ›
-                    </button>
-                  )}
-                  <select defaultValue="" onChange={e => { if (e.target.value) assignFinding(f.id, e.target.value); }} style={{ padding: "3px 6px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", ...ms }}>
-                    <option value="" disabled>{wf.assignee ?? "Assign…"}</option>
-                    {["sarah.chen","marcus.webb","taylor.brooks","alex.rodriguez","priya.nair"].map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                  {wf.ticket_id ? (
-                    <span style={{ fontSize: 10, ...ms, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "2px 6px" }}>{wf.ticket_id}</span>
-                  ) : (
-                    <button onClick={() => toast.info("Ticket creation: wire to /api/tickets/create")} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", cursor: "pointer", ...ms }}>+ Ticket</button>
-                  )}
-                  <button onClick={() => markFalsePositive(f.id)} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "transparent", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.5)", cursor: "pointer", ...ms }}>FP</button>
+                <div>
+                  <span style={{ ...sevBg, padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, ...ms }}>{f.severity}</span>
+                </div>
+                <div>
+                  <span style={{ ...wfMeta, padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, ...ms }}>{wfMeta.label.toUpperCase()}</span>
+                  {wf.sla_breached && <div style={{ fontSize: 9, ...ms, color: "#ff0040", marginTop: 3 }}>SLA BREACH</div>}
+                </div>
+                <div>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: exposureColor }}>
+                    {f.public_read || f.public_write ? <Globe size={11} color={exposureColor} /> : <Lock size={11} color={exposureColor} />}
+                    {exposureLabel}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: "#94a3b8", ...ms }}>{f.encryption_type}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: f.risk_score >= 9 ? "#ff0040" : f.risk_score >= 7 ? "#ff6b35" : f.risk_score >= 5 ? "#ffb000" : "#00ff88", ...ms }}>
+                    {f.risk_score}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>/10</span>
+                  </span>
                 </div>
               </div>
 
               {/* Expanded panel */}
               {isExpanded && (
-                <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.4)" }}>
+                  <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ ...ls, marginRight: 6 }}>Workflow</span>
+                    {NEXT_STATUS[wf.status] && (
+                      <button onClick={() => { advanceStatus(f.id); toast.success(`${f.bucket_name}: ${WORKFLOW_META[wf.status].label} → ${WORKFLOW_META[NEXT_STATUS[wf.status]!].label}`); }} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", cursor: "pointer", ...ms }}>
+                        Advance → {WORKFLOW_META[NEXT_STATUS[wf.status]!].label}
+                      </button>
+                    )}
+                    <select defaultValue="" onChange={e => { if (e.target.value) assignFinding(f.id, e.target.value); }} style={{ padding: "4px 8px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", ...ms }}>
+                      <option value="" disabled>{wf.assignee ?? "Assign…"}</option>
+                      {["sarah.chen","marcus.webb","taylor.brooks","alex.rodriguez","priya.nair"].map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                    {wf.ticket_id ? (
+                      <span style={{ fontSize: 10, ...ms, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "2px 6px" }}>{wf.ticket_id}</span>
+                    ) : (
+                      <button onClick={() => toast.info("Ticket creation: wire to /api/tickets/create")} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", cursor: "pointer", ...ms }}>+ Ticket</button>
+                    )}
+                    <button onClick={() => markFalsePositive(f.id)} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "transparent", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.5)", cursor: "pointer", ...ms }}>FP</button>
+                    <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...ms }}>
+                      {wf.ticket_id ? `Ticket: ${wf.ticket_id} · ` : ""}First seen: {new Date(wf.first_seen).toLocaleString()}
+                    </span>
+                  </div>
                   {/* Tab bar */}
-                  <div style={{ display: "flex", gap: 0, padding: "0 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", gap: 0, padding: "0 20px 0 36px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     {[
                       { id: "runbook", icon: GitBranch, label: "Runbook" },
                       { id: "overview", icon: Eye, label: "Overview" },
@@ -920,7 +1027,7 @@ export function S3Security() {
                     ))}
                   </div>
 
-                  <div style={{ padding: 16 }}>
+                  <div style={{ padding: "16px 20px 20px 36px" }}>
                     {/* RUNBOOK TAB */}
                     {tab === "runbook" && (
                       <div>
@@ -1063,13 +1170,6 @@ export function S3Security() {
             </div>
           );
         })}
-
-        {filteredFindings.length === 0 && (
-          <div style={{ ...cs, padding: 40, textAlign: "center" }}>
-            <Archive size={32} style={{ color: "rgba(100,116,139,0.3)", margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(100,116,139,0.6)", fontSize: 14, margin: 0 }}>No findings match current filters</p>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -272,7 +272,7 @@ export function AccessAnalyzer() {
   const sensitiveCount = findings.filter((f) => f.resource_type === "KMS" || f.resource_type === "Secrets Manager").length;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>

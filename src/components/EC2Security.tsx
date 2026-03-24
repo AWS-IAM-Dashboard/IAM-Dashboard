@@ -497,7 +497,7 @@ export function EC2Security() {
   }, {} as Record<string, number>);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>

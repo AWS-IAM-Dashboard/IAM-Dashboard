@@ -146,7 +146,7 @@ export function GrafanaIntegration() {
   ] as const;
 
   return (
-    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", maxWidth: "1280px", margin: "0 auto" }}>
+    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px",  }}>
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

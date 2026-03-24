@@ -11,6 +11,13 @@ import {
   AlertTriangle,
   Globe,
   Lock,
+  GitBranch,
+  Eye,
+  Activity,
+  Bot,
+  Zap,
+  Ticket,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { scanEC2, type ScanResponse } from "../services/api";
@@ -295,6 +302,24 @@ const labelStyle: React.CSSProperties = {
   fontFamily: "'JetBrains Mono', monospace",
 };
 const monoStyle: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+const WORKFLOW_PIPELINE = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"] as const;
+type WorkflowStage = (typeof WORKFLOW_PIPELINE)[number];
+const WORKFLOW_META: Record<WorkflowStage, { label: string; color: string; bg: string }> = {
+  NEW: { label: "NEW", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
+  TRIAGED: { label: "TRIAGED", color: "#818cf8", bg: "rgba(129,140,248,0.12)" },
+  ASSIGNED: { label: "ASSIGNED", color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  IN_PROGRESS: { label: "IN PROGRESS", color: "#ffb000", bg: "rgba(255,176,0,0.12)" },
+  PENDING_VERIFY: { label: "PENDING VERIFY", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  REMEDIATED: { label: "REMEDIATED", color: "#00ff88", bg: "rgba(0,255,136,0.12)" },
+};
+const NEXT_STATUS: Partial<Record<WorkflowStage, WorkflowStage>> = {
+  NEW: "TRIAGED",
+  TRIAGED: "ASSIGNED",
+  ASSIGNED: "IN_PROGRESS",
+  IN_PROGRESS: "PENDING_VERIFY",
+  PENDING_VERIFY: "REMEDIATED",
+};
+const ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Dev Patel", "Priya Singh", "Infra Team", "Platform Eng", "SOC L2"];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function VPCSecurity() {
@@ -304,8 +329,13 @@ export function VPCSecurity() {
   const [selectedRegion, setSelectedRegion] = useState("us-east-1");
   const [loading, setLoading] = useState(false);
   const [severityFilter, setSeverityFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [findingSearch, setFindingSearch] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<Record<string, string>>({});
+  const [workflowOverrides, setWorkflowOverrides] = useState<Record<string, WorkflowStage>>({});
+  const [assigneeByFinding, setAssigneeByFinding] = useState<Record<string, string>>({});
+  const [ticketByFinding, setTicketByFinding] = useState<Record<string, string>>({});
   const { addScanResult } = useScanResults();
 
   // Auto-load mock data on mount
@@ -392,22 +422,36 @@ export function VPCSecurity() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    setActiveTab(prev => ({ ...prev, [id]: prev[id] ?? "runbook" }));
   };
 
   const findings = scanResult?.findings ?? mockVPCFindings;
+  const baseWorkflowByFinding = findings.reduce((acc, finding, idx) => {
+    acc[finding.id] = WORKFLOW_PIPELINE[idx % WORKFLOW_PIPELINE.length];
+    return acc;
+  }, {} as Record<string, WorkflowStage>);
+  const workflowByFinding = findings.reduce((acc, finding) => {
+    acc[finding.id] = workflowOverrides[finding.id] ?? baseWorkflowByFinding[finding.id];
+    return acc;
+  }, {} as Record<string, WorkflowStage>);
+  const pipelineCounts = WORKFLOW_PIPELINE.reduce((acc, stage) => {
+    acc[stage] = Object.values(workflowByFinding).filter(s => s === stage).length;
+    return acc;
+  }, {} as Record<WorkflowStage, number>);
   const filteredFindings = findings.filter(f => {
     const matchSev = severityFilter === "ALL" || f.severity === severityFilter;
+    const matchStatus = statusFilter === "ALL" || workflowByFinding[f.id] === statusFilter;
     const matchSearch =
       findingSearch === "" ||
       f.resource_name.toLowerCase().includes(findingSearch.toLowerCase()) ||
       f.finding_type.toLowerCase().includes(findingSearch.toLowerCase()) ||
       f.resource_id.toLowerCase().includes(findingSearch.toLowerCase());
-    return matchSev && matchSearch;
+    return matchSev && matchStatus && matchSearch;
   });
   const summary = scanResult?.scan_summary ?? mockVPCSummary;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -488,6 +532,48 @@ export function VPCSecurity() {
         ))}
       </div>
 
+      {/* Workflow Pipeline */}
+      <div style={{ ...cardStyle, padding: "14px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <GitBranch size={13} color="rgba(100,116,139,0.7)" />
+          <span style={labelStyle}>Workflow Pipeline</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+          {WORKFLOW_PIPELINE.map((stage, idx) => {
+            const meta = WORKFLOW_META[stage];
+            const count = pipelineCounts[stage] ?? 0;
+            const isLast = idx === WORKFLOW_PIPELINE.length - 1;
+            return (
+              <div key={stage} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                <div
+                  onClick={() => setStatusFilter(statusFilter === stage ? "ALL" : stage)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    background: statusFilter === stage ? meta.bg : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${statusFilter === stage ? `${meta.color}50` : "rgba(255,255,255,0.06)"}`,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 700, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", ...monoStyle }}>{count}</div>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", letterSpacing: "0.1em", marginTop: 2, ...monoStyle }}>
+                    {meta.label}
+                  </div>
+                </div>
+                {!isLast && (
+                  <div style={{ width: 20, height: 1, background: "rgba(255,255,255,0.08)", flexShrink: 0, position: "relative" }}>
+                    <div style={{ position: "absolute", right: -3, top: -4, color: "rgba(100,116,139,0.3)", fontSize: 8 }}>▶</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Risk Indicators Strip */}
       <div style={{ ...cardStyle, padding: "12px 18px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ ...labelStyle, marginRight: 4 }}>Risk Indicators</span>
@@ -529,15 +615,24 @@ export function VPCSecurity() {
             style={{ width: "100%", padding: "7px 10px 7px 30px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...monoStyle }}
           />
         </div>
+        {statusFilter !== "ALL" && (
+          <button
+            onClick={() => setStatusFilter("ALL")}
+            style={{ padding: "2px 8px", borderRadius: 5, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.03)", color: "#94a3b8", fontSize: 10, cursor: "pointer", ...monoStyle }}
+          >
+            {WORKFLOW_META[statusFilter as WorkflowStage]?.label} ✕
+          </button>
+        )}
         <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", ...monoStyle }}>{filteredFindings.length} findings</span>
       </div>
 
       {/* Findings Table */}
       <div style={cardStyle}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 110px 100px 80px 70px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Resource / Finding</span>
           <span style={labelStyle}>Type</span>
+          <span style={labelStyle}>Status</span>
           <span style={labelStyle}>Severity</span>
           <span style={labelStyle}>Exposure</span>
           <span style={labelStyle}>Flow Logs</span>
@@ -559,7 +654,7 @@ export function VPCSecurity() {
               <div key={finding.id}>
                 <div
                   onClick={() => toggleRow(finding.id)}
-                  style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 110px 100px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                  style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
                   onMouseEnter={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
                   onMouseLeave={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                 >
@@ -585,6 +680,12 @@ export function VPCSecurity() {
                   <div>
                     <span style={{ padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, color: typeColor, ...monoStyle }}>
                       {finding.resource_type}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: WORKFLOW_META[workflowByFinding[finding.id]].bg, color: WORKFLOW_META[workflowByFinding[finding.id]].color, ...monoStyle }}>
+                      {WORKFLOW_META[workflowByFinding[finding.id]].label}
                     </span>
                   </div>
 
@@ -624,8 +725,96 @@ export function VPCSecurity() {
                 </div>
 
                 {expanded && (
-                  <div style={{ padding: "0 16px 16px 36px", borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.01)" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
+                  <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.35)" }}>
+                    <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ ...labelStyle, marginRight: 6 }}>Workflow</span>
+                      {NEXT_STATUS[workflowByFinding[finding.id]] && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setWorkflowOverrides(prev => ({ ...prev, [finding.id]: NEXT_STATUS[workflowByFinding[finding.id]]! }));
+                          }}
+                          style={{ padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", cursor: "pointer", ...monoStyle }}
+                        >
+                          Advance → {WORKFLOW_META[NEXT_STATUS[workflowByFinding[finding.id]]!].label}
+                        </button>
+                      )}
+                      <select
+                        defaultValue=""
+                        onChange={e => { if (e.target.value) setAssigneeByFinding(prev => ({ ...prev, [finding.id]: e.target.value })); }}
+                        style={{ padding: "4px 8px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", ...monoStyle }}
+                      >
+                        <option value="" disabled>{assigneeByFinding[finding.id] ?? "Assign to…"}</option>
+                        {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                      {ticketByFinding[finding.id] ? (
+                        <span style={{ fontSize: 10, ...monoStyle, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "2px 6px" }}>{ticketByFinding[finding.id]}</span>
+                      ) : (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setTicketByFinding(prev => ({ ...prev, [finding.id]: `SEC-${4700 + idx}` }));
+                          }}
+                          style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", cursor: "pointer", ...monoStyle }}
+                        >
+                          + Ticket
+                        </button>
+                      )}
+                      <button
+                        onClick={e => { e.stopPropagation(); toast.info("Marked for review as false positive (UI stub)"); }}
+                        style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "transparent", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.5)", cursor: "pointer", ...monoStyle }}
+                      >
+                        False Positive
+                      </button>
+                      <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...monoStyle }}>
+                        {ticketByFinding[finding.id] ? `Ticket: ${ticketByFinding[finding.id]} · ` : ""}First seen: {new Date(Date.now() - (idx + 1) * 3600000).toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{ padding: "0 16px 0 36px" }}>
+                      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
+                        {[
+                          { id: "runbook", label: "Runbook", icon: <GitBranch size={12} /> },
+                          { id: "overview", label: "Overview", icon: <Eye size={12} /> },
+                          { id: "timeline", label: "Timeline", icon: <Activity size={12} /> },
+                          { id: "agents", label: "Agent Actions", icon: <Bot size={12} /> },
+                        ].map(t => (
+                          <button
+                            key={t.id}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setActiveTab(prev => ({ ...prev, [finding.id]: t.id }));
+                            }}
+                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "10px 14px", background: "transparent", border: "none", borderBottom: `2px solid ${(activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "transparent"}`, color: (activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "rgba(100,116,139,0.65)", fontSize: 12, fontWeight: (activeTab[finding.id] ?? "runbook") === t.id ? 600 : 400, cursor: "pointer", marginBottom: -1 }}
+                          >
+                            {t.icon}{t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "12px 16px 16px 36px" }} onClick={e => e.stopPropagation()}>
+                      {(activeTab[finding.id] ?? "runbook") === "runbook" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {[
+                            { n: 1, title: "Identify", desc: `Confirm ${finding.resource_type} scope and blast radius for ${finding.resource_name}.`, cmd: `aws ec2 describe-${finding.resource_type.toLowerCase()}s --region ${finding.region}` },
+                            { n: 2, title: "Contain", desc: "Apply immediate containment controls to reduce exposure.", cmd: "aws ec2 authorize-security-group-ingress/revoke-security-group-ingress ..."},
+                            { n: 3, title: "Remediate", desc: finding.recommendation, cmd: "terraform plan && terraform apply (after peer review)" },
+                            { n: 4, title: "Verify", desc: "Re-scan and validate compliance controls after fix.", cmd: "aws configservice get-compliance-details-by-config-rule ..." },
+                          ].map(step => (
+                            <div key={step.n} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 12 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#06b6d4", ...monoStyle }}>{step.n}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{step.title}</span>
+                              </div>
+                              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step.desc}</p>
+                              <code style={{ display: "block", fontSize: 10, color: "#7dd3fc", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "6px 8px", ...monoStyle }}>{step.cmd}</code>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(activeTab[finding.id] ?? "runbook") === "overview" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
                       <div>
                         <p style={{ ...labelStyle, margin: "0 0 6px" }}>Description</p>
                         <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
@@ -668,6 +857,42 @@ export function VPCSecurity() {
                           </div>
                         )}
                       </div>
+                    </div>
+                      )}
+
+                      {(activeTab[finding.id] ?? "runbook") === "timeline" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {[
+                            { who: "system", action: `Detected ${finding.finding_type}`, note: "Auto-ingested from scanner", ts: "2h ago" },
+                            { who: "analyst", action: "Triaged and validated", note: "Marked true positive", ts: "1h ago" },
+                            { who: "engineer", action: "Remediation plan drafted", note: "Awaiting approval window", ts: "20m ago" },
+                          ].map((e, i) => (
+                            <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                                <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{e.action}</span>
+                                <span style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{e.ts}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{e.note}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(activeTab[finding.id] ?? "runbook") === "agents" && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                          {[
+                            { icon: <Zap size={13} />, title: "AI Triage", endpoint: "/api/agents/triage" },
+                            { icon: <Ticket size={13} />, title: "Create Ticket", endpoint: "/api/agents/ticket" },
+                            { icon: <ExternalLink size={13} />, title: "Threat Enrichment", endpoint: "/api/agents/enrich" },
+                          ].map(a => (
+                            <div key={a.title} style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#06b6d4", marginBottom: 6 }}>{a.icon}<span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{a.title}</span></div>
+                              <code style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{a.endpoint}</code>
+                              <button onClick={() => toast.info(`${a.title} stub`, { description: `${a.endpoint} for ${finding.resource_id}` })} style={{ marginTop: 8, width: "100%", padding: "6px 0", borderRadius: 6, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", fontSize: 11, cursor: "pointer" }}>Run Agent</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

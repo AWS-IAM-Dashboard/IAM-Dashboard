@@ -283,9 +283,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
         display: "flex",
         flexDirection: "column",
         gap: "20px",
-        maxWidth: "1280px",
-        margin: "0 auto",
-      }}
+              }}
     >
       {/* ── Page header ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

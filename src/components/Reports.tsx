@@ -294,9 +294,7 @@ export function Reports({ reports }: ReportsProps) {
         display: "flex",
         flexDirection: "column",
         gap: "24px",
-        maxWidth: "1280px",
-        margin: "0 auto",
-      }}
+              }}
     >
       {/* ── Page header ── */}
       <div>
