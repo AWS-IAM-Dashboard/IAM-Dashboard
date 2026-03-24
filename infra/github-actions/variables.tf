@@ -17,9 +17,9 @@ variable "project_name" {
 }
 
 variable "github_actions_role_name" {
-  description = "Name of the IAM role for GitHub Actions"
+  description = "Name of the IAM role for GitHub Actions (must match existing role if importing)"
   type        = string
-  default     = "IAMDash-Deployer-Prod"
+  default     = "iam-dashboard-deployer-prod"
 }
 
 variable "github_repo_owner" {

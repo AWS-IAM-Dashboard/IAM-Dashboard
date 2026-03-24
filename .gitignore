@@ -151,6 +151,7 @@ infra/lambda/six.py
 
 # IAM roles (local/dev)
 infra/iam-roles/
+kms_policy.json
 
 # Kubernetes
 *.kubeconfig
@@ -185,5 +186,5 @@ lambda-out/
 npm-cache/
 nul
 
-# File I use to draft my thoughts
+# File I use to think
 temp.txt

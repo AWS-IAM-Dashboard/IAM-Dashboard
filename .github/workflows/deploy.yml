@@ -63,6 +63,7 @@ jobs:
           echo "No S3 bucket found in Terraform outputs, using default pattern"
           S3_BUCKET="iam-dashboard-frontend-$(date +%s)"
         fi
+        # Do NOT store Terraform state in this bucket: deploy uses --delete, which would remove state.
         echo "Uploading build files to s3://$S3_BUCKET/"
         aws s3 sync build/ s3://$S3_BUCKET/ --delete
         CLOUDFRONT_ID="${{ steps.deployment-vars.outputs.cloudfront_id }}"
