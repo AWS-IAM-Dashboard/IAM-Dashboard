@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Lock,
@@ -14,6 +14,8 @@ import {
   Server,
   Database,
   Globe,
+  Menu,
+  X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
@@ -24,6 +26,8 @@ import dashboardMockup from "@/assets/dashboard-mockup.png";
 export function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +36,17 @@ export function LandingPage() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mobileMenuOpen]);
 
   const onGetStarted = () => navigate("/login");
   const onLogin = () => navigate("/login");
@@ -254,12 +269,65 @@ export function LandingPage() {
             <div className="flex items-center gap-3 sm:gap-8">
               <button
                 onClick={onLogin}
-                className="rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors hover:border-green-500/40 hover:text-white sm:border-0 sm:px-0 sm:py-0 sm:text-[16px] sm:text-gray-300"
+                className="hidden rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors hover:border-green-500/40 hover:text-white sm:block sm:border-0 sm:px-0 sm:py-0 sm:text-[16px] sm:text-gray-300"
               >
                 Sign In
               </button>
+              <button
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="flex items-center justify-center text-gray-300 transition-colors hover:text-white md:hidden"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
             </div>
           </div>
+
+          {mobileMenuOpen && (
+            <div
+              ref={mobileMenuRef}
+              className="border-t border-white/10 px-4 pb-4 pt-3 md:hidden"
+            >
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-lg px-3 py-2 text-left text-base text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Features
+                </button>
+                <button
+                  onClick={() => {
+                    document.getElementById("solutions")?.scrollIntoView({ behavior: "smooth" });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-lg px-3 py-2 text-left text-base text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Solutions
+                </button>
+                <button
+                  onClick={() => {
+                    onAboutClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-lg px-3 py-2 text-left text-base text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  About
+                </button>
+                <button
+                  onClick={() => {
+                    onLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="mt-1 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-center text-base font-medium text-green-400 transition-colors hover:bg-green-500/20"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 

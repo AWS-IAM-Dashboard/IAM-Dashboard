@@ -909,7 +909,7 @@ export function Settings() {
       {/* Save Settings */}
       <Card className="cyber-card">
         <CardContent className="p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button 
               variant="outline" 
               className="w-full sm:w-auto border-border hover:bg-muted/50"

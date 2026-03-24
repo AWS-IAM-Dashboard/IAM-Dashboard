@@ -148,7 +148,9 @@ export function DashboardApp() {
           )}
 
           <main className="flex-1 overflow-auto">
-            {renderContent()}
+            <div className="mx-auto max-w-screen-2xl">
+              {renderContent()}
+            </div>
           </main>
         </div>
         <Toaster
