@@ -10,13 +10,14 @@ The IAM Dashboard infrastructure is defined as Terraform modules. Each service h
 
 ## 📁 Directory Structure
 
-```
+```graphql
 infra/
 ├── bootstrap/       # One-time: S3 state bucket + DynamoDB lock table (run before main)
 ├── s3/              # S3 bucket for static hosting and scan results
 ├── dynamodb/        # DynamoDB table for storing scan results
 ├── lambda/          # Lambda function and IAM role for security scanning
 ├── api-gateway/     # API Gateway REST API (placeholder for 9 endpoints)
+├── ses/             # SES identities and notification-email infrastructure for scan results
 └── README.md        # This file
 ```
 
@@ -37,6 +38,11 @@ infra/
 - **Role**: `iam-dashboard-lambda-role`
 - **Purpose**: Aggregate findings from AWS security services and run OPA policy scans
 - **Runtime**: Python 3.13 (arm64)
+
+### SES (`infra/ses/`)
+- **Purpose**: Manage SES identities and notification-email infrastructure for scan-result messages
+- **Notification Flow**: Works with the SES notification Lambda, which reads the exact scan-result object referenced by the S3 event and sends the email
+- **Sandbox Mode**: Sender and recipient identities still require AWS mailbox verification before delivery succeeds
 
 ### API Gateway (`infra/api-gateway/`)
 - **API**: `iam-dashboard-api`
@@ -201,6 +207,8 @@ terraform output
 
 - **Lambda** → DynamoDB (writes scan results)
 - **Lambda** → S3 (stores detailed results)
+- **S3** → SES Lambda (invokes scan-result notification handling for matching JSON objects)
+- **SES Lambda** → SES (sends scan-result notification emails)
 - **API Gateway** → Lambda (triggers scans)
 - **Frontend** → API Gateway (calls scan endpoints)
 - **Frontend** → S3 (serves static site)
@@ -231,8 +239,10 @@ Each service directory contains its own README with detailed documentation:
 - `infra/bootstrap/README.md` - One-time setup for state bucket and lock table
 - `infra/s3/README.md` - S3 configuration details
 - `infra/dynamodb/README.md` - DynamoDB schema and usage
-- `infra/lambda/README.md` - Lambda function and IAM setup
+- `infra/lambda/README.md` - Scanner Lambda and SES notification Lambda behavior, packaging, and IAM setup
+- `infra/ses/README.md` - SES identity and notification infrastructure details
 - `infra/api-gateway/README.md` - API Gateway structure and endpoints
+- `docs/backend/MailHog_and_SES.md` - Backend email architecture, including the current SES path and planned MailHog local path
 
 ## Security Scanning
 
@@ -256,5 +266,3 @@ This directory is scanned by:
 - Store sensitive values in environment variables or AWS Secrets Manager
 - Use remote state backend for team collaboration
 - Enable Terraform Cloud for state management
-
-
