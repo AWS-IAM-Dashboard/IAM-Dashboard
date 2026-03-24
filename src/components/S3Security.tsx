@@ -27,7 +27,7 @@ import {
   FileText,
   Database
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanS3, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -671,12 +671,12 @@ export function S3Security() {
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <FileText className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_objects.toLocaleString()}</p>
+                    <p className="text-2xl font-medium">{(scanResult.scan_summary.total_objects ?? 0).toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Total Objects</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <HardDrive className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb} GB</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb ?? 0} GB</p>
                     <p className="text-sm text-muted-foreground">Total Size</p>
                   </div>
                 </div>

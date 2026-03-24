@@ -33,13 +33,15 @@ resource "aws_s3_bucket_versioning" "frontend" {
 }
 
 # S3 bucket server-side encryption
+# NOTE: This bucket serves a public static website via the S3 website endpoint.
+# Using SSE-S3 (AES256) avoids requiring KMS Decrypt for anonymous users, which
+# would break public access. Use KMS on non-public buckets instead.
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.s3_kms_key_arn
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -50,6 +52,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
   rule {
     id     = "default-lifecycle"
     status = "Enabled"
+
+    filter {} # required: apply to whole bucket
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
@@ -102,4 +106,101 @@ resource "aws_s3_bucket_policy" "frontend" {
       }
     ]
   })
+}
+
+# ---------- S3 Access Logging ----------
+
+data "aws_caller_identity" "current" {}
+
+# Logging bucket for frontend access logs
+resource "aws_s3_bucket" "frontend_logs" {
+  #checkov:skip=CKV_AWS_18:Access logging bucket does not need self-logging
+  bucket = var.s3_logging_bucket_name
+
+  tags = {
+    Name      = var.s3_logging_bucket_name
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+    Purpose   = "s3-access-logs"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "frontend_logs" {
+  bucket                  = aws_s3_bucket.frontend_logs.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "frontend_logs" {
+  bucket = aws_s3_bucket.frontend_logs.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "frontend_logs" {
+  bucket = aws_s3_bucket.frontend_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = var.s3_kms_key_arn
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "frontend_logs" {
+  bucket = aws_s3_bucket.frontend_logs.id
+
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+
+    # Apply this rule to all objects in the logging bucket
+    filter {}
+
+    expiration {
+      days = 90
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+# Grant the S3 logging service write access to the logging bucket
+resource "aws_s3_bucket_policy" "frontend_logs" {
+  bucket = aws_s3_bucket.frontend_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "S3ServerAccessLogsPolicy"
+        Effect    = "Allow"
+        Principal = { Service = "logging.s3.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.frontend_logs.arn}/*"
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.frontend.arn
+          }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Enable server access logging on the frontend bucket
+resource "aws_s3_bucket_logging" "frontend" {
+  bucket        = aws_s3_bucket.frontend.id
+  target_bucket = aws_s3_bucket.frontend_logs.id
+  target_prefix = "access-logs/"
 }

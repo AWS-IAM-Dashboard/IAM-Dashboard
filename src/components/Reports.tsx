@@ -9,7 +9,7 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { FileText, Download, Calendar, Filter, Search, Eye, Plus } from "lucide-react";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { useScanResults } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
 

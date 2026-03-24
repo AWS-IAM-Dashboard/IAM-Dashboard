@@ -19,6 +19,7 @@ from api.aws_config import ConfigResource
 from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
+from api.metrics import MetricsResource, register_metrics_hooks
 from api.scan_history import ScanHistoryResource
 
 # Import services
@@ -47,7 +48,10 @@ def create_app():
         'REDIS_URL', 'redis://localhost:6379/0')
 
     # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+    CORS(app, origins=['http://localhost:3001', 'http://localhost:5173'])
+
+    # Register metrics collection hooks
+    register_metrics_hooks(app)
 
     # Initialize API
     api = Api(app, prefix='/api/v1')
@@ -60,6 +64,7 @@ def create_app():
     # Register API resources
     api.add_resource(HealthResource, '/health')
     api.add_resource(ScanHistoryResource, '/scan-history')
+    api.add_resource(MetricsResource, '/metrics')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')
     api.add_resource(EC2Resource, '/aws/ec2')

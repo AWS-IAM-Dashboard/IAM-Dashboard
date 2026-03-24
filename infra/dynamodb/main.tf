@@ -70,4 +70,3 @@ resource "aws_dynamodb_table" "scan_results" {
     Description = "Stores security scan results from AWS native scanners and custom OPA policies"
   }
 }
-

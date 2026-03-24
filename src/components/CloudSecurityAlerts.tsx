@@ -23,7 +23,7 @@ import {
   Trash2,
   Users
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { useScanResults } from "../context/ScanResultsContext";
 import { maskSensitiveData } from "../utils/security";
