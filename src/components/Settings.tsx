@@ -9,8 +9,9 @@ import { Separator } from "./ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Settings2, Shield, Bell, Database, Monitor, Save, Users, Lock, Cloud, Key, Upload } from "lucide-react";
+import { Settings2, Shield, Bell, Database, Monitor, Save, Users, Lock, Cloud, Key, Upload, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { AccountConnectionStatus } from "./AccountConnectionStatus";
 
 const mockUsers = [
   {
@@ -60,28 +61,32 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 cyber-card border-border">
-          <TabsTrigger value="general" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+        <TabsList className="flex w-full flex-nowrap gap-1 overflow-x-auto p-1 cyber-card border-border">
+          <TabsTrigger value="general" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Settings2 className="h-4 w-4 mr-2" />
             General
           </TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+          <TabsTrigger value="security" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Shield className="h-4 w-4 mr-2" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="access-control" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+          <TabsTrigger value="access-control" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Users className="h-4 w-4 mr-2" />
             Access Control
           </TabsTrigger>
-          <TabsTrigger value="encryption" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+          <TabsTrigger value="encryption" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Lock className="h-4 w-4 mr-2" />
             Encryption
           </TabsTrigger>
-          <TabsTrigger value="cloud" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+          <TabsTrigger value="cloud" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Cloud className="h-4 w-4 mr-2" />
             Cloud & Deploy
           </TabsTrigger>
-          <TabsTrigger value="system" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+          <TabsTrigger value="aws-accounts" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
+            <Link2 className="h-4 w-4 mr-2" />
+            AWS Accounts
+          </TabsTrigger>
+          <TabsTrigger value="system" className="shrink-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Monitor className="h-4 w-4 mr-2" />
             System
           </TabsTrigger>
@@ -580,6 +585,10 @@ export function Settings() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="aws-accounts" className="space-y-6">
+          <AccountConnectionStatus />
         </TabsContent>
 
         <TabsContent value="system" className="space-y-6">
