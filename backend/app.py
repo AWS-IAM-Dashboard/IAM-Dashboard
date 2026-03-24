@@ -19,6 +19,7 @@ from api.aws_config import ConfigResource
 from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
+from api.scan_history import ScanHistoryResource
 
 # Import services
 from services.aws_service import AWSService
@@ -58,6 +59,7 @@ def create_app():
 
     # Register API resources
     api.add_resource(HealthResource, '/health')
+    api.add_resource(ScanHistoryResource, '/scan-history')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')
     api.add_resource(EC2Resource, '/aws/ec2')

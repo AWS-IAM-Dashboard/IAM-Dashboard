@@ -23,3 +23,9 @@ datasources:
     access: proxy
     url: redis:6379
     editable: true
+
+  - name: Scanner API
+    type: marcusolsson-json-datasource
+    access: proxy
+    url: http://app:5000
+    editable: true
