@@ -104,7 +104,7 @@ export function HiddenProcessDetection() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Upload Memory Dump */}
       <Card className="cyber-card">
         <CardHeader>
@@ -116,7 +116,7 @@ export function HiddenProcessDetection() {
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="memory-dump">Upload Memory Dump File</Label>
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <Input 
                 id="memory-dump"
                 type="file"
@@ -127,7 +127,7 @@ export function HiddenProcessDetection() {
               <Button 
                 onClick={startAnalysis}
                 disabled={isAnalyzing}
-                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow min-w-[120px]"
+                className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow min-w-[120px]"
               >
                 <Search className="h-4 w-4 mr-2" />
                 {isAnalyzing ? "Analyzing..." : "Analyze"}
@@ -223,7 +223,7 @@ export function HiddenProcessDetection() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Process Detection Results</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={filter === "all" ? "default" : "outline"}
                     size="sm"
@@ -252,7 +252,8 @@ export function HiddenProcessDetection() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
+          <div className="w-full overflow-x-auto">
+          <Table className="min-w-[920px]">
                 <TableHeader>
                   <TableRow className="border-border">
                     <TableHead>PID</TableHead>
@@ -308,7 +309,8 @@ export function HiddenProcessDetection() {
                     );
                   })}
                 </TableBody>
-              </Table>
+          </Table>
+          </div>
             </CardContent>
           </Card>
         </>

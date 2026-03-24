@@ -317,7 +317,7 @@ export function EC2Security() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
       {/* EC2 Scan Configuration */}
@@ -404,11 +404,11 @@ export function EC2Security() {
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Play className="h-4 w-4 mr-2" />
               {isScanning ? "Scanning..." : "Start EC2 Scan"}
@@ -418,13 +418,14 @@ export function EC2Security() {
               <Button 
                 onClick={handleStopScan}
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop Scan
               </Button>
             )}
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Settings2 className="h-4 w-4 mr-2" />
               Advanced Settings
             </Button>

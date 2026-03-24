@@ -46,10 +46,10 @@ export function Settings() {
   const [dockerMode, setDockerMode] = useState(false);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Settings2 className="h-8 w-8 text-primary" />
             Settings
           </h1>
@@ -60,7 +60,8 @@ export function Settings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 cyber-card border-border">
+        <div className="w-full overflow-x-auto">
+        <TabsList className="grid min-w-[720px] w-full grid-cols-6 cyber-card border-border">
           <TabsTrigger value="general" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary/60">
             <Settings2 className="h-4 w-4 mr-2" />
             General
@@ -86,6 +87,7 @@ export function Settings() {
             System
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="general" className="space-y-6">
           <Card className="cyber-card">
@@ -171,7 +173,7 @@ export function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Real-time Protection</Label>
                     <p className="text-sm text-muted-foreground">
@@ -183,7 +185,7 @@ export function Settings() {
                 
                 <Separator className="bg-border" />
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Deep Memory Analysis</Label>
                     <p className="text-sm text-muted-foreground">
@@ -195,7 +197,7 @@ export function Settings() {
                 
                 <Separator className="bg-border" />
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Automatic Threat Response</Label>
                     <p className="text-sm text-muted-foreground">
@@ -207,7 +209,7 @@ export function Settings() {
                 
                 <Separator className="bg-border" />
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Cloud Analysis</Label>
                     <p className="text-sm text-muted-foreground">
@@ -261,7 +263,8 @@ export function Settings() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
+              <div className="w-full overflow-x-auto">
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow className="border-border">
                     <TableHead>User</TableHead>
@@ -307,6 +310,7 @@ export function Settings() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
 
@@ -363,7 +367,7 @@ export function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Encrypted Report Export</Label>
                     <p className="text-sm text-muted-foreground">
@@ -410,13 +414,13 @@ export function Settings() {
                 <div className="cyber-glass p-4 rounded-lg space-y-4">
                   <div>
                     <Label htmlFor="verify-file">Verify File Integrity (SHA256)</Label>
-                    <div className="flex gap-2 mt-2">
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                       <Input
                         id="verify-file"
                         type="file"
                         className="bg-input border-border flex-1"
                       />
-                      <Button variant="outline" className="border-border">
+                      <Button variant="outline" className="w-full sm:w-auto border-border">
                         <Upload className="h-4 w-4 mr-2" />
                         Verify
                       </Button>
@@ -463,7 +467,7 @@ export function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Enable Cloud Storage</Label>
                     <p className="text-sm text-muted-foreground">
@@ -525,7 +529,7 @@ export function Settings() {
               <Separator className="bg-border" />
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <Label>Docker Deployment Mode</Label>
                     <p className="text-sm text-muted-foreground">
@@ -593,7 +597,7 @@ export function Settings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>Desktop Notifications</Label>
               <p className="text-sm text-muted-foreground">
@@ -605,7 +609,7 @@ export function Settings() {
           
           <Separator className="bg-border" />
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>Email Alerts</Label>
               <p className="text-sm text-muted-foreground">
@@ -617,7 +621,7 @@ export function Settings() {
           
           <Separator className="bg-border" />
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>Sound Alerts</Label>
               <p className="text-sm text-muted-foreground">
@@ -723,7 +727,7 @@ export function Settings() {
             </div>
           </div>
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>Debug Mode</Label>
               <p className="text-sm text-muted-foreground">
@@ -845,7 +849,7 @@ export function Settings() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <Label>Debug Mode</Label>
                   <p className="text-sm text-muted-foreground">
@@ -905,10 +909,10 @@ export function Settings() {
       {/* Save Settings */}
       <Card className="cyber-card">
         <CardContent className="p-6">
-          <div className="flex justify-end gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
             <Button 
               variant="outline" 
-              className="border-border hover:bg-muted/50"
+              className="w-full sm:w-auto border-border hover:bg-muted/50"
               onClick={() => {
                 toast.info('Settings reset to defaults');
               }}
@@ -917,7 +921,7 @@ export function Settings() {
             </Button>
             <Button 
               variant="outline" 
-              className="border-border hover:bg-muted/50"
+              className="w-full sm:w-auto border-border hover:bg-muted/50"
               onClick={() => {
                 toast.info('Configuration exported');
               }}
@@ -926,7 +930,7 @@ export function Settings() {
               Export Configuration
             </Button>
             <Button 
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
               onClick={() => {
                 toast.success('Settings saved successfully');
               }}

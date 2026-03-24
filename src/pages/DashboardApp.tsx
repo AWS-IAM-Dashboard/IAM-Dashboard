@@ -18,10 +18,14 @@ import { ComplianceDashboard } from "../components/ComplianceDashboard";
 import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
+import { useIsMobile } from "../components/ui/use-mobile";
+import { Sheet, SheetContent } from "../components/ui/sheet";
 
 export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
@@ -117,12 +121,32 @@ export function DashboardApp() {
     }
   };
 
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   return (
     <ScanResultsProvider>
       <div className="flex h-screen flex-col bg-background dark">
-        <Header onNavigate={setActiveTab} />
+        <Header
+          onNavigate={handleTabChange}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+          showMenuButton={isMobile}
+        />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+          {!isMobile && <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />}
+
+          {isMobile && (
+            <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+              <SheetContent side="left" className="w-72 p-0 sm:max-w-none">
+                <Sidebar activeTab={activeTab} onTabChange={handleTabChange} className="h-full w-full border-r-0" />
+              </SheetContent>
+            </Sheet>
+          )}
+
           <main className="flex-1 overflow-auto">
             {renderContent()}
           </main>

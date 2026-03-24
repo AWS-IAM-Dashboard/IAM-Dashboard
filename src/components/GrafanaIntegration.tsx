@@ -256,7 +256,7 @@ export function GrafanaIntegration() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
       <Card className="cyber-card">
@@ -268,12 +268,14 @@ export function GrafanaIntegration() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <div className="w-full overflow-x-auto">
+            <TabsList className="grid min-w-[640px] w-full grid-cols-4">
               <TabsTrigger value="connections">Connections</TabsTrigger>
               <TabsTrigger value="endpoints">API Endpoints</TabsTrigger>
               <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
               <TabsTrigger value="setup">Setup Guide</TabsTrigger>
             </TabsList>
+            </div>
 
             <TabsContent value="connections" className="space-y-6">
               {/* Existing Connections */}
@@ -282,16 +284,16 @@ export function GrafanaIntegration() {
                 
                 {connections.map((connection) => (
                   <div key={connection.id} className="cyber-glass p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
                         <Monitor className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="min-w-0">
                           <h4 className="font-medium">{connection.name}</h4>
-                          <p className="text-sm text-muted-foreground">{connection.url}</p>
+                          <p className="truncate text-sm text-muted-foreground">{connection.url}</p>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                         <Badge className={getStatusColor(connection.status)}>
                           {connection.status}
                         </Badge>
@@ -307,7 +309,7 @@ export function GrafanaIntegration() {
                       </div>
                     </div>
                     
-                    <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                       <span>Last sync: {connection.last_sync}</span>
                       <span>{connection.dashboards_count} dashboards</span>
                     </div>
@@ -376,9 +378,9 @@ export function GrafanaIntegration() {
             </TabsContent>
 
             <TabsContent value="endpoints" className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-medium">Available API Endpoints</h3>
-                <Button variant="outline" className="border-border">
+                <Button variant="outline" className="w-full sm:w-auto border-border">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Endpoints
                 </Button>
@@ -387,11 +389,11 @@ export function GrafanaIntegration() {
               <div className="grid gap-4">
                 {endpoints.map((endpoint) => (
                   <div key={endpoint.id} className="cyber-glass p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
                           <Database className="h-5 w-5 text-primary" />
-                          <h4 className="font-medium">{endpoint.name}</h4>
+                          <h4 className="truncate font-medium">{endpoint.name}</h4>
                         </div>
                         <Badge variant="outline" className="text-xs">
                           {endpoint.method}
@@ -403,7 +405,7 @@ export function GrafanaIntegration() {
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -432,8 +434,8 @@ export function GrafanaIntegration() {
                       {endpoint.description}
                     </p>
                     
-                    <div className="flex items-center justify-between">
-                      <code className="text-xs bg-muted/20 px-2 py-1 rounded">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <code className="overflow-x-auto text-xs bg-muted/20 px-2 py-1 rounded">
                         {endpoint.endpoint}
                       </code>
                       <Switch 
@@ -451,7 +453,7 @@ export function GrafanaIntegration() {
               {selectedEndpoint && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                   <div className="cyber-card p-6 max-w-2xl w-full max-h-[80vh] overflow-auto">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="text-lg font-medium">{selectedEndpoint.name}</h3>
                       <Button 
                         variant="ghost" 
@@ -495,11 +497,11 @@ export function GrafanaIntegration() {
             </TabsContent>
 
             <TabsContent value="dashboards" className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-medium">Pre-built Dashboards</h3>
                 <Button 
                   onClick={handleExportDashboard}
-                  className="bg-primary text-primary-foreground hover:bg-primary/80"
+                  className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export Dashboard
@@ -537,7 +539,7 @@ export function GrafanaIntegration() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" className="border-border">
                       <Monitor className="h-4 w-4 mr-2" />
                       Preview
@@ -578,7 +580,7 @@ export function GrafanaIntegration() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" className="border-border">
                       <Monitor className="h-4 w-4 mr-2" />
                       Preview

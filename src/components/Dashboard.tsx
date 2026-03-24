@@ -458,10 +458,10 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
         <Card 
           className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
           onClick={() => onNavigate?.('timeline')}
@@ -567,7 +567,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               {stats?.compliance_score ?? 100}% Compliant
             </Badge>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="cyber-glass p-3 rounded-lg text-center">
               <p className="text-lg font-medium text-[#ff0040]">{stats?.critical_alerts || 0}</p>
               <p className="text-xs text-muted-foreground">Critical</p>
@@ -620,9 +620,9 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
             )}
 
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-3 md:gap-4 flex-wrap">
               <Button 
-                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow w-full sm:w-auto"
                 onClick={handleQuickScan}
                 disabled={isScanning}
               >
@@ -631,7 +631,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('iam-security')}
               >
                 <Users className="h-4 w-4 mr-2" />
@@ -639,7 +639,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('ec2-security')}
               >
                 <Cloud className="h-4 w-4 mr-2" />
@@ -647,7 +647,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('s3-security')}
               >
                 <HardDrive className="h-4 w-4 mr-2" />
@@ -655,7 +655,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('reports')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -790,7 +790,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           <CardTitle>Recent Security Alerts</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="w-full overflow-x-auto">
+            <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="border-border">
                 <TableHead>Service</TableHead>
@@ -854,7 +855,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 </TableRow>
               )}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

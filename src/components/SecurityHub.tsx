@@ -306,13 +306,13 @@ export function SecurityHub() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
             Security Hub
           </h1>
@@ -320,9 +320,9 @@ export function SecurityHub() {
             Centralized view of security findings from all AWS security services
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -334,7 +334,7 @@ export function SecurityHub() {
           <Button 
             onClick={handleStartScan}
             disabled={isScanning || isRefreshing}
-            className="bg-primary text-primary-foreground"
+            className="w-full sm:w-auto bg-primary text-primary-foreground"
           >
             <Play className={`h-4 w-4 mr-2 ${isScanning ? 'animate-pulse' : ''}`} />
             {isScanning ? 'Scanning...' : 'Scan Security Hub'}
@@ -343,11 +343,12 @@ export function SecurityHub() {
             variant="outline" 
             onClick={handleRefresh}
             disabled={isRefreshing || isScanning}
+            className="w-full sm:w-auto"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -505,7 +506,8 @@ export function SecurityHub() {
               <p>No findings available. Click "Scan Security Hub" to fetch security findings.</p>
             </div>
           ) : (
-            <Table>
+            <div className="w-full overflow-x-auto">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
@@ -553,6 +555,7 @@ export function SecurityHub() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

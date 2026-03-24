@@ -383,15 +383,15 @@ export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold">Compliance Dashboard</h1>
           <p className="text-muted-foreground">Track adherence to key security frameworks across your AWS estate.</p>
         </div>
         <Button
           variant="outline"
-          className="border-border"
+          className="w-full sm:w-auto border-border"
           onClick={handleRefresh}
           disabled={isRefreshing}
         >

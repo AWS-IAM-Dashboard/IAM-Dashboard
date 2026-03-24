@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Search, Bell, Settings, User, LogOut, Shield } from "lucide-react";
+import { Search, Bell, Settings, User, LogOut, Shield, Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 interface HeaderProps {
   onNavigate?: (tab: string) => void;
+  onMenuClick?: () => void;
+  showMenuButton?: boolean;
 }
 
 const mockNotifications = [
@@ -39,7 +41,7 @@ const mockNotifications = [
   }
 ];
 
-export function Header({ onNavigate }: HeaderProps) {
+export function Header({ onNavigate, onMenuClick, showMenuButton = false }: HeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -55,20 +57,25 @@ export function Header({ onNavigate }: HeaderProps) {
   const unreadCount = mockNotifications.filter(n => !n.read).length;
 
   return (
-    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-md px-6 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-md px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        {showMenuButton && (
+          <Button variant="ghost" size="icon" className="md:hidden hover:bg-accent/20" onClick={onMenuClick}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <div className="text-2xl">☁️</div>
-        <div>
-          <h1 className="text-lg font-medium text-foreground">AWS Cloud Security Dashboard</h1>
-          <p className="text-xs text-muted-foreground">Real-time Cloud Misconfiguration Detection</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-xs sm:text-sm md:text-lg font-medium text-foreground">AWS Cloud Security Dashboard</h1>
+          <p className="text-[11px] md:text-xs text-muted-foreground hidden sm:block">Real-time Cloud Misconfiguration Detection</p>
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4">
         {/* Search */}
         <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="hover:bg-accent/20">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-accent/20">
               <Search className="h-4 w-4" />
             </Button>
           </DialogTrigger>
@@ -134,7 +141,7 @@ export function Header({ onNavigate }: HeaderProps) {
         {/* Notifications */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="hover:bg-accent/20 relative">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-accent/20 relative">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full flex items-center justify-center">
@@ -195,7 +202,7 @@ export function Header({ onNavigate }: HeaderProps) {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="hover:bg-accent/20"
+          className="hover:bg-accent/20 hidden sm:inline-flex"
           onClick={() => onNavigate?.('settings')}
         >
           <Settings className="h-4 w-4" />

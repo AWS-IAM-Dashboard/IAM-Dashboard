@@ -251,10 +251,10 @@ export function LandingPage() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3 sm:gap-8">
               <button
                 onClick={onLogin}
-                className="hidden text-[16px] font-medium text-gray-300 transition-colors hover:text-white sm:block"
+                className="rounded-md border border-white/10 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors hover:border-green-500/40 hover:text-white sm:border-0 sm:px-0 sm:py-0 sm:text-[16px] sm:text-gray-300"
               >
                 Sign In
               </button>

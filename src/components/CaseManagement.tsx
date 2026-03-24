@@ -147,18 +147,18 @@ export function CaseManagement() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Case Overview */}
       <Card className="cyber-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
               <Briefcase className="h-5 w-5 text-primary" />
               Case Management Dashboard
             </CardTitle>
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow">
+                <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow">
                   <Plus className="h-4 w-4 mr-2" />
                   New Case
                 </Button>
@@ -203,7 +203,7 @@ export function CaseManagement() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button onClick={createCase} className="flex-1 bg-primary text-primary-foreground">
                       Create Case
                     </Button>
@@ -384,7 +384,7 @@ export function CaseManagement() {
                     className="bg-input border-border"
                     rows={4}
                   />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button className="bg-primary text-primary-foreground hover:bg-primary/80">
                       Update Case
                     </Button>

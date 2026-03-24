@@ -539,7 +539,7 @@ export function Reports({ reports }: ReportsProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Report Generation */}
       <Card className="cyber-card">
         <CardHeader>
@@ -599,7 +599,7 @@ export function Reports({ reports }: ReportsProps) {
               
               <div>
                 <Label>Export Format</Label>
-                <div className="flex gap-2 mt-2">
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -632,17 +632,17 @@ export function Reports({ reports }: ReportsProps) {
             </div>
           </div>
           
-          <div className="flex gap-4 mt-6">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={generateReport}
               disabled={!reportType || isGenerating}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Plus className="h-4 w-4 mr-2" />
               {isGenerating ? "Generating..." : "Generate Report"}
             </Button>
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Calendar className="h-4 w-4 mr-2" />
               Schedule Report
             </Button>
@@ -666,12 +666,12 @@ export function Reports({ reports }: ReportsProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Report History</CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     placeholder="Search reports..."
-                    className="pl-10 bg-input border-border w-64"
+                    className="pl-10 bg-input border-border w-full sm:w-64"
                   />
                 </div>
                 <Button variant="outline" className="border-border">
@@ -682,7 +682,8 @@ export function Reports({ reports }: ReportsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
+            <div className="w-full overflow-x-auto">
+            <Table className="min-w-[960px]">
               <TableHeader>
                 <TableRow className="border-border">
                   <TableHead>Report Name</TableHead>
@@ -783,6 +784,7 @@ export function Reports({ reports }: ReportsProps) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -286,7 +286,7 @@ export function CloudSecurityAlerts() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
       {/* Alert Statistics */}
@@ -340,8 +340,8 @@ export function CloudSecurityAlerts() {
 
             <TabsContent value="alerts" className="space-y-4">
               {/* Filters */}
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                <div className="w-full lg:flex-1">
                   <Label htmlFor="severity-filter">Severity</Label>
                   <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
                     <SelectTrigger className="bg-input border-border">
@@ -357,7 +357,7 @@ export function CloudSecurityAlerts() {
                   </Select>
                 </div>
                 
-                <div className="flex-1">
+                <div className="w-full lg:flex-1">
                   <Label htmlFor="service-filter">Service</Label>
                   <Select value={selectedService} onValueChange={setSelectedService}>
                     <SelectTrigger className="bg-input border-border">
@@ -373,7 +373,7 @@ export function CloudSecurityAlerts() {
                   </Select>
                 </div>
                 
-                <div className="flex-1">
+                <div className="w-full lg:flex-1">
                   <Label htmlFor="status-filter">Status</Label>
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                     <SelectTrigger className="bg-input border-border">
@@ -388,7 +388,7 @@ export function CloudSecurityAlerts() {
                   </Select>
                 </div>
                 
-                <Button variant="outline" className="border-border">
+                <Button variant="outline" className="w-full lg:w-auto border-border">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
