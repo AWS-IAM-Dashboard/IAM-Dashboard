@@ -27,7 +27,7 @@ import {
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface AccessAnalyzerFinding {
   id: string;
@@ -145,7 +145,7 @@ export function AccessAnalyzer() {
   const [selectedRegion, setSelectedRegion] = useState("us-east-1");
   const [loading, setLoading] = useState(false);
   const [analyzerType, setAnalyzerType] = useState<"account" | "organization">("account");
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   useEffect(() => {
     if (scanResult?.status === "Completed") {

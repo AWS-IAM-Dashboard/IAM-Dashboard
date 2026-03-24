@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { FileText, Download, Calendar, Filter, Search, Eye, Plus } from "lucide-react";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
 import { toast } from "sonner";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import type { ReportRecord } from "../types/report";
 
 const REPORT_TYPE_TABS = [
@@ -87,7 +87,7 @@ export function Reports({ reports }: ReportsProps) {
     csv: false,
     json: false
   });
-  const { getScanResult, getAllScanResults } = useScanResults();
+  const { getScanResult, getAllScanResults } = useActiveScanResults();
 
   const handleFormatChange = (format: 'pdf' | 'csv' | 'json') => {
     setExportFormats(prev => ({ ...prev, [format]: !prev[format] }));

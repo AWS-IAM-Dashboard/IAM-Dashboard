@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface SecurityHubFinding {
   id: string;
@@ -130,7 +130,7 @@ export function SecurityHub() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('us-east-1');
   const [error, setError] = useState<string | null>(null);
-  const { addScanResult, getScanResult } = useScanResults();
+  const { addScanResult, getScanResult } = useActiveScanResults();
 
   // Load existing scan results if available
   useEffect(() => {

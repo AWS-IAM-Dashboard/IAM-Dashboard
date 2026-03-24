@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { maskSensitiveData } from "../utils/security";
 
 interface SecurityAlert {
@@ -145,7 +145,7 @@ const mockAlertRules: AlertRule[] = [
 ];
 
 export function CloudSecurityAlerts() {
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
   const [alertRules, setAlertRules] = useState<AlertRule[]>(mockAlertRules);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [selectedService, setSelectedService] = useState<string>('all');

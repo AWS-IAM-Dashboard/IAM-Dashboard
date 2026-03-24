@@ -6,7 +6,8 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { AwsAccountSwitcher } from "./AwsAccountSwitcher";
 
 interface HeaderProps {
   onNavigate?: (tab: string) => void;
@@ -43,7 +44,7 @@ export function Header({ onNavigate }: HeaderProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
 
   const tabSearchItems = useMemo(() => [
     { id: "dashboard", label: "Security Overview", category: "Tab", tab: "dashboard", keywords: ["overview", "dashboard", "home"] },
@@ -164,6 +165,8 @@ export function Header({ onNavigate }: HeaderProps) {
       </div>
       
       <div className="flex items-center gap-4">
+        <AwsAccountSwitcher />
+
         {/* Search */}
         <div
           ref={searchContainerRef}

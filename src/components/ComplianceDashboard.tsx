@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Skeleton } from "./ui/skeleton";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, AreaChart, Area } from "recharts";
 import { CalendarClock, RefreshCcw, ShieldAlert, ShieldCheck, Target, TrendingUp, Info, ChevronDown, ExternalLink } from "lucide-react";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import {
@@ -216,7 +216,7 @@ interface ComplianceDashboardProps {
 export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
   const [activeFramework, setActiveFramework] = useState(complianceFrameworks[0].id);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
 
   // Get all scan results
   const scanResults = useMemo(() => {

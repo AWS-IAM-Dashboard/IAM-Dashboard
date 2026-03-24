@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanS3, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface S3SecurityFinding {
   id: string;
@@ -209,7 +209,7 @@ export function S3Security() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState('all-regions');
   const [loading, setLoading] = useState(false);
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   useEffect(() => {
     if (scanResult?.status === 'Completed') {

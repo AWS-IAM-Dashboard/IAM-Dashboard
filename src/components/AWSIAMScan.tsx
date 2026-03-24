@@ -32,7 +32,7 @@ import {
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface AWSIAMFinding {
   id: string;
@@ -195,7 +195,7 @@ export function AWSIAMScan() {
   const [findingStatuses, setFindingStatuses] = useState<Record<string, FindingStatus>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   // Toast notifications for scan events
   useEffect(() => {
