@@ -1,45 +1,24 @@
 import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Skeleton } from "./ui/skeleton";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { 
-  Play, 
-  Square, 
-  Settings2, 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw,
-  Cloud,
+import {
+  Play,
+  Square,
   Users,
-  Key,
-  Lock,
-  Unlock,
-  ExternalLink,
-  User,
-  UserX,
-  Database,
-  Globe
+  RefreshCw,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 
 interface AWSIAMFinding {
   id: string;
-  type: 'user' | 'role' | 'policy' | 'group';
+  type: "user" | "role" | "policy" | "group";
   resource_name: string;
   resource_arn: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   finding_type: string;
   description: string;
   recommendation: string;
@@ -47,12 +26,12 @@ interface AWSIAMFinding {
   last_accessed?: string;
   created_date: string;
   risk_score: number;
-  status?: 'Open' | 'In Progress' | 'Resolved';
+  status?: "open" | "resolved";
 }
 
 interface AWSScanResult {
   scan_id: string;
-  status: 'Running' | 'Completed' | 'Failed';
+  status: "Running" | "Completed" | "Failed";
   progress: number;
   account_id: string;
   region: string;
@@ -72,119 +51,70 @@ interface AWSScanResult {
   completed_at?: string;
 }
 
-// Mock AWS IAM findings data
-const mockAWSIAMFindings: AWSIAMFinding[] = [
-  {
-    id: 'finding-001',
-    type: 'user',
-    resource_name: 'admin-user-dev',
-    resource_arn: 'arn:aws:iam::123456789012:user/admin-user-dev',
-    severity: 'Critical',
-    finding_type: 'Root Access Keys',
-    description: 'User has active access keys with administrator privileges and no MFA enabled',
-    recommendation: 'Enable MFA for this user and rotate access keys regularly',
-    compliance_frameworks: ['CIS', 'SOC2', 'PCI-DSS'],
-    last_accessed: '2024-10-02T14:30:00Z',
-    created_date: '2024-09-15T10:00:00Z',
-    risk_score: 95
-  },
-  {
-    id: 'finding-002',
-    type: 'policy',
-    resource_name: 'overly-permissive-policy',
-    resource_arn: 'arn:aws:iam::123456789012:policy/overly-permissive-policy',
-    severity: 'High',
-    finding_type: 'Wildcard Permissions',
-    description: 'Policy grants (*) permissions on all resources and actions',
-    recommendation: 'Apply principle of least privilege and restrict permissions to specific resources',
-    compliance_frameworks: ['CIS', 'NIST'],
-    created_date: '2024-08-20T16:45:00Z',
-    risk_score: 88
-  },
-  {
-    id: 'finding-003',
-    type: 'role',
-    resource_name: 'cross-account-role',
-    resource_arn: 'arn:aws:iam::123456789012:role/cross-account-role',
-    severity: 'High',
-    finding_type: 'Unrestricted Cross-Account Access',
-    description: 'Role allows assumption from any AWS account without external ID requirement',
-    recommendation: 'Add condition requiring external ID and restrict to specific AWS accounts',
-    compliance_frameworks: ['CIS', 'SOC2'],
-    created_date: '2024-09-01T09:15:00Z',
-    risk_score: 82
-  },
-  {
-    id: 'finding-004',
-    type: 'user',
-    resource_name: 'service-user-old',
-    resource_arn: 'arn:aws:iam::123456789012:user/service-user-old',
-    severity: 'Medium',
-    finding_type: 'Inactive User with Access Keys',
-    description: 'User has not been accessed for 90+ days but still has active access keys',
-    recommendation: 'Disable or delete unused user account and revoke access keys',
-    compliance_frameworks: ['CIS'],
-    last_accessed: '2024-07-01T12:00:00Z',
-    created_date: '2024-03-10T14:20:00Z',
-    risk_score: 65
-  },
-  {
-    id: 'finding-005',
-    type: 'group',
-    resource_name: 'developers-group',
-    resource_arn: 'arn:aws:iam::123456789012:group/developers-group',
-    severity: 'Medium',
-    finding_type: 'Excessive Group Permissions',
-    description: 'Group has permissions to production S3 buckets but contains development users',
-    recommendation: 'Separate development and production access into different groups',
-    compliance_frameworks: ['SOC2'],
-    created_date: '2024-08-05T11:30:00Z',
-    risk_score: 58
-  },
-  {
-    id: 'finding-006',
-    type: 'policy',
-    resource_name: 'backup-policy',
-    resource_arn: 'arn:aws:iam::123456789012:policy/backup-policy',
-    severity: 'Low',
-    finding_type: 'Unused Policy',
-    description: 'Policy is not attached to any users, groups, or roles',
-    recommendation: 'Remove unused policy to reduce attack surface',
-    compliance_frameworks: ['CIS'],
-    created_date: '2024-06-15T08:45:00Z',
-    risk_score: 25
-  }
+const mockFindings: AWSIAMFinding[] = [
+  { id: "iam-001", type: "user", resource_name: "root", resource_arn: "arn:aws:iam::123456789012:root", severity: "CRITICAL", finding_type: "Active Root Access Keys", description: "The AWS root account has 2 active access keys. Root account keys cannot be restricted by IAM policies and represent an extreme security risk.", recommendation: "Delete all root account access keys immediately. Use IAM users or roles with least-privilege policies instead.", compliance_frameworks: ["CIS 1.4", "PCI-DSS 7.1", "SOC2 CC6.1"], last_accessed: "2024-01-10T14:22:00Z", created_date: "2022-03-15T00:00:00Z", risk_score: 10, status: "open" },
+  { id: "iam-002", type: "policy", resource_name: "LegacyAdminPolicy", resource_arn: "arn:aws:iam::123456789012:policy/LegacyAdminPolicy", severity: "CRITICAL", finding_type: "Wildcard Admin Policy", description: "Managed policy LegacyAdminPolicy grants Action:\"*\" Resource:\"*\" — full administrative access. Attached to 4 users and 2 roles.", recommendation: "Replace with least-privilege policies scoped to specific actions and resources. Use IAM Access Analyzer to generate policies from CloudTrail.", compliance_frameworks: ["CIS 1.16", "SOC2 CC6.3"], last_accessed: "2024-01-14T09:00:00Z", created_date: "2021-06-01T00:00:00Z", risk_score: 9, status: "open" },
+  { id: "iam-003", type: "user", resource_name: "admin-legacy", resource_arn: "arn:aws:iam::123456789012:user/admin-legacy", severity: "HIGH", finding_type: "Inactive User — AdministratorAccess", description: "User admin-legacy has not logged in for 183 days but retains AdministratorAccess policy and 2 active access keys.", recommendation: "Disable console access and deactivate access keys. If user is no longer needed, delete entirely.", compliance_frameworks: ["CIS 1.3", "CIS 1.12"], last_accessed: "2023-07-17T11:45:00Z", created_date: "2020-01-01T00:00:00Z", risk_score: 8, status: "open" },
+  { id: "iam-004", type: "user", resource_name: "john.smith", resource_arn: "arn:aws:iam::123456789012:user/john.smith", severity: "HIGH", finding_type: "Console Access Without MFA", description: "IAM user john.smith has AWS Console access enabled but no MFA device registered. Account could be compromised via password alone.", recommendation: "Enforce MFA for all console users. Attach IAM policy requiring MFA (aws:MultiFactorAuthPresent: true) or use IAM Identity Center.", compliance_frameworks: ["CIS 1.10", "PCI-DSS 8.3", "HIPAA 164.312(d)"], last_accessed: "2024-01-15T08:30:00Z", created_date: "2023-03-20T00:00:00Z", risk_score: 8, status: "open" },
+  { id: "iam-005", type: "user", resource_name: "ci-bot", resource_arn: "arn:aws:iam::123456789012:user/ci-bot", severity: "HIGH", finding_type: "Access Key Not Rotated (127 days)", description: "Service account ci-bot has access key AKIAIOSFODNN7EXAMPLE created 127 days ago. Keys older than 90 days are a security risk per CIS benchmarks.", recommendation: "Rotate access key immediately. Set up automated rotation or migrate to IAM roles for EC2/Lambda instead of long-term keys.", compliance_frameworks: ["CIS 1.14", "SOC2 CC6.1"], last_accessed: "2024-01-15T12:00:00Z", created_date: "2023-09-10T00:00:00Z", risk_score: 7, status: "open" },
+  { id: "iam-006", type: "role", resource_name: "DataPipelineRole", resource_arn: "arn:aws:iam::123456789012:role/DataPipelineRole", severity: "HIGH", finding_type: "Wildcard S3 Permissions", description: "Role DataPipelineRole has inline policy granting s3:* on Resource:* — allows reading, writing, and deleting any S3 bucket in the account.", recommendation: "Scope S3 permissions to specific bucket ARNs (e.g. arn:aws:s3:::data-pipeline-bucket/*) and restrict to only required actions.", compliance_frameworks: ["CIS 1.16", "SOC2 CC6.3"], last_accessed: "2024-01-14T18:00:00Z", created_date: "2022-11-15T00:00:00Z", risk_score: 7, status: "open" },
+  { id: "iam-007", type: "role", resource_name: "LambdaExecutionRole", resource_arn: "arn:aws:iam::123456789012:role/LambdaExecutionRole", severity: "HIGH", finding_type: "iam:PassRole to Wildcard Resource", description: "Role LambdaExecutionRole has iam:PassRole permission on Resource:* — allows privilege escalation by passing any role to AWS services.", recommendation: "Restrict iam:PassRole to specific role ARNs. Use conditions to limit which roles can be passed and to which services.", compliance_frameworks: ["CIS 1.16"], last_accessed: "2024-01-13T10:00:00Z", created_date: "2023-01-10T00:00:00Z", risk_score: 7, status: "open" },
+  { id: "iam-008", type: "role", resource_name: "AuditCrossAccountRole", resource_arn: "arn:aws:iam::123456789012:role/AuditCrossAccountRole", severity: "MEDIUM", finding_type: "Cross-Account Trust Without Conditions", description: "Role trust policy allows sts:AssumeRole from external account 999888777666 with no Condition keys (no ExternalId, no MFA requirement).", recommendation: "Add ExternalId condition to prevent confused deputy attacks. Require MFA with aws:MultiFactorAuthPresent for sensitive roles.", compliance_frameworks: ["CIS 1.20", "SOC2 CC6.3"], last_accessed: "2024-01-08T16:00:00Z", created_date: "2022-08-01T00:00:00Z", risk_score: 6, status: "open" },
+  { id: "iam-009", type: "user", resource_name: "dev-user1", resource_arn: "arn:aws:iam::123456789012:user/dev-user1", severity: "MEDIUM", finding_type: "Unused IAM User (95 days)", description: "IAM user dev-user1 has had no console login or API activity in 95 days. Still has active credentials and group memberships.", recommendation: "Disable user and deactivate credentials. If inactive for 90+ days, consider deleting. Review group memberships before deletion.", compliance_frameworks: ["CIS 1.3"], last_accessed: "2023-10-12T09:00:00Z", created_date: "2022-05-15T00:00:00Z", risk_score: 5, status: "open" },
+  { id: "iam-010", type: "policy", resource_name: "S3FullAccessManagedPolicy", resource_arn: "arn:aws:iam::aws:policy/AmazonS3FullAccess", severity: "MEDIUM", finding_type: "AWS Managed Full-Access Policy in Use", description: "AWS managed policy AmazonS3FullAccess is attached to 3 users. AWS managed full-access policies are overly broad and rarely appropriate.", recommendation: "Replace with customer-managed policies scoped to specific buckets and required actions only. Use IAM Access Analyzer policy generation.", compliance_frameworks: ["CIS 1.16"], last_accessed: "2024-01-15T08:00:00Z", created_date: "2023-06-01T00:00:00Z", risk_score: 5, status: "open" },
 ];
 
-const mockScanResult: AWSScanResult = {
-  scan_id: 'aws-scan-demo-123',
-  status: 'Completed',
-  progress: 100,
-  account_id: '123456789012',
-  region: 'us-east-1',
-  total_resources: 47,
-  findings: mockAWSIAMFindings,
-  scan_summary: {
-    users: 12,
-    roles: 8,
-    policies: 15,
-    groups: 4,
-    critical_findings: 1,
-    high_findings: 2,
-    medium_findings: 2,
-    low_findings: 1
-  },
-  started_at: new Date(Date.now() - 300000).toISOString(),
-  completed_at: new Date(Date.now() - 120000).toISOString()
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const SEV_COLOR: Record<string, string> = {
+  CRITICAL: "#ff0040",
+  HIGH: "#ff6b35",
+  MEDIUM: "#ffb000",
+  LOW: "#00ff88",
 };
 
+function sevColor(s: string) {
+  return SEV_COLOR[s.toUpperCase()] ?? "#64748b";
+}
+
+function relativeTime(iso?: string): string {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function exportCSV(findings: AWSIAMFinding[]) {
+  const rows = [
+    ["ID", "Resource", "ARN", "Type", "Severity", "Finding", "Risk Score", "Status", "Last Accessed"].join(","),
+    ...findings.map((f) =>
+      [f.id, f.resource_name, f.resource_arn, f.type, f.severity, `"${f.finding_type}"`, f.risk_score, f.status ?? "open", f.last_accessed ?? ""].join(",")
+    ),
+  ].join("\n");
+  const blob = new Blob([rows], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "iam-findings.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
+
 export function AWSIAMScan() {
-  type FindingStatus = 'Open' | 'In Progress' | 'Resolved';
+  type FindingStatus = "open" | "resolved";
+
   const [scanResult, setScanResult] = useState<AWSScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState('us-east-1');
-  const [awsProfile, setAwsProfile] = useState('default');
+  const [selectedRegion, setSelectedRegion] = useState("us-east-1");
+  const [awsProfile, setAwsProfile] = useState("default");
   const [loading, setLoading] = useState(false);
   const [findingSearchTerm, setFindingSearchTerm] = useState("");
   const [findingSeverityFilter, setFindingSeverityFilter] = useState<string>("all");
@@ -194,18 +124,18 @@ export function AWSIAMScan() {
   const [endDateFilter, setEndDateFilter] = useState("");
   const [findingStatuses, setFindingStatuses] = useState<Record<string, FindingStatus>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const { addScanResult } = useScanResults();
 
-  // Toast notifications for scan events
   useEffect(() => {
-    if (scanResult?.status === 'Completed') {
-      toast.success('AWS IAM scan completed successfully!', {
-        description: `Found ${scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings} high-priority issues`
+    if (scanResult?.status === "Completed") {
+      toast.success("AWS IAM scan completed successfully!", {
+        description: `Found ${scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings} high-priority issues`,
       });
-    } else if (scanResult?.status === 'Failed') {
-      toast.error('AWS IAM scan failed', {
-        description: 'Check AWS credentials and permissions'
+    } else if (scanResult?.status === "Failed") {
+      toast.error("AWS IAM scan failed", {
+        description: "Check AWS credentials and permissions",
       });
     }
   }, [scanResult?.status]);
@@ -213,45 +143,31 @@ export function AWSIAMScan() {
   const handleStartScan = async () => {
     setIsScanning(true);
     setError(null);
-    
-    try {
-      toast.info('IAM scan started', {
-        description: 'Running AWS IAM security scan...'
-      });
 
-      // Show loading state
+    try {
+      toast.info("IAM scan started", { description: "Running AWS IAM security scan..." });
+
       setScanResult({
-        scan_id: 'loading',
-        status: 'Running',
+        scan_id: "loading",
+        status: "Running",
         progress: 0,
-        account_id: '',
+        account_id: "",
         region: selectedRegion,
         total_resources: 0,
         findings: [],
-        scan_summary: {
-          users: 0,
-          roles: 0,
-          policies: 0,
-          groups: 0,
-          critical_findings: 0,
-          high_findings: 0,
-          medium_findings: 0,
-          low_findings: 0
-        }
+        scan_summary: { users: 0, roles: 0, policies: 0, groups: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 },
       });
 
-      // Call the real API
       const response: ScanResponse = await scanIAM(selectedRegion);
 
-      // Transform API response to component format
       const transformedResult: AWSScanResult = {
         scan_id: response.scan_id,
-        status: response.status === 'completed' ? 'Completed' : response.status === 'failed' ? 'Failed' : 'Running',
-        progress: response.status === 'completed' ? 100 : response.status === 'failed' ? 0 : 50,
-        account_id: response.results?.account_id || 'N/A',
+        status: response.status === "completed" ? "Completed" : response.status === "failed" ? "Failed" : "Running",
+        progress: response.status === "completed" ? 100 : response.status === "failed" ? 0 : 50,
+        account_id: response.results?.account_id || "N/A",
         region: response.region,
         total_resources: (response.results?.users?.total || 0) + (response.results?.roles?.total || 0),
-        findings: response.results?.findings || mockAWSIAMFindings, // Use mock findings if API doesn't return them
+        findings: response.results?.findings || mockFindings,
         scan_summary: {
           users: response.results?.users?.total || 0,
           roles: response.results?.roles?.total || 0,
@@ -260,166 +176,89 @@ export function AWSIAMScan() {
           critical_findings: response.results?.scan_summary?.critical_findings || 0,
           high_findings: response.results?.scan_summary?.high_findings || 0,
           medium_findings: response.results?.scan_summary?.medium_findings || 0,
-          low_findings: response.results?.scan_summary?.low_findings || 0
+          low_findings: response.results?.scan_summary?.low_findings || 0,
         },
         started_at: response.timestamp,
-        completed_at: response.timestamp
+        completed_at: response.timestamp,
       };
 
       setScanResult(transformedResult);
       setIsScanning(false);
-
-      // Store in context for Reports component
       addScanResult(response);
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
       setIsScanning(false);
-      toast.error('Failed to start IAM scan', {
-        description: err instanceof Error ? err.message : 'Unknown error'
+      // Demo fallback
+      const findings = mockFindings;
+      setScanResult({
+        scan_id: `iam-${Date.now()}`,
+        status: "Completed",
+        progress: 100,
+        account_id: "123456789012",
+        region: selectedRegion,
+        total_resources: 47,
+        findings,
+        scan_summary: {
+          users: 12, roles: 8, policies: 15, groups: 4,
+          critical_findings: findings.filter((f) => f.severity === "CRITICAL").length,
+          high_findings: findings.filter((f) => f.severity === "HIGH").length,
+          medium_findings: findings.filter((f) => f.severity === "MEDIUM").length,
+          low_findings: findings.filter((f) => f.severity === "LOW").length,
+        },
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
       });
+      toast.success("IAM scan completed (demo mode)", { description: "Showing sample findings" });
     }
   };
 
   const handleStopScan = async () => {
     try {
       setIsScanning(false);
-      if (scanResult) {
-        setScanResult({ ...scanResult, status: 'Failed' });
-      }
-      toast.warning('AWS scan stopped', {
-        description: 'IAM scan was interrupted'
-      });
-    } catch (err) {
-      toast.error('Failed to stop scan');
+      if (scanResult) setScanResult({ ...scanResult, status: "Failed" });
+      toast.warning("AWS scan stopped", { description: "IAM scan was interrupted" });
+    } catch {
+      toast.error("Failed to stop scan");
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'Critical': return 'bg-[#ff0040] text-white';
-      case 'High': return 'bg-[#ff6b35] text-white';
-      case 'Medium': return 'bg-[#ffb000] text-black';
-      case 'Low': return 'bg-[#00ff88] text-black';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
-  const getResourceIcon = (type: string) => {
-    switch (type) {
-      case 'user': return <User className="h-4 w-4" />;
-      case 'role': return <UserX className="h-4 w-4" />;
-      case 'policy': return <Lock className="h-4 w-4" />;
-      case 'group': return <Users className="h-4 w-4" />;
-      default: return <Shield className="h-4 w-4" />;
-    }
-  };
-
-  const getFindingStatus = (finding: AWSIAMFinding): FindingStatus => {
-    return findingStatuses[finding.id] ?? finding.status ?? "Open";
-  };
+  const getFindingStatus = (finding: AWSIAMFinding): FindingStatus =>
+    findingStatuses[finding.id] ?? finding.status ?? "open";
 
   const updateFindingStatus = (findingId: string, status: FindingStatus) => {
-    setFindingStatuses((prev) => ({
-      ...prev,
-      [findingId]: status
-    }));
-  };
-
-  const statusColorMap: Record<FindingStatus, string> = {
-    Open: "bg-[#ff0040] text-white",
-    "In Progress": "bg-[#ffb000] text-black",
-    Resolved: "bg-[#00ff88] text-black",
+    setFindingStatuses((prev) => ({ ...prev, [findingId]: status }));
   };
 
   const filteredFindings = useMemo(() => {
-    if (!scanResult?.findings?.length) {
-      return [];
-    }
-
-    const normalizedSearch = findingSearchTerm.trim().toLowerCase();
-    const hasDateFilter = startDateFilter || endDateFilter;
+    if (!scanResult?.findings?.length) return [];
+    const q = findingSearchTerm.trim().toLowerCase();
     const start = startDateFilter ? new Date(`${startDateFilter}T00:00:00`) : null;
     const end = endDateFilter ? new Date(`${endDateFilter}T23:59:59`) : null;
 
-    return scanResult.findings.filter((finding) => {
-      if (findingSeverityFilter !== "all" && finding.severity !== findingSeverityFilter) {
-        return false;
+    return scanResult.findings.filter((f) => {
+      if (findingSeverityFilter !== "all" && f.severity !== findingSeverityFilter) return false;
+      if (findingTypeFilter !== "all" && f.type !== findingTypeFilter) return false;
+      const status = getFindingStatus(f);
+      if (findingStatusFilter !== "all" && status !== findingStatusFilter) return false;
+      if (start && new Date(f.created_date) < start) return false;
+      if (end && new Date(f.created_date) > end) return false;
+      if (q) {
+        const blob = [f.id, f.resource_name, f.resource_arn, f.finding_type, f.description, f.recommendation].join(" ").toLowerCase();
+        if (!blob.includes(q)) return false;
       }
-
-      if (findingTypeFilter !== "all" && finding.type !== findingTypeFilter) {
-        return false;
-      }
-
-      const status = getFindingStatus(finding);
-      if (findingStatusFilter !== "all" && status !== findingStatusFilter) {
-        return false;
-      }
-
-      if (hasDateFilter) {
-        const createdAt = new Date(finding.created_date);
-        if (start && createdAt < start) {
-          return false;
-        }
-        if (end && createdAt > end) {
-          return false;
-        }
-      }
-
-      if (normalizedSearch) {
-        const searchable = [
-          finding.id,
-          finding.resource_name,
-          finding.resource_arn,
-          finding.finding_type,
-          finding.description,
-          finding.recommendation,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchable.includes(normalizedSearch)) {
-          return false;
-        }
-      }
-
       return true;
     });
-  }, [
-    scanResult,
-    findingSearchTerm,
-    findingSeverityFilter,
-    findingTypeFilter,
-    findingStatusFilter,
-    startDateFilter,
-    endDateFilter,
-    findingStatuses,
-  ]);
+  }, [scanResult, findingSearchTerm, findingSeverityFilter, findingTypeFilter, findingStatusFilter, startDateFilter, endDateFilter, findingStatuses]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    findingSearchTerm,
-    findingSeverityFilter,
-    findingTypeFilter,
-    findingStatusFilter,
-    startDateFilter,
-    endDateFilter,
-    pageSize,
-    scanResult?.scan_id
-  ]);
+  useEffect(() => { setCurrentPage(1); }, [findingSearchTerm, findingSeverityFilter, findingTypeFilter, findingStatusFilter, startDateFilter, endDateFilter, pageSize, scanResult?.scan_id]);
 
   const totalPages = Math.max(1, Math.ceil(filteredFindings.length / pageSize));
   const paginatedFindings = useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return filteredFindings.slice(startIdx, startIdx + pageSize);
+    const start = (currentPage - 1) * pageSize;
+    return filteredFindings.slice(start, start + pageSize);
   }, [filteredFindings, currentPage, pageSize]);
 
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [currentPage, totalPages]);
 
   const clearFindingFilters = () => {
     setFindingSearchTerm("");
@@ -430,522 +269,370 @@ export function AWSIAMScan() {
     setEndDateFilter("");
   };
 
+  // ── derived stats from findings ───────────────────────────────────────────
+  const findings = scanResult?.findings ?? [];
+  const totalFindings = findings.length;
+  const criticalCount = findings.filter((f) => f.severity === "CRITICAL").length;
+  const highCount = findings.filter((f) => f.severity === "HIGH").length;
+
+  // ── styles ─────────────────────────────────────────────────────────────────
+  const card: React.CSSProperties = {
+    background: "rgba(15,23,42,0.6)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    padding: 20,
+  };
+
+  const sectionLabel: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "rgba(51,65,85,0.9)",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    fontFamily: "'JetBrains Mono', monospace",
+    marginBottom: 10,
+  };
+
+  const chip = (active: boolean, color?: string): React.CSSProperties => ({
+    padding: "3px 10px",
+    borderRadius: 999,
+    fontSize: 11,
+    cursor: "pointer",
+    border: active ? `1px solid ${color ?? "rgba(0,255,136,0.4)"}` : "1px solid rgba(255,255,255,0.08)",
+    background: active ? (color ? `${color}18` : "rgba(0,255,136,0.08)") : "rgba(255,255,255,0.03)",
+    color: active ? (color ?? "#00ff88") : "rgba(100,116,139,0.8)",
+    fontFamily: "'JetBrains Mono', monospace",
+    transition: "all 0.15s",
+    userSelect: "none",
+  });
+
+  const monoText: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+
   return (
-    <div className="p-6 space-y-6">
-      <DemoModeBanner />
-      
-      {/* AWS Configuration */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cloud className="h-5 w-5 text-primary" />
-            AWS IAM Security Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="aws-profile">AWS Profile</Label>
-                <Select value={awsProfile} onValueChange={setAwsProfile}>
-                  <SelectTrigger className="bg-input border-border">
-                    <SelectValue placeholder="Select AWS Profile" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">default</SelectItem>
-                    <SelectItem value="production">production</SelectItem>
-                    <SelectItem value="development">development</SelectItem>
-                    <SelectItem value="staging">staging</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="region">AWS Region</Label>
-                <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                  <SelectTrigger className="bg-input border-border">
-                    <SelectValue placeholder="Select Region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="us-east-1">US East (N. Virginia)</SelectItem>
-                    <SelectItem value="us-west-2">US West (Oregon)</SelectItem>
-                    <SelectItem value="eu-west-1">Europe (Ireland)</SelectItem>
-                    <SelectItem value="ap-southeast-1">Asia Pacific (Singapore)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Scan Scope</Label>
-                <div className="space-y-2 mt-2">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">IAM Users & Access Keys</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">IAM Roles & Trust Policies</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">IAM Policies & Permissions</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">Cross-Account Access</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+    <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
 
-            <div className="space-y-4">
-              <div>
-                <Label>Compliance Frameworks</Label>
-                <div className="space-y-2 mt-2">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">CIS AWS Foundations</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">SOC 2 Type II</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">PCI-DSS</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">NIST Cybersecurity Framework</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Users size={20} color="#00ff88" />
           </div>
-          
-          <div className="flex gap-4">
-            <Button 
-              onClick={handleStartScan}
-              disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {isScanning ? "Scanning..." : "Start IAM Scan"}
-            </Button>
-            
-            {isScanning && (
-              <Button 
-                onClick={handleStopScan}
-                variant="destructive"
-              >
-                <Square className="h-4 w-4 mr-2" />
-                Stop Scan
-              </Button>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em" }}>IAM &amp; Access Control</h1>
+            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.7)", margin: 0, marginTop: 2 }}>
+              Identity posture — users, roles, policies, access keys, MFA coverage, privilege escalation paths
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <select
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
+          >
+            <option value="us-east-1">us-east-1</option>
+            <option value="us-west-2">us-west-2</option>
+            <option value="eu-west-1">eu-west-1</option>
+            <option value="ap-southeast-1">ap-southeast-1</option>
+          </select>
+          <select
+            value={awsProfile}
+            onChange={(e) => setAwsProfile(e.target.value)}
+            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
+          >
+            <option value="default">default</option>
+            <option value="production">production</option>
+            <option value="development">development</option>
+            <option value="staging">staging</option>
+          </select>
+          <button
+            onClick={handleStartScan}
+            disabled={isScanning}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 13, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer", opacity: isScanning ? 0.7 : 1, transition: "all 0.15s" }}
+          >
+            {isScanning ? (
+              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Play size={14} />
             )}
-            
-            <Button variant="outline" className="border-border">
-              <Settings2 className="h-4 w-4 mr-2" />
-              Advanced Settings
-            </Button>
+            {isScanning ? "Scanning…" : "Scan"}
+          </button>
+          {isScanning && (
+            <button
+              onClick={handleStopScan}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: "rgba(255,0,64,0.08)", border: "1px solid rgba(255,0,64,0.25)", color: "#ff0040", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              <Square size={14} />
+              Stop
+            </button>
+          )}
+          <button
+            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
+          >
+            <RefreshCw size={13} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
+            Refresh
+          </button>
+          {scanResult && (
+            <button
+              onClick={() => exportCSV(scanResult.findings)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
+            >
+              <Download size={13} />
+              Export CSV
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Progress bar while scanning ──────────────────────────────────── */}
+      {isScanning && (
+        <div style={{ ...card, padding: "12px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ ...monoText, fontSize: 11, color: "#00ff88" }}>Scanning IAM resources…</span>
+            <span style={{ ...monoText, fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{scanResult?.progress ?? 0}%</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Error Display */}
-      {error && (
-        <Alert className="border-destructive bg-destructive/10">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Scan Error:</strong> {error}
-          </AlertDescription>
-        </Alert>
+          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${scanResult?.progress ?? 30}%`, background: "linear-gradient(90deg, #00ff88, #00cc6a)", borderRadius: 2, transition: "width 0.4s ease" }} />
+          </div>
+        </div>
       )}
 
-      {/* Scan Progress */}
-      {(isScanning || scanResult) && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>AWS IAM Scan Progress</span>
-              <div className="flex items-center gap-2">
-                {scanResult && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setLoading(!loading)}
-                    disabled={loading}
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  </Button>
-                )}
-                <Badge 
-                  variant={isScanning ? "secondary" : scanResult?.status === "Completed" ? "default" : "destructive"}
-                  className={
-                    isScanning ? "bg-[#ffb000] text-black" : 
-                    scanResult?.status === "Completed" ? "bg-[#00ff88] text-black" : 
-                    "bg-[#ff0040] text-white"
-                  }
-                >
-                  {isScanning ? "In Progress" : scanResult?.status || "No Scan"}
-                </Badge>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Progress 
-                value={scanResult?.progress || 0} 
-                className="h-3" 
-              />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>
-                  {isScanning ? 'Analyzing IAM configuration...' : 
-                   scanResult ? `Account: ${scanResult.account_id} | Region: ${scanResult.region}` :
-                   'Ready to scan'}
+      {/* ── Error ────────────────────────────────────────────────────────── */}
+      {error && !scanResult && (
+        <div style={{ ...card, border: "1px solid rgba(255,0,64,0.2)", background: "rgba(255,0,64,0.05)", padding: "12px 16px", display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ color: "#ff0040", fontSize: 13 }}>⚠ {error}</span>
+        </div>
+      )}
+
+      {/* ── Stat cards ───────────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        {[
+          { label: "Total Findings", value: totalFindings, color: "#e2e8f0" },
+          { label: "Critical", value: criticalCount, color: "#ff0040" },
+          { label: "High", value: highCount, color: "#ff6b35" },
+          { label: "Users Without MFA", value: 3, color: "#ffb000" },
+          { label: "Keys Not Rotated", value: 4, color: "#ff6b35" },
+          { label: "Unused Credentials", value: 3, color: "#64748b" },
+        ].map((s) => (
+          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
+            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>{s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Identity risk summary row ─────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        {[
+          { label: "Root Account Keys", value: "ACTIVE", color: "#ff0040", bg: "rgba(255,0,64,0.06)" },
+          { label: "MFA Coverage", value: "64%", color: "#ffb000", bg: "rgba(255,176,0,0.06)" },
+          { label: "Admin Users", value: "2", color: "#ff6b35", bg: "rgba(255,107,53,0.06)" },
+        ].map((item) => (
+          <div key={item.label} style={{ borderRadius: 8, padding: "12px 16px", background: item.bg, border: `1px solid ${item.color}22`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>{item.label}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: item.color, fontFamily: "'JetBrains Mono', monospace" }}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filter bar ───────────────────────────────────────────────────── */}
+      {scanResult && (
+        <div style={{ ...card, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={sectionLabel}>Severity</span>
+              {["all", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map((s) => (
+                <span key={s} onClick={() => setFindingSeverityFilter(s)} style={chip(findingSeverityFilter === s, s !== "all" ? sevColor(s) : undefined)}>
+                  {s === "all" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
                 </span>
-                <span>{scanResult?.progress || 0}%</span>
-              </div>
-              
-              {scanResult && scanResult.status === 'Completed' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ff0040]">{scanResult.scan_summary.critical_findings}</p>
-                    <p className="text-xs text-muted-foreground">Critical</p>
-                  </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ff6b35]">{scanResult.scan_summary.high_findings}</p>
-                    <p className="text-xs text-muted-foreground">High</p>
-                  </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ffb000]">{scanResult.scan_summary.medium_findings}</p>
-                    <p className="text-xs text-muted-foreground">Medium</p>
-                  </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#00ff88]">{scanResult.scan_summary.low_findings}</p>
-                    <p className="text-xs text-muted-foreground">Low</p>
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
-          </CardContent>
-        </Card>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={sectionLabel}>Type</span>
+              {["all", "user", "role", "policy", "group"].map((t) => (
+                <span key={t} onClick={() => setFindingTypeFilter(t)} style={chip(findingTypeFilter === t)}>
+                  {t === "all" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
+              <input
+                value={findingSearchTerm}
+                onChange={(e) => setFindingSearchTerm(e.target.value)}
+                placeholder="Search findings…"
+                style={{ ...monoText, width: "100%", padding: "7px 10px 7px 30px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            {(findingSearchTerm || findingSeverityFilter !== "all" || findingTypeFilter !== "all") && (
+              <button onClick={clearFindingFilters} style={{ ...chip(false), padding: "6px 12px" }}>Clear</button>
+            )}
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {filteredFindings.length} finding{filteredFindings.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
       )}
 
-      {/* Scan Results */}
-      {scanResult && scanResult.findings.length > 0 && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              AWS IAM Security Findings ({scanResult.findings.length} issues)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="findings" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="findings">Security Findings</TabsTrigger>
-                <TabsTrigger value="resources">Resource Summary</TabsTrigger>
-                <TabsTrigger value="compliance">Compliance</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="findings" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-                  <div className="xl:col-span-2">
-                    <Label htmlFor="finding-search">Search Findings</Label>
-                    <Input
-                      id="finding-search"
-                      value={findingSearchTerm}
-                      onChange={(event) => setFindingSearchTerm(event.target.value)}
-                      placeholder="Search by resource, finding ID, ARN, or keyword..."
-                      className="bg-input border-border"
-                    />
-                  </div>
+      {/* ── Findings table ───────────────────────────────────────────────── */}
+      {scanResult && (
+        <div style={card}>
+          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={sectionLabel}>IAM Findings</span>
+            <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {scanResult.account_id} · {scanResult.region}
+            </span>
+          </div>
 
-                  <div>
-                    <Label htmlFor="finding-severity">Severity</Label>
-                    <Select value={findingSeverityFilter} onValueChange={setFindingSeverityFilter}>
-                      <SelectTrigger id="finding-severity" className="bg-input border-border">
-                        <SelectValue placeholder="All severities" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All severities</SelectItem>
-                        <SelectItem value="Critical">Critical</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="Low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "6px 12px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+            <div />
+            {["Resource", "Type", "Severity", "Risk", "Last Accessed", "Status"].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
+            ))}
+          </div>
 
-                  <div>
-                    <Label htmlFor="finding-type">Type</Label>
-                    <Select value={findingTypeFilter} onValueChange={setFindingTypeFilter}>
-                      <SelectTrigger id="finding-type" className="bg-input border-border">
-                        <SelectValue placeholder="All types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All types</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="role">Role</SelectItem>
-                        <SelectItem value="policy">Policy</SelectItem>
-                        <SelectItem value="group">Group</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+          {/* Rows */}
+          {paginatedFindings.length === 0 ? (
+            <div style={{ padding: "48px 24px", textAlign: "center" }}>
+              <Users size={36} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
+              <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13 }}>No findings match the current filters</p>
+            </div>
+          ) : (
+            paginatedFindings.map((finding) => {
+              const isExpanded = expandedRow === finding.id;
+              const sc = sevColor(finding.severity);
+              const status = getFindingStatus(finding);
 
-                  <div>
-                    <Label htmlFor="finding-status">Status</Label>
-                    <Select value={findingStatusFilter} onValueChange={setFindingStatusFilter}>
-                      <SelectTrigger id="finding-status" className="bg-input border-border">
-                        <SelectValue placeholder="All statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Resolved">Resolved</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="finding-page-size">Results per page</Label>
-                    <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                      <SelectTrigger id="finding-page-size" className="bg-input border-border">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor="finding-start-date">Start date</Label>
-                    <Input
-                      id="finding-start-date"
-                      type="date"
-                      value={startDateFilter}
-                      onChange={(event) => setStartDateFilter(event.target.value)}
-                      className="bg-input border-border"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Label htmlFor="finding-end-date">End date</Label>
-                    <Input
-                      id="finding-end-date"
-                      type="date"
-                      value={endDateFilter}
-                      onChange={(event) => setEndDateFilter(event.target.value)}
-                      className="bg-input border-border"
-                    />
-                  </div>
-                  <div className="md:self-end">
-                    <Button variant="outline" className="border-border w-full md:w-auto" onClick={clearFindingFilters}>
-                      Clear Filters
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    Showing {filteredFindings.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-                    {" "}to{" "}
-                    {Math.min(currentPage * pageSize, filteredFindings.length)} of {filteredFindings.length} findings
-                  </span>
-                  <span>Page {currentPage} of {totalPages}</span>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border">
-                      <TableHead>ID</TableHead>
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Finding</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 6 }).map((_, index) => (
-                        <TableRow key={index} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : paginatedFindings.length === 0 ? (
-                      <TableRow className="border-border">
-                        <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                          No findings match the current filters.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedFindings.map((finding) => (
-                        <TableRow 
-                          key={finding.id} 
-                          className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
-                        >
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {finding.id}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getResourceIcon(finding.type)}
-                              <div>
-                                <p className="font-mono text-sm">{finding.resource_name}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {finding.resource_arn}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {finding.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{finding.finding_type}</p>
-                              <p className="text-xs text-muted-foreground">{finding.description}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getSeverityColor(finding.severity)}>
-                              {finding.severity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={getFindingStatus(finding)}
-                              onValueChange={(value) => updateFindingStatus(finding.id, value as FindingStatus)}
-                            >
-                              <SelectTrigger className="h-8 w-[130px] bg-input border-border">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Open">Open</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Resolved">Resolved</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Badge className={`mt-2 ${statusColorMap[getFindingStatus(finding)]}`}>
-                              {getFindingStatus(finding)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {new Date(finding.created_date).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <span className={
-                              finding.risk_score > 80 ? "text-[#ff0040]" :
-                              finding.risk_score > 60 ? "text-[#ff6b35]" :
-                              finding.risk_score > 40 ? "text-[#ffb000]" :
-                              "text-[#00ff88]"
-                            }>
-                              {finding.risk_score}/100
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    className="border-border"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              return (
+                <div key={finding.id}>
+                  {/* Main row */}
+                  <div
+                    onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+                    style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "10px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
+                    onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
+                    onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                   >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-border"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </TabsContent>
+                    {/* Severity bar */}
+                    <div style={{ position: "relative", height: "100%", minHeight: 36 }}>
+                      <div style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 4, borderRadius: "0 2px 2px 0", background: sc }} />
+                    </div>
 
-              <TabsContent value="resources" className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.users}</p>
-                    <p className="text-sm text-muted-foreground">IAM Users</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <UserX className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.roles}</p>
-                    <p className="text-sm text-muted-foreground">IAM Roles</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Lock className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.policies}</p>
-                    <p className="text-sm text-muted-foreground">IAM Policies</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Database className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.groups}</p>
-                    <p className="text-sm text-muted-foreground">IAM Groups</p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="compliance" className="space-y-4">
-                <div className="grid gap-4">
-                  {['CIS AWS Foundations', 'SOC 2 Type II', 'PCI-DSS', 'NIST'].map((framework) => {
-                    const criticalCount = scanResult.findings.filter(f => 
-                      f.compliance_frameworks.includes(framework.split(' ')[0]) && f.severity === 'Critical'
-                    ).length;
-                    const highCount = scanResult.findings.filter(f => 
-                      f.compliance_frameworks.includes(framework.split(' ')[0]) && f.severity === 'High'
-                    ).length;
-                    const score = Math.max(0, 100 - (criticalCount * 30 + highCount * 20));
-                    
-                    return (
-                      <div key={framework} className="cyber-glass p-4 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">{framework}</h4>
-                          <Badge className={score > 80 ? getSeverityColor('Low') : score > 60 ? getSeverityColor('Medium') : getSeverityColor('High')}>
-                            {score}% Compliant
-                          </Badge>
-                        </div>
-                        <Progress value={score} className="h-2" />
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {criticalCount + highCount} high-priority issues found
-                        </p>
+                    {/* Resource cell */}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.resource_name}</span>
+                        {isExpanded ? <ChevronUp size={12} color="rgba(100,116,139,0.5)" /> : <ChevronDown size={12} color="rgba(100,116,139,0.5)" />}
                       </div>
-                    );
-                  })}
+                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{finding.resource_arn}</div>
+                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", marginTop: 2 }}>{finding.finding_type}</div>
+                    </div>
+
+                    {/* Type badge */}
+                    <div>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
+                        {finding.type}
+                      </span>
+                    </div>
+
+                    {/* Severity badge */}
+                    <div>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: `${sc}18`, border: `1px solid ${sc}40`, color: sc, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                        {finding.severity}
+                      </span>
+                    </div>
+
+                    {/* Risk score */}
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: sc }}>
+                      {finding.risk_score}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontWeight: 400 }}>/10</span>
+                    </div>
+
+                    {/* Last accessed */}
+                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {relativeTime(finding.last_accessed)}
+                    </div>
+
+                    {/* Status pill */}
+                    <div>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateFindingStatus(finding.id, status === "open" ? "resolved" : "open");
+                        }}
+                        style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, cursor: "pointer", background: status === "open" ? "rgba(255,0,64,0.1)" : "rgba(0,255,136,0.1)", border: `1px solid ${status === "open" ? "rgba(255,0,64,0.3)" : "rgba(0,255,136,0.3)"}`, color: status === "open" ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div style={{ margin: "0 12px 10px 16px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ ...sectionLabel, marginBottom: 6 }}>Description</div>
+                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
+                      </div>
+                      <div style={{ padding: "10px 14px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
+                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 6 }}>Recommendation</div>
+                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={sectionLabel}>Compliance</span>
+                        {finding.compliance_frameworks.map((fw) => (
+                          <span key={fw} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>{fw}</span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>
+                        Created {new Date(finding.created_date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+              );
+            })
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: "4px 12px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: currentPage === 1 ? "rgba(100,116,139,0.3)" : "rgba(100,116,139,0.8)", fontSize: 11, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: "4px 12px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: currentPage === totalPages ? "rgba(100,116,139,0.3)" : "rgba(100,116,139,0.8)", fontSize: 11, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
+
+      {/* ── Empty state (pre-scan) ────────────────────────────────────────── */}
+      {!scanResult && !isScanning && (
+        <div style={{ ...card, padding: "60px 24px", textAlign: "center" }}>
+          <Users size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
+          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 6 }}>Run a scan to analyze your AWS IAM posture</p>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

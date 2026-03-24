@@ -1,34 +1,17 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Skeleton } from "./ui/skeleton";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { 
-  Play, 
-  Square, 
-  Settings2, 
-  Cloud, 
-  AlertTriangle, 
-  CheckCircle, 
-  RefreshCw,
+import {
   Server,
-  Shield,
+  RefreshCw,
+  Download,
+  Play,
+  ChevronDown,
+  ChevronRight,
   Lock,
   Unlock,
-  ExternalLink,
-  Cpu,
-  HardDrive,
-  Network
+  Globe,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DemoModeBanner } from "./DemoModeBanner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 
@@ -41,12 +24,12 @@ interface EC2SecurityFinding {
   vpc_id: string;
   subnet_id: string;
   security_groups: string[];
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   finding_type: string;
   description: string;
   recommendation: string;
   compliance_frameworks: string[];
-  public_ip?: string;
+  public_ip: string | null;
   state: string;
   launch_time: string;
   risk_score: number;
@@ -74,121 +57,53 @@ interface EC2ScanResult {
   completed_at?: string;
 }
 
-// Mock EC2 security findings
-const mockEC2Findings: EC2SecurityFinding[] = [
-  {
-    id: 'ec2-finding-001',
-    instance_id: 'i-0abcd1234efgh5678',
-    instance_name: 'web-server-prod',
-    instance_type: 't3.large',
-    region: 'us-east-1',
-    vpc_id: 'vpc-12345678',
-    subnet_id: 'subnet-87654321',
-    security_groups: ['sg-web-public', 'sg-ssh-access'],
-    severity: 'Critical',
-    finding_type: 'Unrestricted SSH Access',
-    description: 'Security group allows SSH (port 22) access from 0.0.0.0/0',
-    recommendation: 'Restrict SSH access to specific IP ranges or use AWS Session Manager',
-    compliance_frameworks: ['CIS', 'SOC2'],
-    public_ip: '203.0.113.45',
-    state: 'running',
-    launch_time: '2024-09-15T10:00:00Z',
-    risk_score: 92
-  },
-  {
-    id: 'ec2-finding-002',
-    instance_id: 'i-0xyz9876mnop5432',
-    instance_name: 'database-server',
-    instance_type: 'm5.xlarge',
-    region: 'us-east-1',
-    vpc_id: 'vpc-12345678',
-    subnet_id: 'subnet-11223344',
-    security_groups: ['sg-database'],
-    severity: 'High',
-    finding_type: 'Unencrypted EBS Volume',
-    description: 'EC2 instance has unencrypted EBS volumes containing sensitive data',
-    recommendation: 'Enable EBS encryption for all volumes and use AWS KMS keys',
-    compliance_frameworks: ['CIS', 'PCI-DSS'],
-    state: 'running',
-    launch_time: '2024-08-20T14:30:00Z',
-    risk_score: 85
-  },
-  {
-    id: 'ec2-finding-003',
-    instance_id: 'i-0def5678uvwx1234',
-    instance_name: 'legacy-app-server',
-    instance_type: 't2.micro',
-    region: 'us-west-2',
-    vpc_id: 'vpc-87654321',
-    subnet_id: 'subnet-99887766',
-    security_groups: ['sg-legacy-app'],
-    severity: 'High',
-    finding_type: 'Outdated AMI',
-    description: 'Instance running on AMI with known security vulnerabilities',
-    recommendation: 'Update to latest patched AMI and implement automated patching',
-    compliance_frameworks: ['CIS'],
-    state: 'running',
-    launch_time: '2024-06-10T09:15:00Z',
-    risk_score: 78
-  },
-  {
-    id: 'ec2-finding-004',
-    instance_id: 'i-0ghi2345jklm6789',
-    instance_name: 'test-environment',
-    instance_type: 't3.small',
-    region: 'us-east-1',
-    vpc_id: 'vpc-12345678',
-    subnet_id: 'subnet-55443322',
-    security_groups: ['sg-test-env'],
-    severity: 'Medium',
-    finding_type: 'No Instance Monitoring',
-    description: 'CloudWatch detailed monitoring is disabled for this instance',
-    recommendation: 'Enable detailed monitoring and configure CloudWatch alarms',
-    compliance_frameworks: ['SOC2'],
-    state: 'running',
-    launch_time: '2024-09-25T16:45:00Z',
-    risk_score: 55
-  },
-  {
-    id: 'ec2-finding-005',
-    instance_id: 'i-0mno7890pqrs3456',
-    instance_name: 'backup-server',
-    instance_type: 't2.medium',
-    region: 'us-west-2',
-    vpc_id: 'vpc-87654321',
-    subnet_id: 'subnet-77665544',
-    security_groups: ['sg-backup'],
-    severity: 'Low',
-    finding_type: 'No Instance Tags',
-    description: 'Instance lacks proper resource tagging for cost allocation and management',
-    recommendation: 'Implement comprehensive tagging strategy for resource management',
-    compliance_frameworks: [],
-    state: 'stopped',
-    launch_time: '2024-07-05T11:20:00Z',
-    risk_score: 25
-  }
+const mockFindings: EC2SecurityFinding[] = [
+  { id: 'ec2-001', instance_id: 'i-0a1b2c3d4e5f67890', instance_name: 'web-server-prod', instance_type: 't3.medium', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-public-1a', security_groups: ['sg-web-public'], severity: 'CRITICAL', finding_type: 'SSH Open to Internet (0.0.0.0/0)', description: 'Security group sg-web-public allows inbound SSH (port 22) from 0.0.0.0/0 and ::/0. This instance is publicly accessible on port 22 from any IP address worldwide.', recommendation: 'Remove 0.0.0.0/0 SSH rule. Use AWS Systems Manager Session Manager for bastion-free access. If SSH required, restrict to known CIDR ranges or VPN IP.', compliance_frameworks: ['CIS 5.2', 'PCI-DSS 1.3'], public_ip: '52.23.45.67', state: 'running', launch_time: '2024-01-01T00:00:00Z', risk_score: 10 },
+  { id: 'ec2-002', instance_id: 'i-0b2c3d4e5f678901a', instance_name: 'bastion-host', instance_type: 't3.small', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-public-1b', security_groups: ['sg-bastion'], severity: 'CRITICAL', finding_type: 'RDP Open to Internet (0.0.0.0/0)', description: 'Security group sg-bastion allows inbound RDP (port 3389) from 0.0.0.0/0. Windows RDP exposed to the internet is a common ransomware and brute-force attack vector.', recommendation: 'Block all public RDP access. Use AWS Systems Manager Fleet Manager or a VPN. If RDP required, restrict to specific IP ranges with MFA.', compliance_frameworks: ['CIS 5.3', 'PCI-DSS 1.3'], public_ip: '54.34.56.78', state: 'running', launch_time: '2023-11-01T00:00:00Z', risk_score: 10 },
+  { id: 'ec2-003', instance_id: 'i-0c3d4e5f67890abc1', instance_name: 'prod-ec2-instance-profile', instance_type: 'c5.large', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1a', security_groups: ['sg-app-layer'], severity: 'CRITICAL', finding_type: 'Instance Profile with AdministratorAccess', description: 'EC2 instance role attached to 3 instances (web-server-prod, api-server-01, worker-node-03) has AdministratorAccess policy. Any process on these instances has full AWS account access.', recommendation: 'Replace AdministratorAccess with least-privilege IAM role scoped to specific services and resources needed. Use IAM Access Analyzer to generate minimal policy from CloudTrail.', compliance_frameworks: ['CIS 1.16', 'SOC2 CC6.3'], public_ip: null, state: 'running', launch_time: '2023-08-15T00:00:00Z', risk_score: 10 },
+  { id: 'ec2-004', instance_id: 'i-0d4e5f6789abcdef0', instance_name: 'db-migration-01', instance_type: 'm5.xlarge', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1b', security_groups: ['sg-db'], severity: 'HIGH', finding_type: 'IMDSv1 Enabled (Credential Theft Risk)', description: 'EC2 instance metadata service v1 (IMDSv1) is enabled. IMDSv1 is vulnerable to SSRF attacks — a web application vulnerability can expose instance credentials via http://169.254.169.254.', recommendation: 'Enforce IMDSv2 by setting HttpTokens=required on the instance. Test application compatibility first, then enforce at EC2 launch template and SCP level.', compliance_frameworks: ['CIS 5.6', 'SOC2 CC6.1'], public_ip: null, state: 'running', launch_time: '2023-12-01T00:00:00Z', risk_score: 8 },
+  { id: 'ec2-005', instance_id: 'i-0e5f6789abcdef012', instance_name: 'api-server-01', instance_type: 't3.large', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1a', security_groups: ['sg-api'], severity: 'HIGH', finding_type: 'EBS Volume Not Encrypted', description: 'Root EBS volume vol-0a1b2c3d4e5f6789 attached to api-server-01 is not encrypted. If the volume or snapshot is accessed directly, data is readable in plaintext.', recommendation: 'Enable EBS encryption by default in EC2 account settings. For existing unencrypted volumes: create encrypted snapshot, create encrypted volume from snapshot, swap root volume.', compliance_frameworks: ['CIS 2.2.1', 'PCI-DSS 3.4', 'HIPAA 164.312(a)(2)'], public_ip: null, state: 'running', launch_time: '2023-10-01T00:00:00Z', risk_score: 7 },
+  { id: 'ec2-006', instance_id: 'i-0f6789abcdef01234', instance_name: 'reporting-svc', instance_type: 't3.small', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1b', security_groups: ['sg-reporting'], severity: 'HIGH', finding_type: 'AMI Age: 547 Days (Unpatched)', description: 'Instance reporting-svc is running from AMI ami-0a1b2c3d4e5f6789 launched 547 days ago. AMIs this old likely contain unpatched OS packages, kernel vulnerabilities, and EOL software.', recommendation: 'Create new AMI from latest Amazon Linux 2023 or Ubuntu 22.04 base. Use EC2 Image Builder pipeline for automated patching. Redeploy instance from new AMI.', compliance_frameworks: ['CIS 5.1', 'PCI-DSS 6.3'], public_ip: null, state: 'running', launch_time: '2022-07-01T00:00:00Z', risk_score: 7 },
+  { id: 'ec2-007', instance_id: 'snap-0a1b2c3d4e5f6789a', instance_name: 'prod-db-snapshot', instance_type: 'N/A', region: 'us-east-1', vpc_id: 'N/A', subnet_id: 'N/A', security_groups: [], severity: 'CRITICAL', finding_type: 'Public EBS Snapshot', description: 'EBS snapshot snap-0a1b2c3d4e5f6789 is publicly shared — any AWS account can create a volume from this snapshot. Snapshot contains a production database volume taken 14 days ago.', recommendation: 'Immediately change snapshot permissions to private. Audit all public snapshots: aws ec2 describe-snapshots --owner-ids self --filters Name=attribute,Values=createVolumePermission. Enable AWS Config rule ec2-ebs-snapshot-public-restorable-check.', compliance_frameworks: ['CIS 2.2.3', 'PCI-DSS 3.4'], public_ip: null, state: 'available', launch_time: '2024-01-01T00:00:00Z', risk_score: 10 },
+  { id: 'ec2-008', instance_id: 'i-0g789abcdef012345', instance_name: 'worker-node-03', instance_type: 'c5.2xlarge', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1c', security_groups: ['sg-worker'], severity: 'MEDIUM', finding_type: 'SSM Agent Not Running', description: 'Instance worker-node-03 does not have SSM Agent running or reachable. Cannot be managed via AWS Systems Manager — no patch baseline enforcement, no Session Manager access, no Inventory collection.', recommendation: 'Install and start SSM Agent. Attach AmazonSSMManagedInstanceCore policy to instance role. Verify VPC endpoints for SSM, SSMMessages, and EC2Messages are configured.', compliance_frameworks: ['CIS 5.1'], public_ip: null, state: 'running', launch_time: '2024-01-10T00:00:00Z', risk_score: 5 },
+  { id: 'ec2-009', instance_id: 'i-0h89abcdef0123456', instance_name: 'legacy-app-01', instance_type: 't2.micro', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-private-1a', security_groups: ['sg-legacy'], severity: 'MEDIUM', finding_type: 'Missing Required Tags', description: 'Instance legacy-app-01 is missing required tags: Environment, Owner, CostCenter, DataClassification. Untagged instances cannot be included in cost allocation, backup policies, or automated security controls.', recommendation: 'Apply required tags immediately. Enforce tagging via AWS Config rule required-tags or SCP requiring tags on EC2 launch. Use Tag Editor for bulk tagging.', compliance_frameworks: ['SOC2 CC1.4'], public_ip: null, state: 'running', launch_time: '2021-05-01T00:00:00Z', risk_score: 4 },
+  { id: 'ec2-010', instance_id: 'i-0i9abcdef01234567', instance_name: 'temp-instance-07', instance_type: 't3.medium', region: 'us-east-1', vpc_id: 'vpc-0a1b2c3d', subnet_id: 'subnet-public-1c', security_groups: ['sg-all-open'], severity: 'HIGH', finding_type: 'Security Group: All Ports Open Internally', description: 'Security group sg-all-open attached to temp-instance-07 allows all TCP traffic (0-65535) from the VPC CIDR 10.0.0.0/8. Overly permissive internal rules enable lateral movement if any internal host is compromised.', recommendation: 'Replace the all-ports rule with specific port allowances. Apply micro-segmentation: each service should only receive traffic on its specific ports from specific sources.', compliance_frameworks: ['CIS 5.4', 'PCI-DSS 1.2'], public_ip: '54.90.12.34', state: 'running', launch_time: '2024-01-14T00:00:00Z', risk_score: 7 },
 ];
 
-const mockEC2ScanResult: EC2ScanResult = {
-  scan_id: 'ec2-scan-demo-456',
-  status: 'Completed',
-  progress: 100,
-  account_id: '123456789012',
-  region: 'us-east-1',
-  total_instances: 28,
-  findings: mockEC2Findings,
-  scan_summary: {
-    running_instances: 22,
-    stopped_instances: 6,
-    critical_findings: 1,
-    high_findings: 2,
-    medium_findings: 1,
-    low_findings: 1,
-    publicly_accessible: 8,
-    unencrypted_volumes: 5
-  },
-  started_at: new Date(Date.now() - 240000).toISOString(),
-  completed_at: new Date(Date.now() - 180000).toISOString()
+const mockScanSummary = { total_instances: 28, running_instances: 22, stopped_instances: 6, publicly_accessible: 4, unencrypted_volumes: 7, unrestricted_ssh: 2, unrestricted_rdp: 1, imdsv1_enabled: 9, missing_ssm: 5, critical_findings: 4, high_findings: 4, medium_findings: 2, low_findings: 0 };
+
+// ---- Style helpers ----
+const SEVERITY_COLORS: Record<string, string> = {
+  CRITICAL: '#ff0040',
+  HIGH: '#ff6b35',
+  MEDIUM: '#ffb000',
+  LOW: '#00ff88',
+};
+
+const SEVERITY_BG: Record<string, { bg: string; color: string }> = {
+  CRITICAL: { bg: 'rgba(255,0,64,0.15)', color: '#ff0040' },
+  HIGH: { bg: 'rgba(255,107,53,0.15)', color: '#ff6b35' },
+  MEDIUM: { bg: 'rgba(255,176,0,0.15)', color: '#ffb000' },
+  LOW: { bg: 'rgba(0,255,136,0.15)', color: '#00ff88' },
+};
+
+const cardStyle: React.CSSProperties = {
+  background: 'rgba(15,23,42,0.6)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  borderRadius: 10,
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: 'rgba(51,65,85,0.9)',
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  fontFamily: "'JetBrains Mono', monospace",
+};
+
+const monoStyle: React.CSSProperties = {
+  fontFamily: "'JetBrains Mono', monospace",
 };
 
 export function EC2Security() {
@@ -197,30 +112,51 @@ export function EC2Security() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState('us-east-1');
   const [loading, setLoading] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
+  const [findingSearch, setFindingSearch] = useState('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const { addScanResult } = useScanResults();
 
+  // Load mock data on mount
   useEffect(() => {
-    if (scanResult?.status === 'Completed') {
+    setScanResult({
+      scan_id: 'ec2-scan-demo-456',
+      status: 'Completed',
+      progress: 100,
+      account_id: '123456789012',
+      region: 'us-east-1',
+      total_instances: mockScanSummary.total_instances,
+      findings: mockFindings,
+      scan_summary: {
+        running_instances: mockScanSummary.running_instances,
+        stopped_instances: mockScanSummary.stopped_instances,
+        critical_findings: mockScanSummary.critical_findings,
+        high_findings: mockScanSummary.high_findings,
+        medium_findings: mockScanSummary.medium_findings,
+        low_findings: mockScanSummary.low_findings,
+        publicly_accessible: mockScanSummary.publicly_accessible,
+        unencrypted_volumes: mockScanSummary.unencrypted_volumes,
+      },
+      started_at: new Date(Date.now() - 240000).toISOString(),
+      completed_at: new Date(Date.now() - 180000).toISOString(),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (scanResult?.status === 'Completed' && scanResult.scan_id !== 'ec2-scan-demo-456') {
       toast.success('EC2 security scan completed!', {
-        description: `Found ${scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings} high-priority issues`
+        description: `Found ${scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings} high-priority issues`,
       });
     } else if (scanResult?.status === 'Failed') {
-      toast.error('EC2 scan failed', {
-        description: 'Check AWS credentials and permissions'
-      });
+      toast.error('EC2 scan failed', { description: 'Check AWS credentials and permissions' });
     }
   }, [scanResult?.status]);
 
   const handleStartScan = async () => {
     setIsScanning(true);
     setError(null);
-    
     try {
-      toast.info('EC2 security scan started', {
-        description: 'Analyzing EC2 instances and security configurations...'
-      });
-
-      // Show loading state
+      toast.info('EC2 security scan started', { description: 'Analyzing EC2 instances and security configurations...' });
       setScanResult({
         scan_id: 'loading',
         status: 'Running',
@@ -229,22 +165,9 @@ export function EC2Security() {
         region: selectedRegion,
         total_instances: 0,
         findings: [],
-        scan_summary: {
-          public_instances: 0,
-          without_imdsv2: 0,
-          unencrypted_volumes: 0,
-          open_security_groups: 0,
-          critical_findings: 0,
-          high_findings: 0,
-          medium_findings: 0,
-          low_findings: 0
-        }
+        scan_summary: { running_instances: 0, stopped_instances: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0, publicly_accessible: 0, unencrypted_volumes: 0 },
       });
-
-      // Call the real API
       const response: ScanResponse = await scanEC2(selectedRegion);
-
-      // Transform API response to component format
       const transformedResult: EC2ScanResult = {
         scan_id: response.scan_id,
         status: response.status === 'completed' ? 'Completed' : response.status === 'failed' ? 'Failed' : 'Running',
@@ -254,413 +177,343 @@ export function EC2Security() {
         total_instances: response.results?.instances?.total || 0,
         findings: response.results?.findings || [],
         scan_summary: {
-          public_instances: response.results?.instances?.public || 0,
-          without_imdsv2: response.results?.instances?.without_imdsv2 || 0,
+          running_instances: response.results?.instances?.running || 0,
+          stopped_instances: response.results?.instances?.stopped || 0,
+          publicly_accessible: response.results?.instances?.public || 0,
           unencrypted_volumes: response.results?.instances?.unencrypted_volumes || 0,
-          open_security_groups: response.results?.instances?.open_security_groups || 0,
           critical_findings: response.results?.instances?.public || 0,
           high_findings: response.results?.instances?.without_imdsv2 || 0,
           medium_findings: 0,
-          low_findings: 0
+          low_findings: 0,
         },
         started_at: response.timestamp,
-        completed_at: response.timestamp
+        completed_at: response.timestamp,
       };
-
       setScanResult(transformedResult);
       setIsScanning(false);
-
-      // Store in context for Reports component
       addScanResult(response);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setIsScanning(false);
-      toast.error('Failed to start EC2 scan', {
-        description: err instanceof Error ? err.message : 'Unknown error'
-      });
+      toast.error('Failed to start EC2 scan', { description: err instanceof Error ? err.message : 'Unknown error' });
     }
   };
 
-  const handleStopScan = async () => {
-    try {
-      setIsScanning(false);
-      if (scanResult) {
-        setScanResult({ ...scanResult, status: 'Failed' });
-      }
-      toast.warning('EC2 scan stopped', {
-        description: 'Security scan was interrupted'
-      });
-    } catch (err) {
-      toast.error('Failed to stop scan');
-    }
+  const handleStopScan = () => {
+    setIsScanning(false);
+    if (scanResult) setScanResult({ ...scanResult, status: 'Failed' });
+    toast.warning('EC2 scan stopped', { description: 'Security scan was interrupted' });
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'Critical': return 'bg-[#ff0040] text-white';
-      case 'High': return 'bg-[#ff6b35] text-white';
-      case 'Medium': return 'bg-[#ffb000] text-black';
-      case 'Low': return 'bg-[#00ff88] text-black';
-      default: return 'bg-gray-500 text-white';
-    }
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
-  const getStateColor = (state: string) => {
-    switch (state) {
-      case 'running': return 'bg-[#00ff88] text-black';
-      case 'stopped': return 'bg-[#94a3b8] text-white';
-      case 'pending': return 'bg-[#ffb000] text-black';
-      case 'terminated': return 'bg-[#ff0040] text-white';
-      default: return 'bg-gray-500 text-white';
-    }
+  const findings = scanResult?.findings ?? mockFindings;
+  const filteredFindings = findings.filter(f => {
+    const matchSev = severityFilter === 'ALL' || f.severity === severityFilter;
+    const matchSearch = findingSearch === '' ||
+      f.instance_name.toLowerCase().includes(findingSearch.toLowerCase()) ||
+      f.finding_type.toLowerCase().includes(findingSearch.toLowerCase()) ||
+      f.instance_id.toLowerCase().includes(findingSearch.toLowerCase());
+    return matchSev && matchSearch;
+  });
+
+  const summary = scanResult?.scan_summary ?? {
+    running_instances: mockScanSummary.running_instances,
+    stopped_instances: mockScanSummary.stopped_instances,
+    critical_findings: mockScanSummary.critical_findings,
+    high_findings: mockScanSummary.high_findings,
+    medium_findings: mockScanSummary.medium_findings,
+    low_findings: mockScanSummary.low_findings,
+    publicly_accessible: mockScanSummary.publicly_accessible,
+    unencrypted_volumes: mockScanSummary.unencrypted_volumes,
   };
+  const totalInstances = scanResult?.total_instances ?? mockScanSummary.total_instances;
 
   return (
-    <div className="p-6 space-y-6">
-      <DemoModeBanner />
-      
-      {/* EC2 Scan Configuration */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-primary" />
-            EC2 Security Configuration Scan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="region">AWS Region</Label>
-                <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                  <SelectTrigger className="bg-input border-border">
-                    <SelectValue placeholder="Select Region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="us-east-1">US East (N. Virginia)</SelectItem>
-                    <SelectItem value="us-west-2">US West (Oregon)</SelectItem>
-                    <SelectItem value="eu-west-1">Europe (Ireland)</SelectItem>
-                    <SelectItem value="ap-southeast-1">Asia Pacific (Singapore)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="instance-filter">Instance Filter</Label>
-                <Input 
-                  id="instance-filter"
-                  placeholder="Filter by tag, name, or ID"
-                  className="bg-input border-border"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Security Checks</Label>
-                <div className="space-y-2 mt-2">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">Security Group Rules</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">EBS Encryption</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">Public IP Exposure</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">Instance Metadata</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+    <div style={{ padding: 24, maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            <div className="space-y-4">
-              <div>
-                <Label>Compliance Standards</Label>
-                <div className="space-y-2 mt-2">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">CIS AWS Foundations</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" defaultChecked className="rounded" />
-                    <span className="text-sm">SOC 2 Type II</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">PCI-DSS</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">HIPAA</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Server size={22} color="#818cf8" />
           </div>
-          
-          <div className="flex gap-4">
-            <Button 
-              onClick={handleStartScan}
-              disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#e2e8f0', letterSpacing: '-0.01em' }}>EC2 &amp; Compute</h1>
+            <p style={{ margin: 0, fontSize: 13, color: 'rgba(100,116,139,0.7)', marginTop: 2 }}>
+              Instance security posture — exposed ports, unencrypted volumes, IMDSv1, instance profiles, and patch status
+            </p>
+          </div>
+        </div>
+        {/* Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <select
+            value={selectedRegion}
+            onChange={e => setSelectedRegion(e.target.value)}
+            style={{ ...monoStyle, background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#e2e8f0', padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}
+          >
+            <option value="us-east-1">us-east-1</option>
+            <option value="us-west-2">us-west-2</option>
+            <option value="eu-west-1">eu-west-1</option>
+            <option value="ap-southeast-1">ap-southeast-1</option>
+          </select>
+          <button
+            onClick={handleStartScan}
+            disabled={isScanning}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 7, background: isScanning ? 'rgba(99,102,241,0.3)' : 'rgba(99,102,241,0.85)', border: '1px solid rgba(99,102,241,0.5)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: isScanning ? 'not-allowed' : 'pointer' }}
+          >
+            <Play size={13} />
+            {isScanning ? 'Scanning...' : 'Run Scan'}
+          </button>
+          {isScanning && (
+            <button
+              onClick={handleStopScan}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 7, background: 'rgba(255,0,64,0.2)', border: '1px solid rgba(255,0,64,0.4)', color: '#ff0040', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
-              <Play className="h-4 w-4 mr-2" />
-              {isScanning ? "Scanning..." : "Start EC2 Scan"}
-            </Button>
-            
-            {isScanning && (
-              <Button 
-                onClick={handleStopScan}
-                variant="destructive"
-              >
-                <Square className="h-4 w-4 mr-2" />
-                Stop Scan
-              </Button>
-            )}
-            
-            <Button variant="outline" className="border-border">
-              <Settings2 className="h-4 w-4 mr-2" />
-              Advanced Settings
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              Stop
+            </button>
+          )}
+          <button
+            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 12, cursor: 'pointer' }}
+          >
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Refresh
+          </button>
+          <button
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', fontSize: 12, cursor: 'pointer' }}
+          >
+            <Download size={13} />
+            Export
+          </button>
+        </div>
+      </div>
 
-      {/* Error Display */}
+      {/* Error */}
       {error && (
-        <Alert className="border-destructive bg-destructive/10">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Scan Error:</strong> {error}
-          </AlertDescription>
-        </Alert>
+        <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(255,0,64,0.1)', border: '1px solid rgba(255,0,64,0.3)', color: '#ff0040', fontSize: 13 }}>
+          Scan Error: {error}
+        </div>
       )}
 
-      {/* Scan Progress */}
-      {(isScanning || scanResult) && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>EC2 Security Scan Progress</span>
-              <div className="flex items-center gap-2">
-                {scanResult && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setLoading(!loading)}
-                    disabled={loading}
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  </Button>
-                )}
-                <Badge 
-                  variant={isScanning ? "secondary" : scanResult?.status === "Completed" ? "default" : "destructive"}
-                  className={
-                    isScanning ? "bg-[#ffb000] text-black" : 
-                    scanResult?.status === "Completed" ? "bg-[#00ff88] text-black" : 
-                    "bg-[#ff0040] text-white"
-                  }
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+        {[
+          { label: 'Total Instances', value: totalInstances, color: '#818cf8', sub: `${summary.running_instances} running · ${summary.stopped_instances} stopped` },
+          { label: 'Critical Findings', value: summary.critical_findings, color: '#ff0040', sub: 'Immediate action required' },
+          { label: 'High Findings', value: summary.high_findings, color: '#ff6b35', sub: 'Remediate within 7 days' },
+          { label: 'Publicly Accessible', value: summary.publicly_accessible, color: '#ffb000', sub: 'Instances with public IP' },
+          { label: 'Unencrypted Volumes', value: summary.unencrypted_volumes, color: '#ff6b35', sub: 'EBS volumes at risk' },
+        ].map(card => (
+          <div key={card.label} style={{ ...cardStyle, padding: '16px 18px' }}>
+            <p style={{ ...labelStyle, margin: '0 0 8px' }}>{card.label}</p>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: card.color, ...monoStyle, lineHeight: 1 }}>{card.value}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(100,116,139,0.6)' }}>{card.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Risk Indicators Strip */}
+      <div style={{ ...cardStyle, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ ...labelStyle, marginRight: 4 }}>Risk Indicators</span>
+        {[
+          { label: `SSH: ${mockScanSummary.unrestricted_ssh} exposed`, color: '#ff0040' },
+          { label: `RDP: ${mockScanSummary.unrestricted_rdp} exposed`, color: '#ff0040' },
+          { label: `IMDSv1: ${mockScanSummary.imdsv1_enabled} instances`, color: '#ffb000' },
+          { label: `No SSM: ${mockScanSummary.missing_ssm} instances`, color: '#ff6b35' },
+        ].map(chip => (
+          <span key={chip.label} style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...monoStyle }}>
+            {chip.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(sev => {
+            const active = severityFilter === sev;
+            const col = sev === 'ALL' ? '#818cf8' : SEVERITY_COLORS[sev];
+            return (
+              <button
+                key={sev}
+                onClick={() => setSeverityFilter(sev)}
+                style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", background: active ? `${col}25` : 'rgba(255,255,255,0.03)', border: `1px solid ${active ? col : 'rgba(255,255,255,0.08)'}`, color: active ? col : 'rgba(100,116,139,0.7)', transition: 'all 0.15s' }}
+              >
+                {sev}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(100,116,139,0.5)' }} />
+          <input
+            value={findingSearch}
+            onChange={e => setFindingSearch(e.target.value)}
+            placeholder="Search findings, instances, IDs..."
+            style={{ width: '100%', padding: '7px 10px 7px 30px', background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: '#e2e8f0', fontSize: 12, outline: 'none', boxSizing: 'border-box', ...monoStyle }}
+          />
+        </div>
+        <span style={{ fontSize: 11, color: 'rgba(100,116,139,0.5)', ...monoStyle }}>{filteredFindings.length} findings</span>
+      </div>
+
+      {/* Findings Table */}
+      <div style={cardStyle}>
+        {/* Table Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '4px 1fr 130px 100px 80px 80px 70px', gap: 0, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', alignItems: 'center' }}>
+          <div />
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Instance / Finding</span>
+          <span style={labelStyle}>Type</span>
+          <span style={labelStyle}>Severity</span>
+          <span style={labelStyle}>Public IP</span>
+          <span style={labelStyle}>Risk /10</span>
+          <span style={labelStyle}>State</span>
+        </div>
+
+        {filteredFindings.length === 0 ? (
+          <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+            <Server size={40} color="rgba(100,116,139,0.3)" style={{ margin: '0 auto 12px' }} />
+            <p style={{ color: 'rgba(100,116,139,0.5)', fontSize: 14, margin: 0 }}>No findings match your filters</p>
+          </div>
+        ) : (
+          filteredFindings.map((finding, idx) => {
+            const expanded = expandedRows.has(finding.id);
+            const sevColor = SEVERITY_COLORS[finding.severity] ?? '#64748b';
+            const isLast = idx === filteredFindings.length - 1;
+            return (
+              <div key={finding.id}>
+                {/* Row */}
+                <div
+                  onClick={() => toggleRow(finding.id)}
+                  style={{ display: 'grid', gridTemplateColumns: '4px 1fr 130px 100px 80px 80px 70px', gap: 0, padding: '12px 16px', alignItems: 'center', cursor: 'pointer', position: 'relative', borderBottom: (!isLast || expanded) ? '1px solid rgba(255,255,255,0.04)' : 'none', background: expanded ? 'rgba(255,255,255,0.02)' : 'transparent', transition: 'background 0.15s' }}
+                  onMouseEnter={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.015)'; }}
+                  onMouseLeave={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                 >
-                  {isScanning ? "In Progress" : scanResult?.status || "No Scan"}
-                </Badge>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Progress 
-                value={scanResult?.progress || 0} 
-                className="h-3" 
-              />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>
-                  {isScanning ? 'Analyzing EC2 instances...' : 
-                   scanResult ? `Scanned ${scanResult.total_instances} instances in ${scanResult.region}` :
-                   'Ready to scan'}
-                </span>
-                <span>{scanResult?.progress || 0}%</span>
-              </div>
-              
-              {scanResult && scanResult.status === 'Completed' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ff0040]">{scanResult.scan_summary.critical_findings}</p>
-                    <p className="text-xs text-muted-foreground">Critical</p>
+                  {/* Severity bar */}
+                  <div style={{ position: 'relative', height: '100%' }}>
+                    <div style={{ position: 'absolute', left: 0, width: 4, top: -12, bottom: -12, background: sevColor, borderRadius: '0 2px 2px 0', opacity: 0.85 }} />
                   </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ff6b35]">{scanResult.scan_summary.high_findings}</p>
-                    <p className="text-xs text-muted-foreground">High</p>
-                  </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#ffb000]">{scanResult.scan_summary.medium_findings}</p>
-                    <p className="text-xs text-muted-foreground">Medium</p>
-                  </div>
-                  <div className="cyber-glass p-3 rounded-lg text-center">
-                    <p className="text-lg font-medium text-[#00ff88]">{scanResult.scan_summary.low_findings}</p>
-                    <p className="text-xs text-muted-foreground">Low</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Scan Results */}
-      {scanResult && scanResult.findings.length > 0 && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Cloud className="h-5 w-5 text-primary" />
-              EC2 Security Findings ({scanResult.findings.length} issues)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="findings" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="findings">Security Findings</TabsTrigger>
-                <TabsTrigger value="instances">Instance Overview</TabsTrigger>
-                <TabsTrigger value="compliance">Compliance Status</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="findings" className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border">
-                      <TableHead>Instance</TableHead>
-                      <TableHead>Finding Type</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>State</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                      <TableHead>Recommendation</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 5 }).map((_, index) => (
-                        <TableRow key={index} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      scanResult.findings.map((finding) => (
-                        <TableRow 
-                          key={finding.id} 
-                          className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Server className="h-4 w-4" />
-                              <div>
-                                <p className="font-mono text-sm">{finding.instance_name}</p>
-                                <p className="text-xs text-muted-foreground">{finding.instance_id}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{finding.finding_type}</p>
-                              <p className="text-xs text-muted-foreground">{finding.description}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getSeverityColor(finding.severity)}>
-                              {finding.severity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStateColor(finding.state)}>
-                              {finding.state}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className={
-                              finding.risk_score > 80 ? "text-[#ff0040]" :
-                              finding.risk_score > 60 ? "text-[#ff6b35]" :
-                              finding.risk_score > 40 ? "text-[#ffb000]" :
-                              "text-[#00ff88]"
-                            }>
-                              {finding.risk_score}/100
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm max-w-xs">
-                            {finding.recommendation}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-
-              <TabsContent value="instances" className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Server className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.running_instances}</p>
-                    <p className="text-sm text-muted-foreground">Running</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Cpu className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.stopped_instances}</p>
-                    <p className="text-sm text-muted-foreground">Stopped</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Network className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.publicly_accessible}</p>
-                    <p className="text-sm text-muted-foreground">Public</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Lock className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.unencrypted_volumes}</p>
-                    <p className="text-sm text-muted-foreground">Unencrypted</p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="compliance" className="space-y-4">
-                <div className="grid gap-4">
-                  {['CIS AWS Foundations', 'SOC 2 Type II', 'PCI-DSS', 'HIPAA'].map((framework) => {
-                    const criticalCount = scanResult.findings.filter(f => 
-                      f.compliance_frameworks.includes(framework.split(' ')[0]) && f.severity === 'Critical'
-                    ).length;
-                    const highCount = scanResult.findings.filter(f => 
-                      f.compliance_frameworks.includes(framework.split(' ')[0]) && f.severity === 'High'
-                    ).length;
-                    const score = Math.max(0, 100 - (criticalCount * 30 + highCount * 20));
-                    
-                    return (
-                      <div key={framework} className="cyber-glass p-4 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">{framework}</h4>
-                          <Badge className={score > 80 ? getSeverityColor('Low') : score > 60 ? getSeverityColor('Medium') : getSeverityColor('High')}>
-                            {score}% Compliant
-                          </Badge>
-                        </div>
-                        <Progress value={score} className="h-2" />
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {criticalCount + highCount} high-priority issues found
-                        </p>
+                  {/* Instance info */}
+                  <div style={{ paddingLeft: 12, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <div style={{ flexShrink: 0 }}>
+                      {expanded ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {finding.instance_name}
                       </div>
-                    );
-                  })}
+                      <div style={{ fontSize: 11, color: 'rgba(100,116,139,0.6)', ...monoStyle, marginTop: 1 }}>{finding.instance_id}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(100,116,139,0.5)', marginTop: 2 }}>{finding.finding_type}</div>
+                    </div>
+                  </div>
+
+                  {/* Instance type */}
+                  <div style={{ fontSize: 12, color: '#94a3b8', ...monoStyle }}>{finding.instance_type}</div>
+
+                  {/* Severity badge */}
+                  <div>
+                    <span style={{ padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 700, background: SEVERITY_BG[finding.severity]?.bg ?? 'rgba(100,116,139,0.15)', color: sevColor, ...monoStyle }}>
+                      {finding.severity}
+                    </span>
+                  </div>
+
+                  {/* Public IP */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {finding.public_ip ? (
+                      <span style={{ fontSize: 11, color: '#ff0040', ...monoStyle, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Globe size={11} color="#ff0040" />
+                        {finding.public_ip}
+                      </span>
+                    ) : (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#00ff88' }}>
+                        <Lock size={11} color="#00ff88" />
+                        Private
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Risk score */}
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: finding.risk_score >= 9 ? '#ff0040' : finding.risk_score >= 7 ? '#ff6b35' : finding.risk_score >= 5 ? '#ffb000' : '#00ff88', ...monoStyle }}>
+                      {finding.risk_score}<span style={{ fontSize: 10, color: 'rgba(100,116,139,0.5)' }}>/10</span>
+                    </span>
+                  </div>
+
+                  {/* State */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: finding.state === 'running' ? '#00ff88' : finding.state === 'available' ? '#818cf8' : '#64748b', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: finding.state === 'running' ? '#00ff88' : '#64748b', ...monoStyle }}>{finding.state}</span>
+                  </div>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      )}
+
+                {/* Expanded detail */}
+                {expanded && (
+                  <div style={{ padding: '0 16px 16px 36px', borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.01)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
+                      {/* Left: description + recommendation */}
+                      <div>
+                        <p style={{ ...labelStyle, margin: '0 0 6px' }}>Description</p>
+                        <p style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
+                        <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: 'rgba(255,176,0,0.07)', border: '1px solid rgba(255,176,0,0.2)' }}>
+                          <p style={{ ...labelStyle, color: 'rgba(255,176,0,0.8)', margin: '0 0 6px' }}>Recommendation</p>
+                          <p style={{ fontSize: 12, color: '#fcd34d', lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
+                        </div>
+                      </div>
+                      {/* Right: metadata + compliance */}
+                      <div>
+                        <p style={{ ...labelStyle, margin: '0 0 8px' }}>Instance Details</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11, ...monoStyle }}>
+                          {[
+                            ['VPC', finding.vpc_id],
+                            ['Subnet', finding.subnet_id],
+                            ['Launch Time', new Date(finding.launch_time).toLocaleDateString()],
+                            ['Region', finding.region],
+                          ].map(([k, v]) => (
+                            <div key={k}>
+                              <span style={{ color: 'rgba(100,116,139,0.6)' }}>{k}: </span>
+                              <span style={{ color: '#94a3b8' }}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {finding.security_groups.length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <span style={{ ...labelStyle }}>Security Groups: </span>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                              {finding.security_groups.map(sg => (
+                                <span key={sg} style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', color: '#818cf8', fontSize: 11, ...monoStyle }}>{sg}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {finding.compliance_frameworks.length > 0 && (
+                          <div style={{ marginTop: 10 }}>
+                            <p style={{ ...labelStyle, margin: '0 0 6px' }}>Compliance Frameworks</p>
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                              {finding.compliance_frameworks.map(fw => (
+                                <span key={fw} style={{ padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: 11, ...monoStyle }}>{fw}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Spin keyframes */}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

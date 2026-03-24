@@ -1,5 +1,33 @@
 import { useCallback, useState } from "react";
 import { Header } from "../components/Header";
+
+function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
+  return (
+    <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "17px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>{title}</h1>
+        <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.7)", margin: "3px 0 0" }}>{subtitle}</p>
+      </div>
+      <div style={{ background: "rgba(15,23,42,0.5)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "12px", padding: "32px", textAlign: "center" }}>
+        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <span style={{ fontSize: "18px" }}>⚡</span>
+        </div>
+        <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>In Development</div>
+        <p style={{ fontSize: "12px", color: "rgba(71,85,105,0.7)", marginBottom: "20px", maxWidth: "380px", margin: "0 auto 20px", lineHeight: 1.6 }}>
+          Backend scanning logic for this module is not yet wired up. The following capabilities are planned:
+        </p>
+        <div style={{ display: "inline-flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
+          {items.map((item) => (
+            <div key={item} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(100,116,139,0.6)" }}>
+              <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "rgba(100,116,139,0.3)", flexShrink: 0 }} />
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 import { Sidebar } from "../components/Sidebar";
 import { Dashboard } from "../components/Dashboard";
 import { SecurityHub } from "../components/SecurityHub";
@@ -61,40 +89,13 @@ export function DashboardApp() {
       case "database-security":
         return <DynamoDBSecurity />;
       case "lambda-security":
-        return (
-          <div className="p-6">
-            <div className="cyber-card p-8 text-center">
-              <h2 className="mb-4 text-xl">Lambda & Serverless Security</h2>
-              <p className="text-muted-foreground">
-                Serverless security scanning coming soon...
-              </p>
-            </div>
-          </div>
-        );
+        return <PlaceholderPage title="Lambda & Serverless" subtitle="Function-level security scanning, runtime threat detection, and permission analysis for serverless workloads." items={["Function permission over-provisioning", "Runtime code injection detection", "Dead-letter queue encryption", "VPC attachment validation", "Execution role least-privilege audit"]} />;
       case "cloudtrail":
-        return (
-          <div className="p-6">
-            <div className="cyber-card p-8 text-center">
-              <h2 className="mb-4 text-xl">CloudTrail Monitoring</h2>
-              <p className="text-muted-foreground">
-                CloudTrail analysis coming soon...
-              </p>
-            </div>
-          </div>
-        );
+        return <PlaceholderPage title="CloudTrail Monitoring" subtitle="Audit log analysis, anomaly detection, and API activity intelligence across all regions." items={["Unusual API call patterns", "Cross-region activity monitoring", "Root account usage alerts", "Data event analysis (S3/Lambda)", "Log integrity validation"]} />;
       case "compliance":
         return <ComplianceDashboard onNavigate={setActiveTab} />;
       case "cost-optimization":
-        return (
-          <div className="p-6">
-            <div className="cyber-card p-8 text-center">
-              <h2 className="mb-4 text-xl">Cost & Optimization</h2>
-              <p className="text-muted-foreground">
-                Cost optimization analysis coming soon...
-              </p>
-            </div>
-          </div>
-        );
+        return <PlaceholderPage title="Cost & Optimization" subtitle="Identify unused resources, right-sizing opportunities, and cost anomalies tied to security misconfigurations." items={["Unattached EBS volumes & snapshots", "Idle EC2 instances", "Over-provisioned IAM roles", "Unused Elastic IPs", "Orphaned load balancers"]} />;
       case "alerts":
         return <CloudSecurityAlerts />;
       case "grafana":
@@ -111,7 +112,7 @@ export function DashboardApp() {
   return (
     <ScanResultsProvider>
       <div className="flex h-screen flex-col bg-background dark">
-        <Header onNavigate={setActiveTab} />
+        <Header onNavigate={setActiveTab} activeTab={activeTab} />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <main className="flex-1 overflow-auto">

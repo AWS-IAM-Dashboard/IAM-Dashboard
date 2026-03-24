@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database } from "lucide-react";
+import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -479,369 +479,485 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   };
 
   const handleOldQuickScan = async () => {
-    await startScan();
+    // legacy scan handler
   };
 
+  const complianceColor =
+    stats.compliance_score >= 80 ? '#00ff88' :
+    stats.compliance_score >= 60 ? '#ffb000' : '#ff0040';
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5">
       <DemoModeBanner />
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card 
-          className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
-          onClick={() => onNavigate?.('timeline')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Last Scan</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-24 bg-muted/20" />
-                ) : (
-                  <p className="text-2xl font-medium text-foreground">
-                    {stats?.last_scan || 'Never'}
-                  </p>
-                )}
+
+      {/* ── Page Header ──────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground tracking-tight">Security Overview</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Real-time security posture · Last scan:{' '}
+            <span className="text-foreground">{stats.last_scan}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {isScanning && (
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-1.5">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs text-primary font-medium">Scanning {scanProgress}%</span>
+              <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-150 ease-out"
+                  style={{ width: `${scanProgress}%` }}
+                />
               </div>
-              <Clock className="h-8 w-8 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
-          onClick={() => onNavigate?.('compliance')}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">AWS Resources</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16 bg-muted/20" />
-                ) : (
-                  <p className="text-2xl font-medium text-foreground">
-                    {stats?.total_resources || 0}
-                  </p>
-                )}
-              </div>
-              <Cloud className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={refreshStats}
+            disabled={statsLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow text-sm font-medium"
+            onClick={handleQuickScan}
+            disabled={isScanning}
+          >
+            <Play className="h-3.5 w-3.5 mr-1.5" />
+            {isScanning ? 'Scanning…' : 'Full Security Scan'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── KPI Rail ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* Critical */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors hover:bg-[#ff0040]/5"
+          style={{ borderLeft: '3px solid #ff0040' }}
           onClick={() => onNavigate?.('alerts')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Security Findings</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-12 bg-muted/20" />
-                ) : (
-                  <p className="text-2xl font-medium text-[#ffb000]">
-                    {stats?.security_findings || 0}
-                  </p>
-                )}
-              </div>
-              <AlertTriangle className="h-8 w-8 text-[#ffb000]" />
-            </div>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Critical</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold text-[#ff0040] mt-1 tabular-nums">{stats.critical_alerts}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
           </CardContent>
         </Card>
-        
-        <Card 
-          className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
+
+        {/* High */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors hover:bg-[#ff6b35]/5"
+          style={{ borderLeft: '3px solid #ff6b35' }}
+          onClick={() => onNavigate?.('alerts')}
+        >
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">High</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold text-[#ff6b35] mt-1 tabular-nums">{stats.high_findings}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
+          </CardContent>
+        </Card>
+
+        {/* Medium */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors hover:bg-[#ffb000]/5"
+          style={{ borderLeft: '3px solid #ffb000' }}
+          onClick={() => onNavigate?.('alerts')}
+        >
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Medium</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold text-[#ffb000] mt-1 tabular-nums">{stats.medium_findings}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Open */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors hover:bg-muted/10"
+          style={{ borderLeft: '3px solid #475569' }}
+          onClick={() => onNavigate?.('alerts')}
+        >
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total Open</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold text-foreground mt-1 tabular-nums">{stats.security_findings}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">All findings</p>
+          </CardContent>
+        </Card>
+
+        {/* Compliance */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors"
+          style={{ borderLeft: `3px solid ${complianceColor}` }}
           onClick={() => onNavigate?.('compliance')}
         >
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Compliance Score</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-20 bg-muted/20" />
-                ) : (
-                  <p className="text-2xl font-medium text-foreground">
-                    {stats?.compliance_score ?? 100}%
-                  </p>
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Compliance</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-14 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold mt-1 tabular-nums" style={{ color: complianceColor }}>
+                {stats.compliance_score}%
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Overall score</p>
+          </CardContent>
+        </Card>
+
+        {/* Resources */}
+        <Card
+          className="cyber-card cursor-pointer transition-colors hover:bg-[#0ea5e9]/5"
+          style={{ borderLeft: '3px solid #0ea5e9' }}
+          onClick={() => onNavigate?.('compliance')}
+        >
+          <CardContent className="p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Resources</p>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-10 bg-muted/20 mt-1" />
+            ) : (
+              <p className="text-3xl font-bold text-[#0ea5e9] mt-1 tabular-nums">{stats.total_resources}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Monitored</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Attack Surface Bar ────────────────────────────────── */}
+      <Card className="cyber-card">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attack Surface Distribution</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{stats.security_findings} total findings</span>
+          </div>
+
+          {stats.security_findings > 0 ? (
+            <>
+              <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+                {stats.critical_alerts > 0 && (
+                  <div
+                    className="bg-[#ff0040] transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(3, (stats.critical_alerts / stats.security_findings) * 100)}%` }}
+                  />
+                )}
+                {stats.high_findings > 0 && (
+                  <div
+                    className="bg-[#ff6b35] transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(3, (stats.high_findings / stats.security_findings) * 100)}%` }}
+                  />
+                )}
+                {stats.medium_findings > 0 && (
+                  <div
+                    className="bg-[#ffb000] transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(3, (stats.medium_findings / stats.security_findings) * 100)}%` }}
+                  />
+                )}
+                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && (
+                  <div
+                    className="bg-[#00ff88] flex-1 transition-all duration-700 ease-out"
+                  />
                 )}
               </div>
-              <Shield className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center gap-5 mt-3">
+                {stats.critical_alerts > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#ff0040] inline-block" />
+                    <span className="text-xs text-muted-foreground">{stats.critical_alerts} Critical</span>
+                  </div>
+                )}
+                {stats.high_findings > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#ff6b35] inline-block" />
+                    <span className="text-xs text-muted-foreground">{stats.high_findings} High</span>
+                  </div>
+                )}
+                {stats.medium_findings > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#ffb000] inline-block" />
+                    <span className="text-xs text-muted-foreground">{stats.medium_findings} Medium</span>
+                  </div>
+                )}
+                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#00ff88] inline-block" />
+                    <span className="text-xs text-muted-foreground">
+                      {stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings} Low
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="h-2 rounded-full bg-[#00ff88]/50 w-full" />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Quick Nav ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('iam-security')}>
+          <Users className="h-3 w-3 mr-1.5" />IAM
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('access-analyzer')}>
+          <Shield className="h-3 w-3 mr-1.5" />Access Analyzer
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('ec2-security')}>
+          <Cloud className="h-3 w-3 mr-1.5" />EC2
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('s3-security')}>
+          <HardDrive className="h-3 w-3 mr-1.5" />S3
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('vpc-security')}>
+          <Network className="h-3 w-3 mr-1.5" />VPC
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('dynamodb-security')}>
+          <Database className="h-3 w-3 mr-1.5" />DynamoDB
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('reports')}>
+          <CheckCircle className="h-3 w-3 mr-1.5" />Generate Report
+        </Button>
       </div>
 
-      {/* AWS Security Status */}
-      <Card 
-        className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
-        onClick={() => onNavigate?.('iam-security')}
-      >
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Cloud className="h-8 w-8 text-primary" />
-              <div>
-                <h3 className="text-lg font-medium">AWS IAM Security Status</h3>
-                <p className="text-sm text-muted-foreground">
-                  Last scan: {stats?.last_scan || 'Never'}
-                </p>
-              </div>
-            </div>
-            <Badge className={`${stats?.compliance_score === 100 ? 'bg-[#00ff88]' : stats?.compliance_score >= 70 ? 'bg-[#ffb000]' : 'bg-[#ff0040]'} text-black`}>
-              {stats?.compliance_score ?? 100}% Compliant
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="cyber-glass p-3 rounded-lg text-center">
-              <p className="text-lg font-medium text-[#ff0040]">{stats?.critical_alerts || 0}</p>
-              <p className="text-xs text-muted-foreground">Critical</p>
-            </div>
-            <div className="cyber-glass p-3 rounded-lg text-center">
-              <p className="text-lg font-medium text-[#ff6b35]">{stats?.high_findings || 0}</p>
-              <p className="text-xs text-muted-foreground">High</p>
-            </div>
-            <div className="cyber-glass p-3 rounded-lg text-center">
-              <p className="text-lg font-medium text-[#ffb000]">{stats?.medium_findings || 0}</p>
-              <p className="text-xs text-muted-foreground">Medium</p>
-            </div>
-            <div className="cyber-glass p-3 rounded-lg text-center">
-              <p className="text-lg font-medium text-[#00ff88]">{stats?.total_resources || 0}</p>
-              <p className="text-xs text-muted-foreground">Resources</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Scan Controls */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Quick Actions
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="ml-auto"
-              onClick={refreshStats}
-              disabled={statsLoading}
-            >
-              <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Current Scan Status */}
-            {isScanning && (
-              <div className="cyber-glass p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Security Scan in Progress</span>
-                  <Badge className="bg-primary text-primary-foreground">
-                    {scanProgress}%
-                  </Badge>
-                </div>
-                <Progress value={scanProgress} className="h-2 transition-all duration-150 ease-out" />
-              </div>
-            )}
-
-            <div className="flex gap-4 flex-wrap">
-              <Button 
-                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
-                onClick={handleQuickScan}
-                disabled={isScanning}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                {isScanning ? 'Scanning...' : 'Full Security Scan'}
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('iam-security')}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                IAM Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('access-analyzer')}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Access Analyzer
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('ec2-security')}
-              >
-                <Cloud className="h-4 w-4 mr-2" />
-                EC2 Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('s3-security')}
-              >
-                <HardDrive className="h-4 w-4 mr-2" />
-                S3 Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('vpc-security')}
-              >
-                <Network className="h-4 w-4 mr-2" />
-                VPC Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('dynamodb-security')}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                DynamoDB Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('reports')}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Generate Report
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Charts and Activity */}
+      {/* ── Charts Row ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Compliance Gauge */}
         <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle>Security Compliance Overview</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                Compliance Score
+              </div>
+              <Badge
+                className="text-xs"
+                style={{
+                  backgroundColor: `${complianceColor}18`,
+                  color: complianceColor,
+                  border: `1px solid ${complianceColor}35`,
+                }}
+              >
+                {stats.compliance_score >= 80 ? 'Healthy' : stats.compliance_score >= 60 ? 'At Risk' : 'Critical'}
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {statsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-[300px] w-full bg-muted/20" />
-                <div className="flex justify-center gap-4">
-                  <Skeleton className="h-4 w-20 bg-muted/20" />
-                  <Skeleton className="h-4 w-16 bg-muted/20" />
-                  <Skeleton className="h-4 w-18 bg-muted/20" />
-                </div>
-              </div>
-            ) : pieData.length > 0 && pieData.some(d => d.value > 0) ? (
-              <>
-                <ResponsiveContainer width="100%" height={300}>
+              <Skeleton className="h-[280px] w-full bg-muted/20" />
+            ) : (
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
+                    {/* Track — only visible when score < 100 to avoid overlap */}
+                    {stats.compliance_score < 100 && (
+                      <Pie
+                        data={[{ value: 100 }]}
+                        cx="50%" cy="72%"
+                        startAngle={180} endAngle={0}
+                        innerRadius={80} outerRadius={108}
+                        dataKey="value" stroke="none"
+                      >
+                        <Cell fill="rgba(30,41,59,0.55)" />
+                      </Pie>
+                    )}
+                    {/* Score arc */}
                     <Pie
-                      data={filteredPieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={120}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}%`}
-                      labelLine={false}
+                      data={
+                        stats.compliance_score >= 100
+                          ? [{ value: 100 }]
+                          : [
+                              { value: stats.compliance_score },
+                              { value: 100 - stats.compliance_score },
+                            ]
+                      }
+                      cx="50%" cy="72%"
+                      startAngle={180} endAngle={0}
+                      innerRadius={80} outerRadius={108}
+                      dataKey="value" stroke="none" paddingAngle={0}
                     >
-                      {filteredPieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                      <Cell fill={complianceColor} />
+                      {stats.compliance_score < 100 && <Cell fill="transparent" />}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                        border: '1px solid rgba(0, 255, 136, 0.3)',
-                        borderRadius: '8px',
-                        color: '#e2e8f0'
-                      }} 
-                    />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex justify-center gap-6 mt-4">
-                  {pieData.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-sm" 
-                        style={{ backgroundColor: item.color }}
-                      ></div>
-                      <span className="text-xs text-muted-foreground">
-                        {item.name} ({item.value}%)
-                      </span>
-                    </div>
-                  ))}
+                {/* Centre label */}
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center"
+                  style={{ paddingBottom: '28px' }}
+                >
+                  <span className="text-4xl font-bold tabular-nums" style={{ color: complianceColor }}>
+                    {stats.compliance_score}%
+                  </span>
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                    Compliance Score
+                  </span>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <p>No security data available. Run a security scan to start analysis.</p>
+                {/* Breakdown row */}
+                <div className="grid grid-cols-3 gap-0 mt-1 pt-3 border-t border-border">
+                  <div className="text-center">
+                    <p className="text-base font-bold text-[#ff0040] tabular-nums">{stats.critical_alerts}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Critical</p>
+                  </div>
+                  <div className="text-center border-x border-border">
+                    <p className="text-base font-bold text-[#ff6b35] tabular-nums">{stats.high_findings}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">High</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-bold text-[#ffb000] tabular-nums">{stats.medium_findings}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Medium</p>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
+        {/* Finding Activity Trends — Area chart */}
         <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle>Weekly Compliance Trends</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                Finding Activity — 7 Days
+              </div>
+              <span className="text-xs text-muted-foreground font-normal">Rolling week</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {statsLoading ? (
-              <Skeleton className="h-[300px] w-full bg-muted/20" />
+              <Skeleton className="h-[280px] w-full bg-muted/20" />
             ) : weeklyTrends.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={weeklyTrends}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(100, 116, 139, 0.1)" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                    border: '1px solid rgba(0, 255, 136, 0.3)',
-                    borderRadius: '8px',
-                    color: '#e2e8f0'
-                  }}
-                  cursor={{ fill: 'rgba(0, 255, 136, 0.05)' }}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: '12px' }}
-                  iconType="circle"
-                />
-                <Bar dataKey="compliant" stackId="a" fill="#00ff88" name="Compliant" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="violations" stackId="a" fill="#ffb000" name="Violations" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="critical" stackId="a" fill="#ff0040" name="Critical" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={weeklyTrends} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gCrit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ff0040" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#ff0040" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="gViol" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ffb000" stopOpacity={0.22} />
+                      <stop offset="95%" stopColor="#ffb000" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="gComp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00ff88" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#00ff88" stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(100,116,139,0.07)" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#475569"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#475569"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(10,17,34,0.97)',
+                      border: '1px solid rgba(0,255,136,0.18)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontSize: '12px',
+                    }}
+                    cursor={{ stroke: 'rgba(0,255,136,0.15)', strokeWidth: 1 }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                    iconType="circle"
+                    iconSize={7}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="critical"
+                    name="Critical"
+                    stroke="#ff0040"
+                    strokeWidth={2}
+                    fill="url(#gCrit)"
+                    dot={{ fill: '#ff0040', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="violations"
+                    name="Violations"
+                    stroke="#ffb000"
+                    strokeWidth={2}
+                    fill="url(#gViol)"
+                    dot={{ fill: '#ffb000', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="compliant"
+                    name="Compliant %"
+                    stroke="#00ff88"
+                    strokeWidth={1.5}
+                    strokeDasharray="5 3"
+                    fill="url(#gComp)"
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <p>No trend data available. Historical data will appear here after scans are performed.</p>
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground">
+                <p className="text-sm">Run a security scan to populate trend data.</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Security Findings Table */}
+      {/* ── Active Findings Queue ─────────────────────────────── */}
       <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Security Findings {allFindings.length > 0 && `(${allFindings.length})`}
-          </CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Shield className="h-4 w-4 text-primary" />
+              Active Security Issues
+              {allFindings.length > 0 && (
+                <Badge variant="outline" className="ml-1 text-xs font-normal border-border">
+                  {allFindings.length} open
+                </Badge>
+              )}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-7"
+              onClick={() => onNavigate?.('alerts')}
+            >
+              View All <ArrowUpRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <FindingsTableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -859,88 +975,105 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             currentPage={currentPage}
             activeFilterCount={activeFilterCount}
           />
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead>Resource</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Risk Score</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {statsLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={index} className="border-border">
-                    <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                  </TableRow>
-                ))
-              ) : paginatedFindings.length > 0 ? (
-                paginatedFindings.map((finding: any, index: number) => (
-                  <TableRow
+
+          {statsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-[60px] w-full bg-muted/20 rounded-lg" />
+              ))}
+            </div>
+          ) : paginatedFindings.length > 0 ? (
+            <div className="space-y-1.5">
+              {paginatedFindings.map((finding: any, index: number) => {
+                const sColor =
+                  finding.severity === 'Critical' ? '#ff0040' :
+                  finding.severity === 'High'     ? '#ff6b35' :
+                  finding.severity === 'Medium'   ? '#ffb000' : '#00ff88';
+                const sBg =
+                  finding.severity === 'Critical' ? 'rgba(255,0,64,0.06)'   :
+                  finding.severity === 'High'     ? 'rgba(255,107,53,0.06)' :
+                  finding.severity === 'Medium'   ? 'rgba(255,176,0,0.06)'  : 'rgba(0,255,136,0.04)';
+                const riskColor =
+                  (finding.risk_score ?? 0) > 80 ? '#ff0040' :
+                  (finding.risk_score ?? 0) > 60 ? '#ff6b35' :
+                  (finding.risk_score ?? 0) > 40 ? '#ffb000' : '#00ff88';
+
+                return (
+                  <div
                     key={finding.id || index}
-                    className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:border-border/40 transition-all duration-150 cursor-pointer"
+                    style={{ backgroundColor: sBg, borderLeft: `3px solid ${sColor}` }}
                   >
-                    <TableCell>
-                      <div>
-                        <p className="font-mono text-sm">{finding.resource_name || finding.resource_arn || 'Unknown'}</p>
-                        {finding.resource_arn && finding.resource_name && (
-                          <p className="text-xs text-muted-foreground truncate max-w-xs">{finding.resource_arn}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize text-xs">
-                        {finding.finding_type || finding.type || 'N/A'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
-                          finding.severity === "High" ? "bg-[#ff6b35] text-white" :
-                          finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
-                          "bg-[#00ff88] text-black"
-                        }
-                      >
-                        {finding.severity}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm max-w-md">
-                      <p className="line-clamp-2">{finding.description || 'No description'}</p>
-                    </TableCell>
-                    <TableCell>
-                      {finding.risk_score != null ? (
-                        <span className={
-                          finding.risk_score > 80 ? "text-[#ff0040]" :
-                          finding.risk_score > 60 ? "text-[#ff6b35]" :
-                          finding.risk_score > 40 ? "text-[#ffb000]" :
-                          "text-[#00ff88]"
-                        }>
-                          {finding.risk_score}/100
+                    {/* Severity dot */}
+                    <div
+                      className="flex-shrink-0 w-2 h-2 rounded-full"
+                      style={{ backgroundColor: sColor, boxShadow: `0 0 5px ${sColor}80` }}
+                    />
+
+                    {/* Resource + description */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-foreground truncate">
+                          {finding.resource_name || finding.resource_arn?.split('/').pop() || 'Unknown Resource'}
                         </span>
-                      ) : (
-                        <span className="text-muted-foreground">--</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow className="border-border">
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {allFindings.length === 0
-                      ? 'No findings available. Run a Full Security Scan to get started.'
-                      : 'No findings match the current filters.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                        <span
+                          className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: `${sColor}20`, color: sColor }}
+                        >
+                          {finding.severity}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {finding.description || finding.finding_type || 'No description'}
+                      </p>
+                    </div>
+
+                    {/* Type badge */}
+                    <Badge
+                      variant="outline"
+                      className="hidden md:flex flex-shrink-0 text-[10px] border-border/40 text-muted-foreground font-normal"
+                    >
+                      {finding.finding_type || finding.type || 'N/A'}
+                    </Badge>
+
+                    {/* Risk score mini-bar */}
+                    {finding.risk_score != null && (
+                      <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                        <span className="text-xs font-semibold tabular-nums" style={{ color: riskColor }}>
+                          {finding.risk_score}
+                        </span>
+                        <div className="w-14 h-1 bg-muted/30 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${finding.risk_score}%`, backgroundColor: riskColor }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status */}
+                    <Badge
+                      variant="outline"
+                      className="flex-shrink-0 text-[10px] border-border/30 text-muted-foreground font-normal"
+                    >
+                      Open
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <CheckCircle className="h-10 w-10 text-[#00ff88] mb-3 opacity-50" />
+              <p className="text-sm font-medium text-foreground">No active findings</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {allFindings.length === 0
+                  ? 'Run a Full Security Scan to detect issues.'
+                  : 'No findings match the current filters.'}
+              </p>
+            </div>
+          )}
+
           {allFindings.length > 0 && (
             <FindingsTablePagination
               currentPage={currentPage}

@@ -1,42 +1,32 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Label } from "./ui/label";
-import { Skeleton } from "./ui/skeleton";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { useState, useEffect, useMemo } from "react";
 import {
   Play,
   Square,
-  Settings2,
-  Search,
-  Shield,
-  AlertTriangle,
+  ScanLine,
   RefreshCw,
   Globe,
-  User,
-  Key,
   Lock,
-  ExternalLink,
-  BadgeCheck,
+  HardDrive,
+  Users,
+  Zap,
+  Key,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 
 interface AccessAnalyzerFinding {
   id: string;
-  resource_type: "S3" | "IAM" | "Lambda" | "KMS" | "SQS";
+  resource_type: "S3" | "IAM" | "Lambda" | "KMS" | "SQS" | "Secrets Manager";
   resource_arn: string;
   resource_name: string;
   principal: string;
   finding_type: string;
-  severity: "Critical" | "High" | "Medium" | "Low";
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   description: string;
   recommendation: string;
   is_public: boolean;
@@ -65,78 +55,56 @@ interface AccessAnalyzerResult {
   completed_at?: string;
 }
 
-const mockAccessAnalyzerFindings: AccessAnalyzerFinding[] = [
-  {
-    id: "aa-001",
-    resource_type: "S3",
-    resource_arn: "arn:aws:s3:::company-backups-public",
-    resource_name: "company-backups-public",
-    principal: "arn:aws:iam::111111111111:root",
-    finding_type: "External Access",
-    severity: "Critical",
-    description: "S3 bucket allows access from external AWS accounts",
-    recommendation: "Restrict bucket policy to specific principals",
-    is_public: true,
-    last_analyzed: new Date().toISOString(),
-    risk_score: 95,
-  },
-  {
-    id: "aa-002",
-    resource_type: "IAM",
-    resource_arn: "arn:aws:iam::123456789012:role/cross-account-role",
-    resource_name: "cross-account-role",
-    principal: "*",
-    finding_type: "Cross-Account Trust",
-    severity: "High",
-    description: "IAM role can be assumed by any AWS account without external ID",
-    recommendation: "Add external ID requirement and restrict to known accounts",
-    is_public: false,
-    last_analyzed: new Date().toISOString(),
-    risk_score: 88,
-  },
-  {
-    id: "aa-003",
-    resource_type: "Lambda",
-    resource_arn: "arn:aws:lambda:us-east-1:123456789012:function:public-api",
-    resource_name: "public-api",
-    principal: "arn:aws:iam::999999999999:root",
-    finding_type: "Cross-Account Invoke",
-    severity: "High",
-    description: "Lambda function can be invoked from another AWS account",
-    recommendation: "Use resource-based policy conditions to restrict invocation",
-    is_public: false,
-    last_analyzed: new Date().toISOString(),
-    risk_score: 75,
-  },
-  {
-    id: "aa-004",
-    resource_type: "KMS",
-    resource_arn: "arn:aws:kms:us-east-1:123456789012:key/abcd-1234",
-    resource_name: "shared-encryption-key",
-    principal: "arn:aws:iam::222222222222:root",
-    finding_type: "External Key Usage",
-    severity: "Medium",
-    description: "KMS key is shared with external account for decryption",
-    recommendation: "Document cross-account key usage and implement rotation",
-    is_public: false,
-    last_analyzed: new Date().toISOString(),
-    risk_score: 60,
-  },
-  {
-    id: "aa-005",
-    resource_type: "SQS",
-    resource_arn: "arn:aws:sqs:us-east-1:123456789012:dev-queue",
-    resource_name: "dev-queue",
-    principal: "*",
-    finding_type: "Public Queue Policy",
-    severity: "Low",
-    description: "SQS queue policy allows unauthenticated access",
-    recommendation: "Restrict queue policy to IAM roles only",
-    is_public: true,
-    last_analyzed: new Date().toISOString(),
-    risk_score: 35,
-  },
+const mockFindings: AccessAnalyzerFinding[] = [
+  { id: "aa-001", resource_type: "S3", resource_arn: "arn:aws:s3:::marketing-assets-prod", resource_name: "marketing-assets-prod", principal: "*", finding_type: "Public Access via Bucket Policy", severity: "CRITICAL", description: "S3 bucket marketing-assets-prod has a bucket policy granting s3:GetObject to Principal:* — any unauthenticated user can download all objects.", recommendation: "Remove public s3:GetObject grant. Enable S3 Block Public Access at bucket and account level. Use CloudFront with OAC for public content delivery.", is_public: true, last_analyzed: "2024-01-15T10:00:00Z", risk_score: 10 },
+  { id: "aa-002", resource_type: "S3", resource_arn: "arn:aws:s3:::data-backups-prod", resource_name: "data-backups-prod", principal: "arn:aws:iam::111122223333:root", finding_type: "Cross-Account Read Access", severity: "HIGH", description: "Bucket data-backups-prod grants s3:GetObject and s3:ListBucket to external AWS account 111122223333. This account is not in your organization.", recommendation: "Verify whether cross-account access is intentional. If not, remove the bucket policy statement. If intentional, add SCP restrictions.", is_public: false, last_analyzed: "2024-01-15T09:30:00Z", risk_score: 8 },
+  { id: "aa-003", resource_type: "IAM", resource_arn: "arn:aws:iam::123456789012:role/AnalyticsPartnerRole", resource_name: "AnalyticsPartnerRole", principal: "arn:aws:iam::222233334444:root", finding_type: "Role Assumable by External Account", severity: "HIGH", description: "IAM role AnalyticsPartnerRole has a trust policy allowing sts:AssumeRole from external account 222233334444 with no conditions. The role has ReadOnlyAccess + s3:GetObject on sensitive buckets.", recommendation: "Add ExternalId condition key to prevent confused deputy. Limit trust to specific principal ARN (not account root). Enable CloudTrail to audit all assume-role events.", is_public: false, last_analyzed: "2024-01-14T16:00:00Z", risk_score: 8 },
+  { id: "aa-004", resource_type: "KMS", resource_arn: "arn:aws:kms:us-east-1:123456789012:key/mrk-1234abcd", resource_name: "payment-encryption-key", principal: "arn:aws:iam::333344445555:root", finding_type: "KMS Key Shared with External Account", severity: "HIGH", description: "Customer-managed KMS key payment-encryption-key grants kms:Decrypt and kms:GenerateDataKey to external account 333344445555. This key encrypts payment processing data.", recommendation: "Review whether external access is required. Consider creating a separate KMS key for cross-account use. Enable KMS CloudTrail logging for all key usage.", is_public: false, last_analyzed: "2024-01-14T12:00:00Z", risk_score: 8 },
+  { id: "aa-005", resource_type: "Lambda", resource_arn: "arn:aws:lambda:us-east-1:123456789012:function:data-processor", resource_name: "data-processor", principal: "*", finding_type: "Public Lambda Invocation", severity: "HIGH", description: "Lambda function data-processor has a resource-based policy allowing lambda:InvokeFunction from Principal:* — any AWS account or unauthenticated user can invoke this function.", recommendation: "Remove the public invocation grant. Use API Gateway with authentication, or restrict Lambda invocation to specific principals using resource-based policies.", is_public: true, last_analyzed: "2024-01-13T14:00:00Z", risk_score: 7 },
+  { id: "aa-006", resource_type: "SQS", resource_arn: "arn:aws:sqs:us-east-1:123456789012:notification-queue", resource_name: "notification-queue", principal: "*", finding_type: "SQS Queue Publicly Accessible", severity: "MEDIUM", description: "SQS queue notification-queue allows sqs:SendMessage from Principal:* — any AWS principal can inject messages into this queue, potentially causing unauthorized processing.", recommendation: "Restrict SQS policy to specific IAM principals. Add aws:PrincipalOrgID condition to limit to your organization. Enable SQS dead-letter queue for poison message monitoring.", is_public: true, last_analyzed: "2024-01-12T10:00:00Z", risk_score: 6 },
+  { id: "aa-007", resource_type: "Secrets Manager", resource_arn: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/db-credentials", resource_name: "prod/db-credentials", principal: "arn:aws:iam::444455556666:role/DevOpsTeam", finding_type: "Secret Shared Cross-Account", severity: "HIGH", description: "Secrets Manager secret prod/db-credentials grants secretsmanager:GetSecretValue to an external account role. This secret contains production database credentials.", recommendation: "Remove cross-account access. Share secrets via AWS Secrets Manager replication or use separate secrets per account. Rotate the secret immediately.", is_public: false, last_analyzed: "2024-01-11T08:00:00Z", risk_score: 8 },
+  { id: "aa-008", resource_type: "IAM", resource_arn: "arn:aws:iam::123456789012:user/report-generator", resource_name: "report-generator", principal: "internal", finding_type: "Unused Access — 94 Days", severity: "LOW", description: "IAM user report-generator has been granted s3:GetObject on 12 buckets but has not accessed any S3 resource in 94 days. Unused permissions expand blast radius.", recommendation: "Use IAM Access Analyzer policy generation to create a minimal policy based on actual CloudTrail usage. Remove unused bucket permissions.", is_public: false, last_analyzed: "2024-01-10T06:00:00Z", risk_score: 3 },
 ];
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const SEV_COLOR: Record<string, string> = {
+  CRITICAL: "#ff0040",
+  HIGH: "#ff6b35",
+  MEDIUM: "#ffb000",
+  LOW: "#00ff88",
+};
+
+function sevColor(s: string) {
+  return SEV_COLOR[s.toUpperCase()] ?? "#64748b";
+}
+
+function relativeTime(iso?: string): string {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function ResourceIcon({ type }: { type: string }) {
+  const props = { size: 14, color: "rgba(100,116,139,0.7)" };
+  switch (type) {
+    case "S3": return <HardDrive {...props} />;
+    case "IAM": return <Users {...props} />;
+    case "Lambda": return <Zap {...props} />;
+    case "KMS": return <Key {...props} />;
+    case "SQS": return <MessageSquare {...props} />;
+    case "Secrets Manager": return <Lock {...props} />;
+    default: return <HardDrive {...props} />;
+  }
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 export function AccessAnalyzer() {
   const [scanResult, setScanResult] = useState<AccessAnalyzerResult | null>(null);
@@ -145,6 +113,10 @@ export function AccessAnalyzer() {
   const [selectedRegion, setSelectedRegion] = useState("us-east-1");
   const [loading, setLoading] = useState(false);
   const [analyzerType, setAnalyzerType] = useState<"account" | "organization">("account");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const { addScanResult } = useScanResults();
 
   useEffect(() => {
@@ -175,28 +147,18 @@ export function AccessAnalyzer() {
         account_id: "",
         region: selectedRegion,
         findings: [],
-        scan_summary: {
-          total_findings: 0,
-          critical_findings: 0,
-          high_findings: 0,
-          medium_findings: 0,
-          low_findings: 0,
-          public_resources: 0,
-          external_access_findings: 0,
-          unused_findings: 0,
-        },
+        scan_summary: { total_findings: 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0, public_resources: 0, external_access_findings: 0, unused_findings: 0 },
       });
 
       const response: ScanResponse = await scanIAM(selectedRegion);
 
-      // Use response if it has access analyzer data, else use mock for demo
-      const findings = response.results?.access_analyzer?.findings ?? mockAccessAnalyzerFindings;
+      const findings = response.results?.access_analyzer?.findings ?? mockFindings;
       const summary = response.results?.access_analyzer?.scan_summary ?? {
         total_findings: findings.length,
-        critical_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "Critical").length,
-        high_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "High").length,
-        medium_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "Medium").length,
-        low_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "Low").length,
+        critical_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "CRITICAL").length,
+        high_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "HIGH").length,
+        medium_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "MEDIUM").length,
+        low_findings: findings.filter((f: AccessAnalyzerFinding) => f.severity === "LOW").length,
         public_resources: findings.filter((f: AccessAnalyzerFinding) => f.is_public).length,
         external_access_findings: findings.length,
         unused_findings: 0,
@@ -225,30 +187,28 @@ export function AccessAnalyzer() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setIsScanning(false);
-      // Demo fallback - show mock results
+      const findings = mockFindings;
       setScanResult({
         scan_id: `aa-${Date.now()}`,
         status: "Completed",
         progress: 100,
         account_id: "123456789012",
         region: selectedRegion,
-        findings: mockAccessAnalyzerFindings,
+        findings,
         scan_summary: {
-          total_findings: mockAccessAnalyzerFindings.length,
-          critical_findings: 1,
-          high_findings: 2,
-          medium_findings: 1,
-          low_findings: 1,
-          public_resources: 2,
-          external_access_findings: 5,
-          unused_findings: 0,
+          total_findings: findings.length,
+          critical_findings: findings.filter((f) => f.severity === "CRITICAL").length,
+          high_findings: findings.filter((f) => f.severity === "HIGH").length,
+          medium_findings: findings.filter((f) => f.severity === "MEDIUM").length,
+          low_findings: findings.filter((f) => f.severity === "LOW").length,
+          public_resources: findings.filter((f) => f.is_public).length,
+          external_access_findings: findings.filter((f) => f.principal !== "internal").length,
+          unused_findings: findings.filter((f) => f.principal === "internal").length,
         },
         started_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
       });
-      toast.success("Access Analyzer scan completed (demo mode)", {
-        description: "Showing sample findings for demo",
-      });
+      toast.success("Access Analyzer scan completed (demo mode)", { description: "Showing sample findings for demo" });
     }
   };
 
@@ -258,276 +218,345 @@ export function AccessAnalyzer() {
     toast.warning("Access Analyzer scan stopped");
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "Critical":
-        return "bg-[#ff0040] text-white";
-      case "High":
-        return "bg-[#ff6b35] text-white";
-      case "Medium":
-        return "bg-[#ffb000] text-black";
-      case "Low":
-        return "bg-[#00ff88] text-black";
-      default:
-        return "bg-gray-500 text-white";
-    }
+  const filteredFindings = useMemo(() => {
+    if (!scanResult?.findings?.length) return [];
+    const q = searchTerm.trim().toLowerCase();
+    return scanResult.findings.filter((f) => {
+      if (severityFilter !== "all" && f.severity !== severityFilter) return false;
+      if (typeFilter !== "all" && f.resource_type !== typeFilter) return false;
+      if (q) {
+        const blob = [f.id, f.resource_name, f.resource_arn, f.finding_type, f.description, f.principal].join(" ").toLowerCase();
+        if (!blob.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [scanResult, severityFilter, typeFilter, searchTerm]);
+
+  // ── styles ─────────────────────────────────────────────────────────────────
+  const card: React.CSSProperties = {
+    background: "rgba(15,23,42,0.6)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    padding: 20,
   };
 
-  const getResourceIcon = (type: string) => {
-    switch (type) {
-      case "S3":
-        return <Globe className="h-4 w-4" />;
-      case "IAM":
-        return <User className="h-4 w-4" />;
-      case "Lambda":
-        return <Key className="h-4 w-4" />;
-      case "KMS":
-        return <Lock className="h-4 w-4" />;
-      case "SQS":
-        return <Search className="h-4 w-4" />;
-      default:
-        return <Shield className="h-4 w-4" />;
-    }
+  const sectionLabel: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 600,
+    color: "rgba(51,65,85,0.9)",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    fontFamily: "'JetBrains Mono', monospace",
+    marginBottom: 10,
   };
+
+  const chip = (active: boolean, color?: string): React.CSSProperties => ({
+    padding: "3px 10px",
+    borderRadius: 999,
+    fontSize: 11,
+    cursor: "pointer",
+    border: active ? `1px solid ${color ?? "rgba(0,255,136,0.4)"}` : "1px solid rgba(255,255,255,0.08)",
+    background: active ? (color ? `${color}18` : "rgba(0,255,136,0.08)") : "rgba(255,255,255,0.03)",
+    color: active ? (color ?? "#00ff88") : "rgba(100,116,139,0.8)",
+    fontFamily: "'JetBrains Mono', monospace",
+    transition: "all 0.15s",
+    userSelect: "none" as const,
+  });
+
+  const monoText: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
+
+  const findings = scanResult?.findings ?? [];
+  const publicCount = findings.filter((f) => f.is_public).length;
+  const crossAccountCount = findings.filter((f) => !f.is_public && f.principal !== "internal").length;
+  const unusedCount = findings.filter((f) => f.principal === "internal").length;
+  const sensitiveCount = findings.filter((f) => f.resource_type === "KMS" || f.resource_type === "Secrets Manager").length;
 
   return (
-    <div className="p-6 space-y-6">
-      <DemoModeBanner />
+    <div style={{ padding: 24, maxWidth: 1280, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
 
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BadgeCheck className="h-5 w-5 text-primary" />
-            IAM Access Analyzer
-            <Badge variant="outline" className="ml-2 border-[#00ff88] text-[#00ff88] text-xs">
-              Free
-            </Badge>
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Find unintended resource sharing using AWS IAM Access Analyzer. Analyzes resource-based policies for external access.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <Label>AWS Region</Label>
-              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                <SelectTrigger className="bg-input border-border mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="us-east-1">US East (N. Virginia)</SelectItem>
-                  <SelectItem value="us-west-2">US West (Oregon)</SelectItem>
-                  <SelectItem value="eu-west-1">Europe (Ireland)</SelectItem>
-                  <SelectItem value="ap-southeast-1">Asia Pacific (Singapore)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Analyzer Type</Label>
-              <Select value={analyzerType} onValueChange={(v: "account" | "organization") => setAnalyzerType(v)}>
-                <SelectTrigger className="bg-input border-border mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="account">Account</SelectItem>
-                  <SelectItem value="organization">Organization</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Resource Types</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Badge variant="outline">S3</Badge>
-                <Badge variant="outline">IAM</Badge>
-                <Badge variant="outline">Lambda</Badge>
-                <Badge variant="outline">KMS</Badge>
-                <Badge variant="outline">SQS</Badge>
-              </div>
-            </div>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ScanLine size={20} color="#00ff88" />
           </div>
-
-          <div className="flex gap-4">
-            <Button
-              onClick={handleStartScan}
-              disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em" }}>Access Analyzer</h1>
+            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.7)", margin: 0, marginTop: 2 }}>
+              External access findings — public resources, cross-account access, and unused permissions
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Analyzer type chips */}
+          <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: 3 }}>
+            {(["account", "organization"] as const).map((t) => (
+              <span
+                key={t}
+                onClick={() => setAnalyzerType(t)}
+                style={{ padding: "4px 12px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: analyzerType === t ? "rgba(0,255,136,0.1)" : "transparent", color: analyzerType === t ? "#00ff88" : "rgba(100,116,139,0.6)", border: analyzerType === t ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", transition: "all 0.15s" }}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </span>
+            ))}
+          </div>
+          <select
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
+          >
+            <option value="us-east-1">us-east-1</option>
+            <option value="us-west-2">us-west-2</option>
+            <option value="eu-west-1">eu-west-1</option>
+            <option value="ap-southeast-1">ap-southeast-1</option>
+          </select>
+          <button
+            onClick={handleStartScan}
+            disabled={isScanning}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 13, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer", opacity: isScanning ? 0.7 : 1 }}
+          >
+            {isScanning ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={14} />}
+            {isScanning ? "Scanning…" : "Scan"}
+          </button>
+          {isScanning && (
+            <button
+              onClick={handleStopScan}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: "rgba(255,0,64,0.08)", border: "1px solid rgba(255,0,64,0.25)", color: "#ff0040", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
             >
-              <Play className="h-4 w-4 mr-2" />
-              {isScanning ? "Analyzing..." : "Start Access Analyzer Scan"}
-            </Button>
-            {isScanning && (
-              <Button variant="destructive" onClick={handleStopScan}>
-                <Square className="h-4 w-4 mr-2" />
-                Stop Scan
-              </Button>
-            )}
-            <Button variant="outline" className="border-border">
-              <Settings2 className="h-4 w-4 mr-2" />
-              Advanced
-            </Button>
+              <Square size={14} />
+              Stop
+            </button>
+          )}
+          <button
+            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
+          >
+            <RefreshCw size={13} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* ── Progress bar while scanning ──────────────────────────────────── */}
+      {isScanning && (
+        <div style={{ ...card, padding: "12px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ ...monoText, fontSize: 11, color: "#00ff88" }}>Analyzing resource-based policies…</span>
+            <span style={{ ...monoText, fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{scanResult?.progress ?? 0}%</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <Alert className="border-destructive bg-destructive/10">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${scanResult?.progress ?? 30}%`, background: "linear-gradient(90deg, #00ff88, #00cc6a)", borderRadius: 2, transition: "width 0.4s ease" }} />
+          </div>
+        </div>
       )}
 
-      {(isScanning || scanResult) && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Access Analyzer Results</span>
-              <div className="flex items-center gap-2">
-                {scanResult && (
-                  <Button variant="ghost" size="icon" onClick={() => setLoading(!loading)} disabled={loading}>
-                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                  </Button>
-                )}
-                <Badge
-                  className={
-                    isScanning
-                      ? "bg-[#ffb000] text-black"
-                      : scanResult?.status === "Completed"
-                        ? "bg-[#00ff88] text-black"
-                        : "bg-[#ff0040] text-white"
-                  }
-                >
-                  {isScanning ? "In Progress" : scanResult?.status || "No Scan"}
-                </Badge>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Progress value={scanResult?.progress || 0} className="h-3 mb-4" />
-            {scanResult?.status === "Completed" && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="cyber-glass p-3 rounded-lg text-center">
-                  <p className="text-lg font-medium text-[#ff0040]">{scanResult.scan_summary.critical_findings}</p>
-                  <p className="text-xs text-muted-foreground">Critical</p>
-                </div>
-                <div className="cyber-glass p-3 rounded-lg text-center">
-                  <p className="text-lg font-medium text-[#ff6b35]">{scanResult.scan_summary.high_findings}</p>
-                  <p className="text-xs text-muted-foreground">High</p>
-                </div>
-                <div className="cyber-glass p-3 rounded-lg text-center">
-                  <p className="text-lg font-medium text-[#ffb000]">{scanResult.scan_summary.medium_findings}</p>
-                  <p className="text-xs text-muted-foreground">Medium</p>
-                </div>
-                <div className="cyber-glass p-3 rounded-lg text-center">
-                  <p className="text-lg font-medium text-[#00ff88]">{scanResult.scan_summary.public_resources}</p>
-                  <p className="text-xs text-muted-foreground">Public</p>
-                </div>
-              </div>
+      {/* ── Error ────────────────────────────────────────────────────────── */}
+      {error && !scanResult && (
+        <div style={{ ...card, border: "1px solid rgba(255,0,64,0.2)", background: "rgba(255,0,64,0.05)", padding: "12px 16px" }}>
+          <span style={{ color: "#ff0040", fontSize: 13 }}>⚠ {error}</span>
+        </div>
+      )}
+
+      {/* ── Stat cards ───────────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+        {[
+          { label: "Total Findings", value: findings.length, color: "#e2e8f0" },
+          { label: "Public Resources", value: publicCount, color: "#ff0040" },
+          { label: "Cross-Account", value: crossAccountCount, color: "#ff6b35" },
+          { label: "Unused Access", value: unusedCount, color: "#64748b" },
+          { label: "Secrets / Keys", value: sensitiveCount, color: "#ffb000" },
+        ].map((s) => (
+          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
+            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>{s.label}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── External access risk banner ──────────────────────────────────── */}
+      {scanResult && (publicCount + crossAccountCount) > 0 && (
+        <div style={{ borderRadius: 8, padding: "12px 18px", background: "rgba(255,0,64,0.06)", border: "1px solid rgba(255,0,64,0.18)", display: "flex", alignItems: "center", gap: 12 }}>
+          <Globe size={18} color="#ff0040" />
+          <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>
+            {publicCount + crossAccountCount} resource{(publicCount + crossAccountCount) !== 1 ? "s" : ""} accessible from outside your account
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginLeft: 4 }}>
+            — {publicCount} public, {crossAccountCount} cross-account
+          </span>
+        </div>
+      )}
+
+      {/* ── Filter bar ───────────────────────────────────────────────────── */}
+      {scanResult && (
+        <div style={{ ...card, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={sectionLabel}>Severity</span>
+              {["all", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map((s) => (
+                <span key={s} onClick={() => setSeverityFilter(s)} style={chip(severityFilter === s, s !== "all" ? sevColor(s) : undefined)}>
+                  {s === "all" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+                </span>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={sectionLabel}>Resource</span>
+              {["all", "S3", "IAM", "Lambda", "KMS", "SQS", "Secrets Manager"].map((t) => (
+                <span key={t} onClick={() => setTypeFilter(t)} style={chip(typeFilter === t)}>
+                  {t === "all" ? "All" : t}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search findings…"
+                style={{ ...monoText, width: "100%", padding: "7px 10px 7px 30px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            {(searchTerm || severityFilter !== "all" || typeFilter !== "all") && (
+              <button onClick={() => { setSearchTerm(""); setSeverityFilter("all"); setTypeFilter("all"); }} style={{ ...chip(false), padding: "6px 12px" }}>Clear</button>
             )}
-          </CardContent>
-        </Card>
+            <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {filteredFindings.length} finding{filteredFindings.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
       )}
 
-      {scanResult && scanResult.findings.length > 0 && (
-        <Card className="cyber-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-primary" />
-              Policy Findings ({scanResult.findings.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="findings" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="findings">Findings</TabsTrigger>
-                <TabsTrigger value="summary">Summary</TabsTrigger>
-              </TabsList>
-              <TabsContent value="findings" className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border">
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Finding</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Public</TableHead>
-                      <TableHead>Recommendation</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 4 }).map((_, i) => (
-                        <TableRow key={i} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-40 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-12 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      scanResult.findings.map((f) => (
-                        <TableRow key={f.id} className="border-border hover:bg-accent/10 transition-colors">
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getResourceIcon(f.resource_type)}
-                              <div>
-                                <p className="font-mono text-sm">{f.resource_name}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">{f.resource_arn}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell><Badge variant="outline">{f.resource_type}</Badge></TableCell>
-                          <TableCell>
-                            <p className="font-medium text-sm">{f.finding_type}</p>
-                            <p className="text-xs text-muted-foreground">{f.description}</p>
-                          </TableCell>
-                          <TableCell><Badge className={getSeverityColor(f.severity)}>{f.severity}</Badge></TableCell>
-                          <TableCell>
-                            {f.is_public ? (
-                              <Badge variant="outline" className="border-[#ff0040] text-[#ff0040]">Yes</Badge>
-                            ) : (
-                              <Badge variant="outline" className="border-[#00ff88] text-[#00ff88]">No</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm max-w-xs">{f.recommendation}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-              <TabsContent value="summary" className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Globe className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_findings}</p>
-                    <p className="text-sm text-muted-foreground">Total Findings</p>
+      {/* ── Findings table ───────────────────────────────────────────────── */}
+      {scanResult && (
+        <div style={card}>
+          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={sectionLabel}>Access Analyzer Findings</span>
+            <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {scanResult.account_id} · {scanResult.region}
+            </span>
+          </div>
+
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "6px 12px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+            <div />
+            {["Type", "Resource", "Finding", "Public", "Risk", "Analyzed"].map((h) => (
+              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {filteredFindings.length === 0 ? (
+            <div style={{ padding: "48px 24px", textAlign: "center" }}>
+              <ScanLine size={36} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
+              <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13, margin: 0 }}>No findings match the current filters</p>
+            </div>
+          ) : (
+            filteredFindings.map((finding) => {
+              const isExpanded = expandedRow === finding.id;
+              const sc = sevColor(finding.severity);
+
+              return (
+                <div key={finding.id}>
+                  {/* Main row */}
+                  <div
+                    onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+                    style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "10px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
+                    onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
+                    onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                  >
+                    {/* Severity bar */}
+                    <div style={{ position: "relative", height: "100%", minHeight: 36 }}>
+                      <div style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 4, borderRadius: "0 2px 2px 0", background: sc }} />
+                    </div>
+
+                    {/* Resource type badge */}
+                    <div>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
+                        <ResourceIcon type={finding.resource_type} />
+                        {finding.resource_type}
+                      </span>
+                    </div>
+
+                    {/* Resource name + ARN + principal */}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.resource_name}</span>
+                        {isExpanded ? <ChevronUp size={12} color="rgba(100,116,139,0.5)" /> : <ChevronDown size={12} color="rgba(100,116,139,0.5)" />}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{finding.resource_arn}</div>
+                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                        {finding.principal.length > 40 ? finding.principal.slice(0, 38) + "…" : finding.principal}
+                      </div>
+                    </div>
+
+                    {/* Finding type */}
+                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", lineHeight: 1.4 }}>{finding.finding_type}</div>
+
+                    {/* Public indicator */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      {finding.is_public ? (
+                        <Globe size={15} color="#ff0040" />
+                      ) : (
+                        <Lock size={15} color="#00ff88" />
+                      )}
+                      <span style={{ fontSize: 10, color: finding.is_public ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                        {finding.is_public ? "Public" : "Private"}
+                      </span>
+                    </div>
+
+                    {/* Risk score */}
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: sc }}>
+                      {finding.risk_score}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontWeight: 400 }}>/10</span>
+                    </div>
+
+                    {/* Last analyzed */}
+                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {relativeTime(finding.last_analyzed)}
+                    </div>
                   </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <ExternalLink className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.external_access_findings}</p>
-                    <p className="text-sm text-muted-foreground">External Access</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.public_resources}</p>
-                    <p className="text-sm text-muted-foreground">Public Resources</p>
-                  </div>
-                  <div className="cyber-glass p-4 rounded-lg text-center">
-                    <AlertTriangle className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">
-                      {scanResult.scan_summary.critical_findings + scanResult.scan_summary.high_findings}
-                    </p>
-                    <p className="text-sm text-muted-foreground">High Priority</p>
-                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div style={{ margin: "0 12px 10px 16px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ ...sectionLabel, marginBottom: 6 }}>Description</div>
+                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
+                      </div>
+                      <div style={{ padding: "10px 14px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
+                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 6 }}>Recommendation</div>
+                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ ...sectionLabel, marginBottom: 0 }}>Principal Details</div>
+                        <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(100,116,139,0.7)", fontFamily: "'JetBrains Mono', monospace", display: "inline-block", wordBreak: "break-all" }}>
+                          {finding.principal}
+                        </span>
+                      </div>
+                      <div style={{ padding: "8px 12px", background: "rgba(100,116,139,0.05)", border: "1px solid rgba(100,116,139,0.1)", borderRadius: 4 }}>
+                        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)" }}>
+                          Compliance note: This finding may violate CIS AWS Foundations Benchmark controls for resource-based policy security and least-privilege access.
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+              );
+            })
+          )}
+        </div>
       )}
+
+      {/* ── Empty state (pre-scan) ────────────────────────────────────────── */}
+      {!scanResult && !isScanning && (
+        <div style={{ ...card, padding: "60px 24px", textAlign: "center" }}>
+          <ScanLine size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
+          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 6 }}>Run a scan to find external access findings and public resources</p>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
