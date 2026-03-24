@@ -115,7 +115,9 @@ export function DashboardApp() {
         <div className="flex flex-1 overflow-hidden">
           <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <main className="flex-1 overflow-auto">
-            {renderContent()}
+            <div className="mx-auto max-w-screen-2xl">
+              {renderContent()}
+            </div>
           </main>
         </div>
         <Toaster
