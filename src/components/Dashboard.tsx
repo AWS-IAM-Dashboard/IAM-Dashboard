@@ -8,11 +8,14 @@ import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
-import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData, type SecurityAlert } from "../services/api";
+import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 import { toast } from "sonner";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
+import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFilteredPaginatedData";
+import { FindingsTableToolbar } from "./FindingsTableToolbar";
+import { FindingsTablePagination } from "./FindingsTablePagination";
 
 interface DashboardProps {
   onNavigate?: (tab: string) => void;
@@ -79,7 +82,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const scanIntervalRef = useRef<number | null>(null);
   const { addScanResult, getAllScanResults, scanResults: scanResultsMap, scanResultsVersion } = useScanResults();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
+  
   const [stats, setStats] = useState({
     last_scan: "Never",
     total_resources: 0,
@@ -210,27 +213,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         last_scan: mostRecentScan.timestamp ? formatTimestamp(mostRecentScan.timestamp) : "Recently"
       }));
       
-      // Generate security alerts from the most recent scan's findings only
-      const scanFindings = mostRecentScan.findings || [];
-      const alerts: SecurityAlert[] = scanFindings
-        .slice(0, 20) // Take top 20 findings
-        .sort((a, b) => {
-          const severityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 };
-          return (severityOrder[b.severity as keyof typeof severityOrder] || 0) - 
-                 (severityOrder[a.severity as keyof typeof severityOrder] || 0);
-        })
-        .slice(0, 5) // Show top 5
-        .map((finding, index) => ({
-          id: finding.id || `${mostRecentScan.scanner_type || 'scan'}-${index}`,
-          service: finding.scanner_type === 'iam' ? 'IAM' : mostRecentScan.scanner_type?.toUpperCase() || 'AWS',
-          resource: finding.resource_name || finding.resource_arn || 'Unknown',
-          severity: (finding.severity as 'Critical' | 'High' | 'Medium' | 'Low') || 'Medium',
-          message: finding.description || finding.finding_type || 'Security finding detected',
-          timestamp: mostRecentScan.timestamp || new Date().toISOString()
-        }));
-      
-      setSecurityAlerts(alerts);
-      
     } else {
       // Reset to neutral state when no scan results
       setStats({
@@ -243,7 +225,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         medium_findings: 0,
         cost_savings: 0
       });
-      setSecurityAlerts([]);
     }
   }, [scanResults, scanResultsVersion]); // Re-run when scan results version changes
 
@@ -290,8 +271,52 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   // Memoize filtered pie data to avoid recalculating filter on every render
   const filteredPieData = useMemo(() => pieData.filter(d => d.value > 0), [pieData]);
 
-  // Get recent security activity
-  const recentActivity = securityAlerts.slice(0, 5);
+  // Extract ALL findings from the most recent scan for the filterable table
+  const allFindings = useMemo(() => {
+    if (scanResults.length === 0) return [];
+    const sortedScans = [...scanResults].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      if (a.scanner_type === 'full') return -1;
+      if (b.scanner_type === 'full') return 1;
+      return 0;
+    });
+    return sortedScans[0].findings || [];
+  }, [scanResults, scanResultsVersion]);
+
+  const findingsFilterDefs: FilterDefinition[] = useMemo(() => {
+    const severities = [...new Set(allFindings.map((f: any) => f.severity).filter(Boolean))];
+    const types = [...new Set(allFindings.map((f: any) => f.finding_type || f.type).filter(Boolean))];
+    return [
+      { key: 'severity', label: 'Severity', options: severities as string[] },
+      { key: 'finding_type', label: 'Type', options: types as string[] },
+    ];
+  }, [allFindings]);
+
+  const {
+    paginatedData: paginatedFindings,
+    totalFiltered,
+    totalItems,
+    currentPage,
+    totalPages,
+    setPage,
+    searchQuery,
+    setSearchQuery,
+    filters,
+    setFilter,
+    resetFilters,
+    dateRange,
+    setDateRange,
+    pageSize,
+    setPageSize,
+    activeFilterCount,
+  } = useFilteredPaginatedData(allFindings, {
+    searchableFields: ['resource_name', 'resource_arn', 'finding_type', 'description', 'id', 'type'],
+    filterDefinitions: findingsFilterDefs,
+    dateField: 'created_date',
+    defaultPageSize: 10,
+  });
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -808,77 +833,121 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         </Card>
       </div>
 
-      {/* Recent Activity */}
+      {/* Security Findings Table */}
       <Card className="cyber-card">
         <CardHeader>
-          <CardTitle>Recent Security Alerts</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Security Findings {allFindings.length > 0 && `(${allFindings.length})`}
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <FindingsTableToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={filters}
+            onFilterChange={setFilter}
+            onResetFilters={resetFilters}
+            filterDefinitions={findingsFilterDefs}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            dateFieldLabel="Created"
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            totalFiltered={totalFiltered}
+            totalItems={totalItems}
+            currentPage={currentPage}
+            activeFilterCount={activeFilterCount}
+          />
           <Table>
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead>Service</TableHead>
                 <TableHead>Resource</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Severity</TableHead>
-                <TableHead>Message</TableHead>
-                <TableHead>Timestamp</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Risk Score</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {statsLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={index} className="border-border">
-                    <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
                   </TableRow>
                 ))
-              ) : recentActivity.length > 0 ? (
-                recentActivity.map((item) => (
-                  <TableRow 
-                    key={item.id} 
+              ) : paginatedFindings.length > 0 ? (
+                paginatedFindings.map((finding: any, index: number) => (
+                  <TableRow
+                    key={finding.id || index}
                     className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
-                    onClick={() => {
-                      if (item.severity === "Critical" || item.severity === "High") {
-                        onNavigate?.('alerts');
-                      } else {
-                        onNavigate?.(`${item.service.toLowerCase()}-security`);
-                      }
-                    }}
                   >
                     <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {item.service}
+                      <div>
+                        <p className="font-mono text-sm">{finding.resource_name || finding.resource_arn || 'Unknown'}</p>
+                        {finding.resource_arn && finding.resource_name && (
+                          <p className="text-xs text-muted-foreground truncate max-w-xs">{finding.resource_arn}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize text-xs">
+                        {finding.finding_type || finding.type || 'N/A'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{item.resource}</TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         className={
-                          item.severity === "Critical" ? "bg-[#ff0040] text-white" :
-                          item.severity === "High" ? "bg-[#ff6b35] text-white" :
-                          item.severity === "Medium" ? "bg-[#ffb000] text-black" :
+                          finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
+                          finding.severity === "High" ? "bg-[#ff6b35] text-white" :
+                          finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
                           "bg-[#00ff88] text-black"
                         }
                       >
-                        {item.severity}
+                        {finding.severity}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{item.message}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{item.timestamp}</TableCell>
+                    <TableCell className="text-sm max-w-md">
+                      <p className="line-clamp-2">{finding.description || 'No description'}</p>
+                    </TableCell>
+                    <TableCell>
+                      {finding.risk_score != null ? (
+                        <span className={
+                          finding.risk_score > 80 ? "text-[#ff0040]" :
+                          finding.risk_score > 60 ? "text-[#ff6b35]" :
+                          finding.risk_score > 40 ? "text-[#ffb000]" :
+                          "text-[#00ff88]"
+                        }>
+                          {finding.risk_score}/100
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">--</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow className="border-border">
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No recent security alerts. All systems appear secure.
+                    {allFindings.length === 0
+                      ? 'No findings available. Run a Full Security Scan to get started.'
+                      : 'No findings match the current filters.'}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          {allFindings.length > 0 && (
+            <FindingsTablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
