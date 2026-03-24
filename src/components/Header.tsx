@@ -59,6 +59,8 @@ export function Header({ onNavigate }: HeaderProps) {
   const handleSignOut = async () => {
     auth.signOut();
     window.location.assign("/login");
+  };
+
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const { getAllScanResults, scanResultsVersion } = useScanResults();
@@ -352,5 +354,4 @@ export function Header({ onNavigate }: HeaderProps) {
       </div>
     </header>
   );
-}
 }
