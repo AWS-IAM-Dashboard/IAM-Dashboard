@@ -8,11 +8,8 @@ import { AWSConfig } from "../components/AWSConfig";
 import { Inspector } from "../components/Inspector";
 import { Macie } from "../components/Macie";
 import { AWSIAMScan } from "../components/AWSIAMScan";
-import { AccessAnalyzer } from "../components/AccessAnalyzer";
 import { EC2Security } from "../components/EC2Security";
 import { S3Security } from "../components/S3Security";
-import { VPCSecurity } from "../components/VPCSecurity";
-import { DynamoDBSecurity } from "../components/DynamoDBSecurity";
 import { GrafanaIntegration } from "../components/GrafanaIntegration";
 import { CloudSecurityAlerts } from "../components/CloudSecurityAlerts";
 import { Reports } from "../components/Reports";
@@ -21,10 +18,14 @@ import { ComplianceDashboard } from "../components/ComplianceDashboard";
 import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
+import { useIsMobile } from "../components/ui/use-mobile";
+import { Sheet, SheetContent } from "../components/ui/sheet";
 
 export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
@@ -46,20 +47,32 @@ export function DashboardApp() {
         return <Macie />;
       case "iam-security":
         return <AWSIAMScan />;
-      case "access-analyzer":
-        return <AccessAnalyzer />;
       case "ec2-security":
         return <EC2Security />;
       case "s3-security":
         return <S3Security />;
-      case "vpc-security":
-        return <VPCSecurity />;
-      case "dynamodb-security":
-        return <DynamoDBSecurity />;
       case "network-security":
-        return <VPCSecurity />;
+        return (
+          <div className="p-6">
+            <div className="cyber-card p-8 text-center">
+              <h2 className="mb-4 text-xl">VPC & Network Security</h2>
+              <p className="text-muted-foreground">
+                Network security scanning coming soon...
+              </p>
+            </div>
+          </div>
+        );
       case "database-security":
-        return <DynamoDBSecurity />;
+        return (
+          <div className="p-6">
+            <div className="cyber-card p-8 text-center">
+              <h2 className="mb-4 text-xl">RDS & Database Security</h2>
+              <p className="text-muted-foreground">
+                Database security scanning coming soon...
+              </p>
+            </div>
+          </div>
+        );
       case "lambda-security":
         return (
           <div className="p-6">
@@ -108,14 +121,36 @@ export function DashboardApp() {
     }
   };
 
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   return (
     <ScanResultsProvider>
       <div className="flex h-screen flex-col bg-background dark">
-        <Header onNavigate={setActiveTab} />
+        <Header
+          onNavigate={handleTabChange}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+          showMenuButton={isMobile}
+        />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+          {!isMobile && <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />}
+
+          {isMobile && (
+            <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+              <SheetContent side="left" className="w-72 p-0 sm:max-w-none">
+                <Sidebar activeTab={activeTab} onTabChange={handleTabChange} className="h-full w-full border-r-0" />
+              </SheetContent>
+            </Sheet>
+          )}
+
           <main className="flex-1 overflow-auto">
-            {renderContent()}
+            <div className="mx-auto max-w-screen-2xl">
+              {renderContent()}
+            </div>
           </main>
         </div>
         <Toaster

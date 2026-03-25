@@ -27,10 +27,11 @@ import {
   FileText,
   Database
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanS3, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface S3SecurityFinding {
   id: string;
@@ -329,11 +330,66 @@ export function S3Security() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Tour: no scan yet */}
+      {!isScanning && !scanResult && (
+        <PageTour
+          welcomeTitle="S3 Bucket Security Scanner"
+          welcomeDescription="No S3 scan has been run yet. This page audits your S3 buckets for public access misconfigurations, missing encryption, versioning gaps, and compliance violations. Here’s how to get started."
+          welcomeIcon={<HardDrive className="h-7 w-7" />}
+          steps={[
+            {
+              target: "s3-region",
+              title: "1. Select Region & Filter",
+              description: "Choose a region or select All Regions for a full account scan. Use the bucket filter to narrow results to specific bucket names or tags.",
+              hint: "Tip: “All Regions” gives the most complete picture but takes longer.",
+              icon: <Globe className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "s3-checks",
+              title: "2. Pick Security Checks",
+              description: "Select the checks to run — public access configuration, encryption at rest, versioning & logging, and lifecycle policies. Each check audits a different dimension of bucket security.",
+              icon: <Settings2 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "s3-compliance",
+              title: "3. Select Compliance Frameworks",
+              description: "Choose which compliance standards to check against \u2014 CIS AWS Foundations and SOC 2 are enabled by default. Enable PCI-DSS or HIPAA if your buckets store regulated data.",
+              hint: "Tip: Enable all frameworks for a comprehensive first scan. You can narrow the scope later.",
+              icon: <Shield className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "s3-actions",
+              title: "4. Launch the Scan",
+              description: "Click Start S3 Scan to begin. The scanner inspects each bucket’s ACLs, policies, encryption settings, and logging configuration against compliance frameworks.",
+              icon: <Play className="h-5 w-5" />,
+              placement: "top",
+              action: {
+                label: "Start S3 Scan",
+                onClick: handleStartScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "s3-config",
+              title: "5. Review Findings",
+              description: "Results appear below with severity ratings, public access status, and encryption indicators for each bucket. Use the tabs to switch between findings, bucket overview, and compliance status.",
+              hint: "Publicly accessible buckets are flagged as Critical — address these first.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "bottom",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       
       {/* S3 Scan Configuration */}
-      <Card className="cyber-card">
+      <Card data-tour="s3-config" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HardDrive className="h-5 w-5 text-primary" />
@@ -342,7 +398,7 @@ export function S3Security() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
+            <div data-tour="s3-region" className="space-y-4">
               <div>
                 <Label htmlFor="region">AWS Region</Label>
                 <Select value={selectedRegion} onValueChange={setSelectedRegion}>
@@ -368,7 +424,7 @@ export function S3Security() {
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div data-tour="s3-checks" className="space-y-4">
               <div>
                 <Label>Security Checks</Label>
                 <div className="space-y-2 mt-2">
@@ -392,7 +448,7 @@ export function S3Security() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div data-tour="s3-compliance" className="space-y-4">
               <div>
                 <Label>Compliance Standards</Label>
                 <div className="space-y-2 mt-2">
@@ -417,11 +473,11 @@ export function S3Security() {
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Play className="h-4 w-4 mr-2" />
               {isScanning ? "Scanning..." : "Start S3 Scan"}
@@ -431,13 +487,14 @@ export function S3Security() {
               <Button 
                 onClick={handleStopScan}
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop Scan
               </Button>
             )}
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Settings2 className="h-4 w-4 mr-2" />
               Advanced Settings
             </Button>
@@ -454,6 +511,7 @@ export function S3Security() {
           </AlertDescription>
         </Alert>
       )}
+
 
       {/* Scan Progress */}
       {(isScanning || scanResult) && (
@@ -671,12 +729,12 @@ export function S3Security() {
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <FileText className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{(scanResult.scan_summary.total_objects ?? 0).toLocaleString()}</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_objects.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Total Objects</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <HardDrive className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb ?? 0} GB</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb} GB</p>
                     <p className="text-sm text-muted-foreground">Total Size</p>
                   </div>
                 </div>

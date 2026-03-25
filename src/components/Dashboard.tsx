@@ -6,16 +6,14 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database } from "lucide-react";
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, FileText, BarChart3 } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
-import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
+import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData, type SecurityAlert } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
-import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFilteredPaginatedData";
-import { FindingsTableToolbar } from "./FindingsTableToolbar";
-import { FindingsTablePagination } from "./FindingsTablePagination";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface DashboardProps {
   onNavigate?: (tab: string) => void;
@@ -82,7 +80,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const scanIntervalRef = useRef<number | null>(null);
   const { addScanResult, getAllScanResults, scanResults: scanResultsMap, scanResultsVersion } = useScanResults();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  
+  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [stats, setStats] = useState({
     last_scan: "Never",
     total_resources: 0,
@@ -213,6 +211,27 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         last_scan: mostRecentScan.timestamp ? formatTimestamp(mostRecentScan.timestamp) : "Recently"
       }));
       
+      // Generate security alerts from the most recent scan's findings only
+      const scanFindings = mostRecentScan.findings || [];
+      const alerts: SecurityAlert[] = scanFindings
+        .slice(0, 20) // Take top 20 findings
+        .sort((a, b) => {
+          const severityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+          return (severityOrder[b.severity as keyof typeof severityOrder] || 0) - 
+                 (severityOrder[a.severity as keyof typeof severityOrder] || 0);
+        })
+        .slice(0, 5) // Show top 5
+        .map((finding, index) => ({
+          id: finding.id || `${mostRecentScan.scanner_type || 'scan'}-${index}`,
+          service: finding.scanner_type === 'iam' ? 'IAM' : mostRecentScan.scanner_type?.toUpperCase() || 'AWS',
+          resource: finding.resource_name || finding.resource_arn || 'Unknown',
+          severity: (finding.severity as 'Critical' | 'High' | 'Medium' | 'Low') || 'Medium',
+          message: finding.description || finding.finding_type || 'Security finding detected',
+          timestamp: mostRecentScan.timestamp || new Date().toISOString()
+        }));
+      
+      setSecurityAlerts(alerts);
+      
     } else {
       // Reset to neutral state when no scan results
       setStats({
@@ -225,6 +244,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         medium_findings: 0,
         cost_savings: 0
       });
+      setSecurityAlerts([]);
     }
   }, [scanResults, scanResultsVersion]); // Re-run when scan results version changes
 
@@ -271,52 +291,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   // Memoize filtered pie data to avoid recalculating filter on every render
   const filteredPieData = useMemo(() => pieData.filter(d => d.value > 0), [pieData]);
 
-  // Extract ALL findings from the most recent scan for the filterable table
-  const allFindings = useMemo(() => {
-    if (scanResults.length === 0) return [];
-    const sortedScans = [...scanResults].sort((a, b) => {
-      const timeA = new Date(a.timestamp).getTime();
-      const timeB = new Date(b.timestamp).getTime();
-      if (timeB !== timeA) return timeB - timeA;
-      if (a.scanner_type === 'full') return -1;
-      if (b.scanner_type === 'full') return 1;
-      return 0;
-    });
-    return sortedScans[0].findings || [];
-  }, [scanResults, scanResultsVersion]);
-
-  const findingsFilterDefs: FilterDefinition[] = useMemo(() => {
-    const severities = [...new Set(allFindings.map((f: any) => f.severity).filter(Boolean))];
-    const types = [...new Set(allFindings.map((f: any) => f.finding_type || f.type).filter(Boolean))];
-    return [
-      { key: 'severity', label: 'Severity', options: severities as string[] },
-      { key: 'finding_type', label: 'Type', options: types as string[] },
-    ];
-  }, [allFindings]);
-
-  const {
-    paginatedData: paginatedFindings,
-    totalFiltered,
-    totalItems,
-    currentPage,
-    totalPages,
-    setPage,
-    searchQuery,
-    setSearchQuery,
-    filters,
-    setFilter,
-    resetFilters,
-    dateRange,
-    setDateRange,
-    pageSize,
-    setPageSize,
-    activeFilterCount,
-  } = useFilteredPaginatedData(allFindings, {
-    searchableFields: ['resource_name', 'resource_arn', 'finding_type', 'description', 'id', 'type'],
-    filterDefinitions: findingsFilterDefs,
-    dateField: 'created_date',
-    defaultPageSize: 10,
-  });
+  // Get recent security activity
+  const recentActivity = securityAlerts.slice(0, 5);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -483,10 +459,65 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Page Tour for first-time users */}
+      {scanResults.length === 0 && !isScanning && (
+        <PageTour
+          welcomeTitle="Welcome to Your Security Dashboard"
+          welcomeDescription="No scans have been run yet, so there’s no security data to display. Let us walk you through the dashboard so you know exactly where everything is and how to get started."
+          welcomeIcon={<Shield className="h-7 w-7" />}
+          steps={[
+            {
+              target: "stats-grid",
+              title: "Security Metrics at a Glance",
+              description: "These four cards track your key security numbers — last scan time, total AWS resources monitored, active findings, and your compliance score. They’re all zeros right now because no scan has been run yet.",
+              hint: "Tip: Click any card to jump to its detail page.",
+              icon: <BarChart3 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "aws-status",
+              title: "AWS IAM Security Status",
+              description: "This panel will show a breakdown of findings by severity — Critical, High, Medium — once you run a scan. Right now it’s empty because there’s no scan data yet.",
+              hint: "Click this card to go straight to the IAM Security page for deeper analysis.",
+              icon: <Cloud className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "quick-actions",
+              title: "Quick Actions — Start Here",
+              description: "This is your launch pad. Hit “Full Security Scan” to audit IAM users, roles, policies, EC2 instances, and S3 buckets across your AWS account. The scan typically finishes in under a minute.",
+              icon: <Zap className="h-5 w-5" />,
+              placement: "bottom",
+              action: {
+                label: "Run Full Security Scan",
+                onClick: handleQuickScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "charts-section",
+              title: "Compliance Charts & Trends",
+              description: "After your first scan, a compliance pie chart and weekly trend bar chart will appear here. Over time they’ll show how your security posture is improving (or where it needs attention).",
+              hint: "Run multiple scans over time to build up trend data.",
+              icon: <BarChart3 className="h-5 w-5" />,
+              placement: "top",
+            },
+            {
+              target: "activity-table",
+              title: "Recent Security Alerts",
+              description: "Security alerts land here in real time after each scan — sorted by severity so the most critical issues surface first. You can click any row to investigate further.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "top",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div data-tour="stats-grid" className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
         <Card 
           className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
           onClick={() => onNavigate?.('timeline')}
@@ -574,8 +605,9 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
       {/* AWS Security Status */}
       <Card 
+        data-tour="aws-status"
         className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
-        onClick={() => onNavigate?.('iam-security')}
+        onClick={() => onNavigate?.('aws-iam-scan')}
       >
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -592,7 +624,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               {stats?.compliance_score ?? 100}% Compliant
             </Badge>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="cyber-glass p-3 rounded-lg text-center">
               <p className="text-lg font-medium text-[#ff0040]">{stats?.critical_alerts || 0}</p>
               <p className="text-xs text-muted-foreground">Critical</p>
@@ -614,7 +646,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </Card>
 
       {/* Scan Controls */}
-      <Card className="cyber-card">
+      <Card data-tour="quick-actions" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
@@ -645,9 +677,9 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
             )}
 
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-3 md:gap-4 flex-wrap">
               <Button 
-                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+                className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow w-full sm:w-auto"
                 onClick={handleQuickScan}
                 disabled={isScanning}
               >
@@ -656,7 +688,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('iam-security')}
               >
                 <Users className="h-4 w-4 mr-2" />
@@ -664,15 +696,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('access-analyzer')}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Access Analyzer
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('ec2-security')}
               >
                 <Cloud className="h-4 w-4 mr-2" />
@@ -680,7 +704,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('s3-security')}
               >
                 <HardDrive className="h-4 w-4 mr-2" />
@@ -688,23 +712,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </Button>
               <Button 
                 variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('vpc-security')}
-              >
-                <Network className="h-4 w-4 mr-2" />
-                VPC Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
-                onClick={() => onNavigate?.('dynamodb-security')}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                DynamoDB Security
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-border"
+                className="border-border w-full sm:w-auto"
                 onClick={() => onNavigate?.('reports')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -716,7 +724,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </Card>
 
       {/* Charts and Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="cyber-card">
           <CardHeader>
             <CardTitle>Security Compliance Overview</CardTitle>
@@ -833,121 +841,79 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         </Card>
       </div>
 
-      {/* Security Findings Table */}
-      <Card className="cyber-card">
+      {/* Recent Activity */}
+      <Card data-tour="activity-table" className="cyber-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Security Findings {allFindings.length > 0 && `(${allFindings.length})`}
-          </CardTitle>
+          <CardTitle>Recent Security Alerts</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <FindingsTableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={filters}
-            onFilterChange={setFilter}
-            onResetFilters={resetFilters}
-            filterDefinitions={findingsFilterDefs}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            dateFieldLabel="Created"
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            totalFiltered={totalFiltered}
-            totalItems={totalItems}
-            currentPage={currentPage}
-            activeFilterCount={activeFilterCount}
-          />
-          <Table>
+        <CardContent>
+          <div className="w-full overflow-x-auto">
+            <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="border-border">
+                <TableHead>Service</TableHead>
                 <TableHead>Resource</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Severity</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Risk Score</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead>Timestamp</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {statsLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={index} className="border-border">
+                    <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
                   </TableRow>
                 ))
-              ) : paginatedFindings.length > 0 ? (
-                paginatedFindings.map((finding: any, index: number) => (
-                  <TableRow
-                    key={finding.id || index}
+              ) : recentActivity.length > 0 ? (
+                recentActivity.map((item) => (
+                  <TableRow 
+                    key={item.id} 
                     className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
+                    onClick={() => {
+                      if (item.severity === "Critical" || item.severity === "High") {
+                        onNavigate?.('alerts');
+                      } else {
+                        onNavigate?.(`${item.service.toLowerCase()}-security`);
+                      }
+                    }}
                   >
                     <TableCell>
-                      <div>
-                        <p className="font-mono text-sm">{finding.resource_name || finding.resource_arn || 'Unknown'}</p>
-                        {finding.resource_arn && finding.resource_name && (
-                          <p className="text-xs text-muted-foreground truncate max-w-xs">{finding.resource_arn}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize text-xs">
-                        {finding.finding_type || finding.type || 'N/A'}
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {item.service}
                       </Badge>
                     </TableCell>
+                    <TableCell className="font-mono text-sm">{item.resource}</TableCell>
                     <TableCell>
-                      <Badge
+                      <Badge 
                         className={
-                          finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
-                          finding.severity === "High" ? "bg-[#ff6b35] text-white" :
-                          finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
+                          item.severity === "Critical" ? "bg-[#ff0040] text-white" :
+                          item.severity === "High" ? "bg-[#ff6b35] text-white" :
+                          item.severity === "Medium" ? "bg-[#ffb000] text-black" :
                           "bg-[#00ff88] text-black"
                         }
                       >
-                        {finding.severity}
+                        {item.severity}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm max-w-md">
-                      <p className="line-clamp-2">{finding.description || 'No description'}</p>
-                    </TableCell>
-                    <TableCell>
-                      {finding.risk_score != null ? (
-                        <span className={
-                          finding.risk_score > 80 ? "text-[#ff0040]" :
-                          finding.risk_score > 60 ? "text-[#ff6b35]" :
-                          finding.risk_score > 40 ? "text-[#ffb000]" :
-                          "text-[#00ff88]"
-                        }>
-                          {finding.risk_score}/100
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">--</span>
-                      )}
-                    </TableCell>
+                    <TableCell className="text-sm">{item.message}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{item.timestamp}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow className="border-border">
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {allFindings.length === 0
-                      ? 'No findings available. Run a Full Security Scan to get started.'
-                      : 'No findings match the current filters.'}
+                    No recent security alerts. All systems appear secure.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
-          </Table>
-          {allFindings.length > 0 && (
-            <FindingsTablePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          )}
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Search, Bell, Settings, User, LogOut, Shield } from "lucide-react";
+import { Search, Bell, Settings, User, LogOut, Shield, Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { useScanResults } from "../context/ScanResultsContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 
 interface HeaderProps {
   onNavigate?: (tab: string) => void;
+  onMenuClick?: () => void;
+  showMenuButton?: boolean;
 }
 
 const mockNotifications = [
@@ -39,108 +41,9 @@ const mockNotifications = [
   }
 ];
 
-export function Header({ onNavigate }: HeaderProps) {
+export function Header({ onNavigate, onMenuClick, showMenuButton = false }: HeaderProps) {
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement | null>(null);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
-
-  const tabSearchItems = useMemo(() => [
-    { id: "dashboard", label: "Security Overview", category: "Tab", tab: "dashboard", keywords: ["overview", "dashboard", "home"] },
-    { id: "iam-security", label: "IAM & Access Control", category: "Tab", tab: "iam-security", keywords: ["iam", "access", "identity", "users"] },
-    { id: "access-analyzer", label: "Access Analyzer", category: "Tab", tab: "access-analyzer", keywords: ["access analyzer", "cross-account"] },
-    { id: "ec2-security", label: "EC2 & Compute", category: "Tab", tab: "ec2-security", keywords: ["ec2", "compute"] },
-    { id: "s3-security", label: "S3 & Storage", category: "Tab", tab: "s3-security", keywords: ["s3", "storage", "bucket"] },
-    { id: "vpc-security", label: "VPC & Network", category: "Tab", tab: "vpc-security", keywords: ["vpc", "network"] },
-    { id: "dynamodb-security", label: "DynamoDB", category: "Tab", tab: "dynamodb-security", keywords: ["dynamodb", "database"] },
-    { id: "security-hub", label: "Security Hub", category: "Tab", tab: "security-hub", keywords: ["security hub"] },
-    { id: "guardduty", label: "GuardDuty", category: "Tab", tab: "guardduty", keywords: ["guardduty"] },
-    { id: "config", label: "Config", category: "Tab", tab: "config", keywords: ["config"] },
-    { id: "inspector", label: "Inspector", category: "Tab", tab: "inspector", keywords: ["inspector"] },
-    { id: "macie", label: "Macie", category: "Tab", tab: "macie", keywords: ["macie"] },
-    { id: "alerts", label: "Security Alerts", category: "Tab", tab: "alerts", keywords: ["alerts", "findings"] },
-    { id: "compliance", label: "Compliance Dashboard", category: "Tab", tab: "compliance", keywords: ["compliance", "framework"] },
-    { id: "reports", label: "Security Reports", category: "Tab", tab: "reports", keywords: ["reports"] },
-    { id: "grafana", label: "Grafana Integration", category: "Tab", tab: "grafana", keywords: ["grafana", "charts"] },
-    { id: "settings", label: "Settings", category: "Tab", tab: "settings", keywords: ["settings", "configuration"] },
-  ], []);
-
-  const scanResults = useMemo(() => getAllScanResults(), [scanResultsVersion, getAllScanResults]);
-  const findingSearchItems = useMemo(() => {
-    const scannerTabMap: Record<string, string> = {
-      iam: "iam-security",
-      "security-hub": "security-hub",
-      guardduty: "guardduty",
-      config: "config",
-      inspector: "inspector",
-      macie: "macie",
-      ec2: "ec2-security",
-      s3: "s3-security",
-      vpc: "vpc-security",
-      dynamodb: "dynamodb-security",
-      full: "alerts",
-    };
-
-    return scanResults
-      .flatMap((scan) => (scan.findings ?? []).map((finding: any, index: number) => {
-        const id = finding.id || `${scan.scanner_type}-${scan.scan_id}-${index}`;
-        const resource = finding.resource_name || finding.resource_id || finding.resource_arn || "Unknown resource";
-        const title = finding.finding_type || finding.title || "Security finding";
-        const severity = (finding.severity || "Medium").toString();
-        const targetTab = scannerTabMap[scan.scanner_type] || "alerts";
-
-        return {
-          id: `${scan.scan_id}-${scan.scanner_type}-${id}-${index}`,
-          findingId: id,
-          label: `${title} (${resource})`,
-          category: "Finding",
-          tab: targetTab,
-          keywords: [
-            id,
-            resource,
-            title,
-            finding.description || "",
-            finding.resource_arn || "",
-            severity,
-          ],
-          badge: severity,
-        };
-      }))
-      .slice(0, 100);
-  }, [scanResults]);
-
-  const searchResults = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return [];
-
-    const allItems = [...tabSearchItems, ...findingSearchItems];
-    return allItems
-      .filter((item) => {
-        const haystack = `${item.label} ${item.category} ${item.keywords.join(" ")}`.toLowerCase();
-        return haystack.includes(query);
-      })
-      .slice(0, 8);
-  }, [searchTerm, tabSearchItems, findingSearchItems]);
-
-  // Close dropdown when clicking anywhere outside the search container
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setSearchDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const navigateFromSearch = (tab: string) => {
-    onNavigate?.(tab);
-    setSearchTerm("");
-    setSearchDropdownOpen(false);
-  };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
@@ -154,75 +57,91 @@ export function Header({ onNavigate }: HeaderProps) {
   const unreadCount = mockNotifications.filter(n => !n.read).length;
 
   return (
-    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-md px-6 flex items-center justify-between relative z-30">
-      <div className="flex items-center gap-3">
+    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-md px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        {showMenuButton && (
+          <Button variant="ghost" size="icon" className="md:hidden hover:bg-accent/20" onClick={onMenuClick}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <div className="text-2xl">☁️</div>
-        <div>
-          <h1 className="text-lg font-medium text-foreground">AWS Cloud Security Dashboard</h1>
-          <p className="text-xs text-muted-foreground">Real-time Cloud Misconfiguration Detection</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-xs sm:text-sm md:text-lg font-medium text-foreground">AWS Cloud Security Dashboard</h1>
+          <p className="text-[11px] md:text-xs text-muted-foreground hidden sm:block">Real-time Cloud Misconfiguration Detection</p>
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4">
         {/* Search */}
-        <div
-          ref={searchContainerRef}
-          className="relative w-[340px]"
-        >
-          <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder="Search tabs, findings, and resources..."
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-              setSearchDropdownOpen(true);
-            }}
-            onFocus={() => setSearchDropdownOpen(true)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && searchResults.length > 0) {
-                navigateFromSearch(searchResults[0].tab);
-              }
-            }}
-            className="bg-input border-border pl-9"
-          />
-          {searchDropdownOpen && searchTerm.trim() && (
-            <div className="absolute z-50 mt-2 w-full rounded-lg border border-border bg-card/100 shadow-lg max-h-[320px] overflow-auto">
-              {searchResults.length > 0 ? (
-                searchResults.map((item) => (
-                  <div
-                    key={`${item.category}-${item.id}`}
-                    role="button"
-                    className="w-full text-left px-3 py-2 bg-muted/40 hover:bg-accent/40 border-b border-border last:border-b-0 cursor-pointer"
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      navigateFromSearch(item.tab);
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm truncate">{item.label}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
-                        {"badge" in item && item.badge ? (
-                          <Badge className="text-[10px]">{item.badge}</Badge>
-                        ) : null}
+        <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-accent/20">
+              <Search className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="cyber-card border-border max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Global Search</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                placeholder="Search AWS resources, policies, security groups..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-input border-border"
+                autoFocus
+              />
+              
+              {searchTerm && (
+                <div className="space-y-4 max-h-96 overflow-auto">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">AWS Resources</h4>
+                    <div className="space-y-2">
+                      <div className="cyber-glass p-3 rounded-lg cursor-pointer hover:bg-accent/10">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-sm">i-0abcd1234efgh5678 (EC2)</span>
+                          <Badge className="bg-[#ff0040] text-white">High Risk</Badge>
+                        </div>
+                      </div>
+                      <div className="cyber-glass p-3 rounded-lg cursor-pointer hover:bg-accent/10">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-sm">company-backups (S3)</span>
+                          <Badge className="bg-[#ffb000] text-black">Medium Risk</Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="px-3 py-3 text-sm text-muted-foreground">
-                  No matches. Try another keyword.
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Security Findings</h4>
+                    <div className="space-y-2">
+                      <div className="cyber-glass p-3 rounded-lg cursor-pointer hover:bg-accent/10">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">IAM Root Access Keys Active</span>
+                          <Badge variant="outline">SEC-2024-001</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Compliance Reports</h4>
+                    <div className="space-y-2">
+                      <div className="cyber-glass p-3 rounded-lg cursor-pointer hover:bg-accent/10">
+                        <span className="text-sm">CIS AWS Foundations Report - Oct 5</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Notifications */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="hover:bg-accent/20 relative">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-accent/20 relative">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full flex items-center justify-center">
@@ -283,7 +202,7 @@ export function Header({ onNavigate }: HeaderProps) {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="hover:bg-accent/20"
+          className="hover:bg-accent/20 hidden sm:inline-flex"
           onClick={() => onNavigate?.('settings')}
         >
           <Settings className="h-4 w-4" />

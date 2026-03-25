@@ -134,7 +134,7 @@ export function ThreatIntelligence() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <Card className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -328,7 +328,7 @@ export function ThreatIntelligence() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Indicators of Compromise (IOCs)</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" className="border-border">
                     <Server className="h-4 w-4 mr-2" />
                     Configure Feeds

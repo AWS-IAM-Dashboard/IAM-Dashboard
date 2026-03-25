@@ -3,10 +3,8 @@
  * Stores scan results from all scanner components for use in Reports
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { ScanResponse } from '../services/api';
-
-const STORAGE_KEY = 'iam-dashboard-scan-results';
 
 export interface StoredScanResult {
   scan_id: string;
@@ -40,35 +38,11 @@ interface ScanResultsContextType {
 
 const ScanResultsContext = createContext<ScanResultsContextType | undefined>(undefined);
 
-function loadFromStorage(): Map<string, StoredScanResult> {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Map();
-    const entries: [string, StoredScanResult][] = JSON.parse(raw);
-    return new Map(entries);
-  } catch {
-    return new Map();
-  }
-}
-
-function saveToStorage(map: Map<string, StoredScanResult>) {
-  try {
-    const entries = Array.from(map.entries());
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch {
-    // storage full or unavailable -- silently degrade
-  }
-}
-
 export function ScanResultsProvider({ children }: { children: ReactNode }) {
-  const [scanResults, setScanResults] = useState<Map<string, StoredScanResult>>(() => loadFromStorage());
+  const [scanResults, setScanResults] = useState<Map<string, StoredScanResult>>(new Map());
   const [scanResultsVersion, setScanResultsVersion] = useState(0); // Version counter
 
-  useEffect(() => {
-    saveToStorage(scanResults);
-  }, [scanResults]);
-
-  const addScanResult = useCallback((result: ScanResponse) => {
+  const addScanResult = (result: ScanResponse) => {
     // Extract scan summary - try multiple locations
     let scanSummary = result.results?.scan_summary;
     if (!scanSummary) {
@@ -89,7 +63,7 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
       findings: findings
     };
     
-    setScanResults((prev: Map<string, StoredScanResult>) => {
+    setScanResults(prev => {
       const newMap = new Map(prev);
       newMap.set(result.scanner_type, storedResult);
       return newMap;
@@ -97,21 +71,20 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
     
     // Increment version to trigger re-renders in components using this context
     // This ensures Dashboard updates even when replacing an existing scan result
-    setScanResultsVersion((v: number) => v + 1);
-  }, []);
+    setScanResultsVersion(v => v + 1);
+  };
 
-  const getScanResult = useCallback((scannerType: string): StoredScanResult | null => {
+  const getScanResult = (scannerType: string): StoredScanResult | null => {
     return scanResults.get(scannerType) || null;
-  }, [scanResults]);
+  };
 
-  const getAllScanResults = useCallback((): StoredScanResult[] => {
+  const getAllScanResults = (): StoredScanResult[] => {
     return Array.from(scanResults.values());
-  }, [scanResults]);
+  };
 
-  const clearScanResults = useCallback(() => {
+  const clearScanResults = () => {
     setScanResults(new Map());
-    sessionStorage.removeItem(STORAGE_KEY);
-  }, []);
+  };
 
   return (
     <ScanResultsContext.Provider
@@ -186,21 +159,6 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
       critical_findings: results.instances.public || 0,
       high_findings: results.instances.without_imdsv2 || 0
     };
-  }
-
-  // Access Analyzer
-  if (results.access_analyzer?.scan_summary) {
-    return results.access_analyzer.scan_summary;
-  }
-
-  // VPC scan
-  if (results.vpc?.scan_summary) {
-    return results.vpc.scan_summary;
-  }
-
-  // DynamoDB scan
-  if (results.dynamodb?.scan_summary) {
-    return results.dynamodb.scan_summary;
   }
 
   // For findings-based scans
@@ -318,21 +276,6 @@ function extractFindings(results: any): any[] {
     if (ec2Findings.length > 0) {
       return ec2Findings;
     }
-  }
-
-  // Access Analyzer findings
-  if (results.access_analyzer?.findings && Array.isArray(results.access_analyzer.findings)) {
-    return results.access_analyzer.findings;
-  }
-
-  // VPC scan findings
-  if (results.vpc?.findings && Array.isArray(results.vpc.findings)) {
-    return results.vpc.findings;
-  }
-
-  // DynamoDB scan findings
-  if (results.dynamodb?.findings && Array.isArray(results.dynamodb.findings)) {
-    return results.dynamodb.findings;
   }
   
   return [];

@@ -133,7 +133,7 @@ export function AutomationAlerts() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Automation Overview */}
       <Card className="cyber-card">
         <CardHeader>
@@ -304,7 +304,7 @@ export function AutomationAlerts() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Alerts</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" className="border-border">
                     Mark All Read
                   </Button>
@@ -335,7 +335,7 @@ export function AutomationAlerts() {
                         <h4 className="font-medium mb-1">{alert.title}</h4>
                         <p className="text-sm text-muted-foreground">{alert.description}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {!alert.acknowledged && (
                           <Button variant="outline" size="sm" className="border-border">
                             Acknowledge

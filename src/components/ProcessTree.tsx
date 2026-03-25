@@ -237,7 +237,7 @@ export function ProcessTree() {
   const resetZoom = () => setZoom(100);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Controls */}
       <Card className="cyber-card">
         <CardHeader>

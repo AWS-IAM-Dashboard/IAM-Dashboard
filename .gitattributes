@@ -1,2 +1,0 @@
-# Ensure shell scripts use LF line endings (fixes Docker exec on Windows)
-*.sh text eol=lf

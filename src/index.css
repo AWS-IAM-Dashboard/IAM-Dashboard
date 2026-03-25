@@ -26,11 +26,6 @@
   --switch-background: #334155;
   --ring: #00ff88;
   --radius: 0.625rem;
-  --sidebar: rgba(15, 23, 42, 0.9);
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-accent: rgba(30, 41, 59, 0.8);
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: rgba(0, 255, 136, 0.2);
 }
 
 @theme inline {
@@ -59,11 +54,6 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
 }
 
 @layer base {
@@ -133,4 +123,97 @@
 
 .animate-pulse-slower {
   animation: pulse-slower 12s ease-in-out infinite;
+}
+
+/* ─── Page Tour ─── */
+
+.tour-overlay-rect {
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tour-highlight-ring {
+  border-radius: 14px;
+  border: 2px solid var(--primary);
+  box-shadow:
+    0 0 24px rgba(0, 255, 136, 0.3),
+    inset 0 0 24px rgba(0, 255, 136, 0.06);
+  animation: tour-ring-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.tour-tooltip {
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(0, 255, 136, 0.08);
+  animation: tour-tooltip-enter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tour-welcome-card {
+  animation: tour-fade-up 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tour-minimized-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  background: rgba(15, 23, 42, 0.6);
+  animation: tour-fade-up 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tour-icon-pulse {
+  animation: tour-icon-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes tour-ring-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 24px rgba(0, 255, 136, 0.25),
+      inset 0 0 24px rgba(0, 255, 136, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(0, 255, 136, 0.45),
+      inset 0 0 40px rgba(0, 255, 136, 0.12);
+  }
+}
+
+@keyframes tour-tooltip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tour-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tour-icon-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.35);
+  }
 }

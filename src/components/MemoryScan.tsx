@@ -10,7 +10,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Play, Square, Settings2, FileUp, Scan, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { useMemoryScan, useProcesses } from "../hooks/useForensics";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 
 export function MemoryScan() {
@@ -80,7 +80,7 @@ export function MemoryScan() {
   const scanResults = getScanResults();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       {/* Scan Configuration */}
       <Card className="cyber-card">
@@ -103,14 +103,14 @@ export function MemoryScan() {
               </div>
               <div>
                 <Label htmlFor="memory-dump">Upload Memory Dump (Optional)</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input 
                     id="memory-dump"
                     type="file"
                     accept=".dmp,.mem,.raw"
                     className="bg-input border-border"
                   />
-                  <Button variant="outline" className="border-border">
+                  <Button variant="outline" className="w-full sm:w-auto border-border">
                     <FileUp className="h-4 w-4" />
                   </Button>
                 </div>
@@ -138,11 +138,11 @@ export function MemoryScan() {
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Play className="h-4 w-4 mr-2" />
               {isScanning ? "Scanning..." : "Start Scan"}
@@ -152,13 +152,14 @@ export function MemoryScan() {
               <Button 
                 onClick={handleStopScan}
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop Scan
               </Button>
             )}
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Settings2 className="h-4 w-4 mr-2" />
               Advanced Settings
             </Button>

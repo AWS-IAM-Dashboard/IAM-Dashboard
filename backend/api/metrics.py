@@ -4,7 +4,7 @@ Tracks per-endpoint request counts and latency.
 """
 
 import time
-from flask import g, request, make_response
+from flask import request, Response
 from flask_restful import Resource
 from prometheus_client import (
     Counter,
@@ -15,6 +15,7 @@ from prometheus_client import (
 )
 
 # Metric definitions (module-level singletons)
+
 REQUEST_COUNT = Counter(
     "http_requests_total",
     "Total HTTP request count",
@@ -29,13 +30,16 @@ REQUEST_LATENCY = Histogram(
 )
 
 # Request hooks — attach to the Flask app via register_metrics_hooks()
+
 def _before_request():
-    """Store request start time on Flask's g object."""
+    """Store request start time on Flask's g object. g will allow to store data within a single request lifecycle"""
+    from flask import g
     g._metrics_start = time.perf_counter()
 
 
 def _after_request(response):
     """Record count and latency after each request."""
+    from flask import g
     start = getattr(g, "_metrics_start", None)
     if start is not None:
         latency = time.perf_counter() - start
@@ -55,13 +59,12 @@ def register_metrics_hooks(app):
     app.after_request(_after_request)
 
 
-# Resource — uses make_response so Flask-RESTful passes the response through
-# as-is without attempting JSON serialization of the Prometheus text output
+# Resource
+
 class MetricsResource(Resource):
     """Expose Prometheus metrics at /api/v1/metrics."""
 
     def get(self):
-        """Return all collected metrics in Prometheus text exposition format."""
-        response = make_response(generate_latest(REGISTRY), 200)
-        response.mimetype = CONTENT_TYPE_LATEST
-        return response
+        """Return metrics in Prometheus text format."""
+        data = generate_latest(REGISTRY)
+        return Response(data, status=200, mimetype=CONTENT_TYPE_LATEST)

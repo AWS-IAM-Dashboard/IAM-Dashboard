@@ -13,8 +13,9 @@ import {
   RefreshCw,
   Download
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
+import { EmptyState } from "./EmptyState";
 
 interface ConfigRule {
   id: string;
@@ -93,12 +94,12 @@ export function AWSConfig() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
             AWS Config
           </h1>
@@ -106,12 +107,12 @@ export function AWSConfig() {
             Compliance and configuration management service
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
+          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="w-full sm:w-auto">
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -179,7 +180,7 @@ export function AWSConfig() {
           <div className="mb-4">
             <Label>Filter by Status</Label>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-full sm:w-64">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -191,46 +192,59 @@ export function AWSConfig() {
             </Select>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rule Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Compliance Status</TableHead>
-                <TableHead>Resource Type</TableHead>
-                <TableHead>Resources</TableHead>
-                <TableHead>Last Evaluated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRules.map((rule) => (
-                <TableRow key={rule.id} className="cursor-pointer hover:bg-accent/10">
-                  <TableCell>
-                    <p className="font-medium font-mono text-sm">{rule.name}</p>
-                  </TableCell>
-                  <TableCell>{rule.description}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      className={
-                        rule.compliance_status === 'COMPLIANT' 
-                          ? 'bg-[#00ff88] text-black' 
-                          : rule.compliance_status === 'NON_COMPLIANT'
-                          ? 'bg-[#ff0040] text-white'
-                          : 'bg-gray-500 text-white'
-                      }
-                    >
-                      {rule.compliance_status.replace('_', '-')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{rule.resource_type}</TableCell>
-                  <TableCell>{rule.resource_count}</TableCell>
-                  <TableCell className="text-sm">
-                    {new Date(rule.last_evaluated).toLocaleString()}
-                  </TableCell>
+          {filteredRules.length === 0 ? (
+            <EmptyState
+              title="No rules match your filter"
+              description="Try clearing the status filter to view all compliance rules."
+              primaryAction={{
+                label: "Clear filter",
+                onClick: () => setSelectedStatus("all"),
+              }}
+            />
+          ) : (
+            <div className="w-full overflow-x-auto">
+            <Table className="min-w-[920px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rule Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Compliance Status</TableHead>
+                  <TableHead>Resource Type</TableHead>
+                  <TableHead>Resources</TableHead>
+                  <TableHead>Last Evaluated</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredRules.map((rule) => (
+                  <TableRow key={rule.id} className="cursor-pointer hover:bg-accent/10">
+                    <TableCell>
+                      <p className="font-medium font-mono text-sm">{rule.name}</p>
+                    </TableCell>
+                    <TableCell>{rule.description}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={
+                          rule.compliance_status === 'COMPLIANT' 
+                            ? 'bg-[#00ff88] text-black' 
+                            : rule.compliance_status === 'NON_COMPLIANT'
+                            ? 'bg-[#ff0040] text-white'
+                            : 'bg-gray-500 text-white'
+                        }
+                      >
+                        {rule.compliance_status.replace('_', '-')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{rule.resource_type}</TableCell>
+                    <TableCell>{rule.resource_count}</TableCell>
+                    <TableCell className="text-sm">
+                      {new Date(rule.last_evaluated).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

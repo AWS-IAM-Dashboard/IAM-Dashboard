@@ -17,10 +17,11 @@ import {
   Filter,
   Download
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface SecurityHubFinding {
   id: string;
@@ -306,13 +307,13 @@ export function SecurityHub() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
       
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+      <div data-tour="hub-header" className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Shield className="h-8 w-8 text-primary" />
             Security Hub
           </h1>
@@ -320,9 +321,9 @@ export function SecurityHub() {
             Centralized view of security findings from all AWS security services
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
           <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -334,7 +335,7 @@ export function SecurityHub() {
           <Button 
             onClick={handleStartScan}
             disabled={isScanning || isRefreshing}
-            className="bg-primary text-primary-foreground"
+            className="w-full sm:w-auto bg-primary text-primary-foreground"
           >
             <Play className={`h-4 w-4 mr-2 ${isScanning ? 'animate-pulse' : ''}`} />
             {isScanning ? 'Scanning...' : 'Scan Security Hub'}
@@ -343,11 +344,12 @@ export function SecurityHub() {
             variant="outline" 
             onClick={handleRefresh}
             disabled={isRefreshing || isScanning}
+            className="w-full sm:w-auto"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -381,8 +383,55 @@ export function SecurityHub() {
         </Card>
       )}
 
+
+      {/* Interactive Tour */}
+      {!isScanning && findings.length === 0 && (
+        <PageTour
+          welcomeTitle="AWS Security Hub"
+          welcomeDescription="Security Hub aggregates findings from all your AWS security services — GuardDuty, Config, Inspector, Macie, and IAM Access Analyzer — into a single view. No findings have been fetched yet. Let’s walk through the page."
+          welcomeIcon={<Shield className="h-7 w-7" />}
+          steps={[
+            {
+              target: "hub-header",
+              title: "1. Region & Scan Controls",
+              description: "Select your AWS region and click Scan Security Hub to pull findings from all connected services. You can also Refresh existing data or Export results.",
+              icon: <Play className="h-5 w-5" />,
+              placement: "bottom",
+              action: {
+                label: "Scan Security Hub",
+                onClick: handleStartScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "hub-summary",
+              title: "2. Summary Metrics",
+              description: "These four cards show your total findings count, critical and high counts, and overall compliance score. They update automatically after each scan.",
+              hint: "A compliance score below 80% usually indicates unaddressed critical or high findings.",
+              icon: <CheckCircle className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "hub-filters",
+              title: "3. Filter Findings",
+              description: "Narrow the findings table by severity, status (New, Notified, Resolved), or source service (GuardDuty, Config, etc.). Filters update the table in real time.",
+              icon: <Filter className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "hub-findings",
+              title: "4. Findings Table",
+              description: "All security findings appear here once a scan completes. Each row shows the finding title, severity, status, source service, affected resource, and compliance info. Click any row to investigate.",
+              hint: "The table is empty right now — run a scan to populate it.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "top",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div data-tour="hub-summary" className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="cyber-card">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -433,7 +482,7 @@ export function SecurityHub() {
       </div>
 
       {/* Filters */}
-      <Card className="cyber-card">
+      <Card data-tour="hub-filters" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
@@ -494,7 +543,7 @@ export function SecurityHub() {
       </Card>
 
       {/* Findings Table */}
-      <Card className="cyber-card">
+      <Card data-tour="hub-findings" className="cyber-card">
         <CardHeader>
           <CardTitle>Security Findings ({filteredFindings.length})</CardTitle>
         </CardHeader>
@@ -505,7 +554,8 @@ export function SecurityHub() {
               <p>No findings available. Click "Scan Security Hub" to fetch security findings.</p>
             </div>
           ) : (
-            <Table>
+            <div className="w-full overflow-x-auto">
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
@@ -553,6 +603,7 @@ export function SecurityHub() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
@@ -29,10 +29,12 @@ import {
   Database,
   Globe
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { EmptyState } from "./EmptyState";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface AWSIAMFinding {
   id: string;
@@ -47,7 +49,6 @@ interface AWSIAMFinding {
   last_accessed?: string;
   created_date: string;
   risk_score: number;
-  status?: 'Open' | 'In Progress' | 'Resolved';
 }
 
 interface AWSScanResult {
@@ -179,22 +180,12 @@ const mockScanResult: AWSScanResult = {
 };
 
 export function AWSIAMScan() {
-  type FindingStatus = 'Open' | 'In Progress' | 'Resolved';
   const [scanResult, setScanResult] = useState<AWSScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState('us-east-1');
   const [awsProfile, setAwsProfile] = useState('default');
   const [loading, setLoading] = useState(false);
-  const [findingSearchTerm, setFindingSearchTerm] = useState("");
-  const [findingSeverityFilter, setFindingSeverityFilter] = useState<string>("all");
-  const [findingTypeFilter, setFindingTypeFilter] = useState<string>("all");
-  const [findingStatusFilter, setFindingStatusFilter] = useState<string>("all");
-  const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
-  const [findingStatuses, setFindingStatuses] = useState<Record<string, FindingStatus>>({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const { addScanResult } = useScanResults();
 
   // Toast notifications for scan events
@@ -315,127 +306,71 @@ export function AWSIAMScan() {
     }
   };
 
-  const getFindingStatus = (finding: AWSIAMFinding): FindingStatus => {
-    return findingStatuses[finding.id] ?? finding.status ?? "Open";
-  };
-
-  const updateFindingStatus = (findingId: string, status: FindingStatus) => {
-    setFindingStatuses((prev) => ({
-      ...prev,
-      [findingId]: status
-    }));
-  };
-
-  const statusColorMap: Record<FindingStatus, string> = {
-    Open: "bg-[#ff0040] text-white",
-    "In Progress": "bg-[#ffb000] text-black",
-    Resolved: "bg-[#00ff88] text-black",
-  };
-
-  const filteredFindings = useMemo(() => {
-    if (!scanResult?.findings?.length) {
-      return [];
-    }
-
-    const normalizedSearch = findingSearchTerm.trim().toLowerCase();
-    const hasDateFilter = startDateFilter || endDateFilter;
-    const start = startDateFilter ? new Date(`${startDateFilter}T00:00:00`) : null;
-    const end = endDateFilter ? new Date(`${endDateFilter}T23:59:59`) : null;
-
-    return scanResult.findings.filter((finding) => {
-      if (findingSeverityFilter !== "all" && finding.severity !== findingSeverityFilter) {
-        return false;
-      }
-
-      if (findingTypeFilter !== "all" && finding.type !== findingTypeFilter) {
-        return false;
-      }
-
-      const status = getFindingStatus(finding);
-      if (findingStatusFilter !== "all" && status !== findingStatusFilter) {
-        return false;
-      }
-
-      if (hasDateFilter) {
-        const createdAt = new Date(finding.created_date);
-        if (start && createdAt < start) {
-          return false;
-        }
-        if (end && createdAt > end) {
-          return false;
-        }
-      }
-
-      if (normalizedSearch) {
-        const searchable = [
-          finding.id,
-          finding.resource_name,
-          finding.resource_arn,
-          finding.finding_type,
-          finding.description,
-          finding.recommendation,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchable.includes(normalizedSearch)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [
-    scanResult,
-    findingSearchTerm,
-    findingSeverityFilter,
-    findingTypeFilter,
-    findingStatusFilter,
-    startDateFilter,
-    endDateFilter,
-    findingStatuses,
-  ]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    findingSearchTerm,
-    findingSeverityFilter,
-    findingTypeFilter,
-    findingStatusFilter,
-    startDateFilter,
-    endDateFilter,
-    pageSize,
-    scanResult?.scan_id
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredFindings.length / pageSize));
-  const paginatedFindings = useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return filteredFindings.slice(startIdx, startIdx + pageSize);
-  }, [filteredFindings, currentPage, pageSize]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  const clearFindingFilters = () => {
-    setFindingSearchTerm("");
-    setFindingSeverityFilter("all");
-    setFindingTypeFilter("all");
-    setFindingStatusFilter("all");
-    setStartDateFilter("");
-    setEndDateFilter("");
-  };
+  const hasScanResult = Boolean(scanResult);
+  const hasFindings = (scanResult?.findings?.length || 0) > 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Tour: No scan run yet */}
+      {!isScanning && !hasScanResult && (
+        <PageTour
+          welcomeTitle="IAM Security Scanner"
+          welcomeDescription="You haven’t run an IAM scan yet, so there are no findings to show. This page lets you audit every IAM user, role, policy, and group in your AWS account. Let’s walk through how it works."
+          welcomeIcon={<Shield className="h-7 w-7" />}
+          steps={[
+            {
+              target: "iam-credentials",
+              title: "1. Set Your AWS Credentials",
+              description: "Start here — choose the AWS profile and region you want to scan. The scanner will use these credentials to read IAM resources (read-only, no changes are made).",
+              hint: "Make sure the profile has IAM read permissions (e.g. SecurityAudit policy).",
+              icon: <Cloud className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-scope",
+              title: "2. Pick What to Scan",
+              description: "Check the boxes for the resource types you want to audit. By default, users, roles, and policies are selected. Enable cross-account access for a broader view.",
+              hint: "Tip: Start with the defaults. You can always re-scan with a wider scope later.",
+              icon: <Settings2 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-compliance",
+              title: "3. Select Compliance Frameworks",
+              description: "Choose which frameworks to check against — CIS AWS Foundations and SOC 2 Type II are enabled by default. Enable PCI-DSS or NIST if your organization requires those certifications.",
+              hint: "Tip: Each framework adds specific checks. More frameworks means a more thorough audit.",
+              icon: <Shield className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-actions",
+              title: "4. Launch the Scan",
+              description: "Once configured, hit Start IAM Scan. The scanner audits each resource against CIS, SOC 2, and other compliance frameworks. Results typically appear within 30–60 seconds.",
+              icon: <Play className="h-5 w-5" />,
+              placement: "top",
+              action: {
+                label: "Start IAM Scan",
+                onClick: handleStartScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "iam-config",
+              title: "5. Review & Remediate",
+              description: "After the scan, a findings table appears below with severity ratings, affected resources, and specific remediation recommendations. You can filter, sort, and export results.",
+              hint: "Critical and High findings should be addressed first — they represent the biggest risks to your account.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "bottom",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       
       {/* AWS Configuration */}
-      <Card className="cyber-card">
+      <Card data-tour="iam-config" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cloud className="h-5 w-5 text-primary" />
@@ -444,7 +379,7 @@ export function AWSIAMScan() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
+            <div data-tour="iam-credentials" className="space-y-4">
               <div>
                 <Label htmlFor="aws-profile">AWS Profile</Label>
                 <Select value={awsProfile} onValueChange={setAwsProfile}>
@@ -475,7 +410,7 @@ export function AWSIAMScan() {
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div data-tour="iam-scope" className="space-y-4">
               <div>
                 <Label>Scan Scope</Label>
                 <div className="space-y-2 mt-2">
@@ -499,7 +434,7 @@ export function AWSIAMScan() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div data-tour="iam-compliance" className="space-y-4">
               <div>
                 <Label>Compliance Frameworks</Label>
                 <div className="space-y-2 mt-2">
@@ -524,11 +459,11 @@ export function AWSIAMScan() {
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div data-tour="iam-actions" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Play className="h-4 w-4 mr-2" />
               {isScanning ? "Scanning..." : "Start IAM Scan"}
@@ -538,13 +473,14 @@ export function AWSIAMScan() {
               <Button 
                 onClick={handleStopScan}
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop Scan
               </Button>
             )}
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Settings2 className="h-4 w-4 mr-2" />
               Advanced Settings
             </Button>
@@ -633,7 +569,7 @@ export function AWSIAMScan() {
       )}
 
       {/* Scan Results */}
-      {scanResult && scanResult.findings.length > 0 && (
+      {scanResult && scanResult.status === "Completed" && (
         <Card className="cyber-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -650,243 +586,93 @@ export function AWSIAMScan() {
               </TabsList>
               
               <TabsContent value="findings" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
-                  <div className="xl:col-span-2">
-                    <Label htmlFor="finding-search">Search Findings</Label>
-                    <Input
-                      id="finding-search"
-                      value={findingSearchTerm}
-                      onChange={(event) => setFindingSearchTerm(event.target.value)}
-                      placeholder="Search by resource, finding ID, ARN, or keyword..."
-                      className="bg-input border-border"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="finding-severity">Severity</Label>
-                    <Select value={findingSeverityFilter} onValueChange={setFindingSeverityFilter}>
-                      <SelectTrigger id="finding-severity" className="bg-input border-border">
-                        <SelectValue placeholder="All severities" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All severities</SelectItem>
-                        <SelectItem value="Critical">Critical</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="Low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="finding-type">Type</Label>
-                    <Select value={findingTypeFilter} onValueChange={setFindingTypeFilter}>
-                      <SelectTrigger id="finding-type" className="bg-input border-border">
-                        <SelectValue placeholder="All types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All types</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="role">Role</SelectItem>
-                        <SelectItem value="policy">Policy</SelectItem>
-                        <SelectItem value="group">Group</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="finding-status">Status</Label>
-                    <Select value={findingStatusFilter} onValueChange={setFindingStatusFilter}>
-                      <SelectTrigger id="finding-status" className="bg-input border-border">
-                        <SelectValue placeholder="All statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Resolved">Resolved</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="finding-page-size">Results per page</Label>
-                    <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                      <SelectTrigger id="finding-page-size" className="bg-input border-border">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor="finding-start-date">Start date</Label>
-                    <Input
-                      id="finding-start-date"
-                      type="date"
-                      value={startDateFilter}
-                      onChange={(event) => setStartDateFilter(event.target.value)}
-                      className="bg-input border-border"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Label htmlFor="finding-end-date">End date</Label>
-                    <Input
-                      id="finding-end-date"
-                      type="date"
-                      value={endDateFilter}
-                      onChange={(event) => setEndDateFilter(event.target.value)}
-                      className="bg-input border-border"
-                    />
-                  </div>
-                  <div className="md:self-end">
-                    <Button variant="outline" className="border-border w-full md:w-auto" onClick={clearFindingFilters}>
-                      Clear Filters
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    Showing {filteredFindings.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-                    {" "}to{" "}
-                    {Math.min(currentPage * pageSize, filteredFindings.length)} of {filteredFindings.length} findings
-                  </span>
-                  <span>Page {currentPage} of {totalPages}</span>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border">
-                      <TableHead>ID</TableHead>
-                      <TableHead>Resource</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Finding</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 6 }).map((_, index) => (
-                        <TableRow key={index} className="border-border">
-                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-6 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : paginatedFindings.length === 0 ? (
+                {!loading && !hasFindings ? (
+                  <EmptyState
+                    icon={<CheckCircle className="h-5 w-5" />}
+                    title="No findings detected"
+                    description="This scan completed, but no issues were found for the current account/region. You can re-run the scan later or adjust scope/compliance settings."
+                    primaryAction={{
+                      label: "Run scan again",
+                      onClick: handleStartScan,
+                      icon: <RefreshCw className="h-4 w-4" />,
+                    }}
+                  />
+                ) : (
+                  <Table>
+                    <TableHeader>
                       <TableRow className="border-border">
-                        <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                          No findings match the current filters.
-                        </TableCell>
+                        <TableHead>Resource</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Finding</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Risk Score</TableHead>
+                        <TableHead>Recommendation</TableHead>
                       </TableRow>
-                    ) : (
-                      paginatedFindings.map((finding) => (
-                        <TableRow 
-                          key={finding.id} 
-                          className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
-                        >
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {finding.id}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getResourceIcon(finding.type)}
-                              <div>
-                                <p className="font-mono text-sm">{finding.resource_name}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {finding.resource_arn}
-                                </p>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        Array.from({ length: 6 }).map((_, index) => (
+                          <TableRow key={index} className="border-border">
+                            <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-64 bg-muted/20" /></TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        scanResult.findings.map((finding) => (
+                          <TableRow 
+                            key={finding.id} 
+                            className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getResourceIcon(finding.type)}
+                                <div>
+                                  <p className="font-mono text-sm">{finding.resource_name}</p>
+                                  <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                    {finding.resource_arn}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {finding.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{finding.finding_type}</p>
-                              <p className="text-xs text-muted-foreground">{finding.description}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getSeverityColor(finding.severity)}>
-                              {finding.severity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={getFindingStatus(finding)}
-                              onValueChange={(value) => updateFindingStatus(finding.id, value as FindingStatus)}
-                            >
-                              <SelectTrigger className="h-8 w-[130px] bg-input border-border">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Open">Open</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Resolved">Resolved</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Badge className={`mt-2 ${statusColorMap[getFindingStatus(finding)]}`}>
-                              {getFindingStatus(finding)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {new Date(finding.created_date).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <span className={
-                              finding.risk_score > 80 ? "text-[#ff0040]" :
-                              finding.risk_score > 60 ? "text-[#ff6b35]" :
-                              finding.risk_score > 40 ? "text-[#ffb000]" :
-                              "text-[#00ff88]"
-                            }>
-                              {finding.risk_score}/100
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    className="border-border"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-border"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  >
-                    Next
-                  </Button>
-                </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {finding.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{finding.finding_type}</p>
+                                <p className="text-xs text-muted-foreground">{finding.description}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getSeverityColor(finding.severity)}>
+                                {finding.severity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className={
+                                finding.risk_score > 80 ? "text-[#ff0040]" :
+                                finding.risk_score > 60 ? "text-[#ff6b35]" :
+                                finding.risk_score > 40 ? "text-[#ffb000]" :
+                                "text-[#00ff88]"
+                              }>
+                                {finding.risk_score}/100
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-xs">
+                              {finding.recommendation}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </TabsContent>
 
               <TabsContent value="resources" className="space-y-4">

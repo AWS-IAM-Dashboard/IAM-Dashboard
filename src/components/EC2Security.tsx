@@ -27,10 +27,11 @@ import {
   HardDrive,
   Network
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface EC2SecurityFinding {
   id: string;
@@ -317,11 +318,66 @@ export function EC2Security() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Tour: no scan yet */}
+      {!isScanning && !scanResult && (
+        <PageTour
+          welcomeTitle="EC2 Security Scanner"
+          welcomeDescription="No EC2 scan has been run yet. This page audits your EC2 instances for security-group misconfigurations, unencrypted volumes, public IP exposure, and compliance violations. Let’s walk through how it works."
+          welcomeIcon={<Server className="h-7 w-7" />}
+          steps={[
+            {
+              target: "ec2-region",
+              title: "1. Select Region & Filter",
+              description: "Choose the AWS region to scan and optionally filter by instance name, tag, or ID to narrow the scope.",
+              hint: "Tip: Start with your primary production region.",
+              icon: <Cloud className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "ec2-checks",
+              title: "2. Pick Security Checks",
+              description: "Select which checks to run — security group rules, EBS encryption, public IP exposure, and instance metadata. All checked items will be audited.",
+              icon: <Settings2 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "ec2-compliance",
+              title: "3. Select Compliance Standards",
+              description: "Choose which compliance frameworks to validate against — CIS AWS Foundations and SOC 2 are enabled by default. Enable PCI-DSS or HIPAA if your instances handle regulated workloads.",
+              hint: "Tip: Enable all standards for a thorough first scan.",
+              icon: <Shield className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "ec2-actions",
+              title: "4. Launch the Scan",
+              description: "Hit Start EC2 Scan to begin. The scanner inspects each instance against your selected checks and compliance standards. Results typically appear within a minute.",
+              icon: <Play className="h-5 w-5" />,
+              placement: "top",
+              action: {
+                label: "Start EC2 Scan",
+                onClick: handleStartScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "ec2-config",
+              title: "5. Review Findings",
+              description: "After the scan, a progress card and findings table appear below. Findings are sorted by severity with tabs for instance overview and compliance status.",
+              hint: "Critical findings indicate exposed instances or unencrypted volumes that need immediate attention.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "bottom",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       
       {/* EC2 Scan Configuration */}
-      <Card className="cyber-card">
+      <Card data-tour="ec2-config" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Server className="h-5 w-5 text-primary" />
@@ -330,7 +386,7 @@ export function EC2Security() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
+            <div data-tour="ec2-region" className="space-y-4">
               <div>
                 <Label htmlFor="region">AWS Region</Label>
                 <Select value={selectedRegion} onValueChange={setSelectedRegion}>
@@ -355,7 +411,7 @@ export function EC2Security() {
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div data-tour="ec2-checks" className="space-y-4">
               <div>
                 <Label>Security Checks</Label>
                 <div className="space-y-2 mt-2">
@@ -379,7 +435,7 @@ export function EC2Security() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div data-tour="ec2-compliance" className="space-y-4">
               <div>
                 <Label>Compliance Standards</Label>
                 <div className="space-y-2 mt-2">
@@ -404,11 +460,11 @@ export function EC2Security() {
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
+              className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
             >
               <Play className="h-4 w-4 mr-2" />
               {isScanning ? "Scanning..." : "Start EC2 Scan"}
@@ -418,13 +474,14 @@ export function EC2Security() {
               <Button 
                 onClick={handleStopScan}
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Square className="h-4 w-4 mr-2" />
                 Stop Scan
               </Button>
             )}
             
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="w-full sm:w-auto border-border">
               <Settings2 className="h-4 w-4 mr-2" />
               Advanced Settings
             </Button>
@@ -441,6 +498,7 @@ export function EC2Security() {
           </AlertDescription>
         </Alert>
       )}
+
 
       {/* Scan Progress */}
       {(isScanning || scanResult) && (

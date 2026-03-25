@@ -20,8 +20,6 @@ RUN chown -R app:app /app
 
 # Entrypoint runs as root so it can npm ci into the node_modules volume, then runs dev server as app
 COPY docker-frontend-entrypoint.sh /docker-frontend-entrypoint.sh
-# Strip CRLF (Windows line endings) so script executes on Linux
-RUN sed -i 's/\r$//' /docker-frontend-entrypoint.sh
 RUN chmod +x /docker-frontend-entrypoint.sh
 
 # Do not switch to USER app here; entrypoint runs as root, then su-exec app for vite
