@@ -25,11 +25,22 @@ SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "")
 SCAN_ALERT_RECIPIENTS = os.environ.get("SCAN_ALERT_RECIPIENTS", "")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "")
 SES_SUBJECT_PREFIX = os.environ.get("SES_SUBJECT_PREFIX", "IAM Dashboard")
+OPERATIONAL_SCANS = {"iam", "ec2", "s3"}
+NON_OPERATIONAL_SCANS = {"config", "guardduty", "inspector", "security-hub"}
+
+
+def get_scan_type(scan_document: dict[str, Any]) -> str:
+    """Read and validate the top-level scanner type."""
+    scanner_type = scan_document.get("scanner_type")
+    if not isinstance(scanner_type, str) or not scanner_type.strip():
+        raise ValueError("Scan result JSON is missing top-level scanner_type")
+
+    return scanner_type
 
 
 def extract_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
     """Extract and validate the fields required by the SES notification body."""
-    scanner_type = scan_document.get("scanner_type")
+    scanner_type = get_scan_type(scan_document)
     region = scan_document.get("region")
     timestamp = scan_document.get("timestamp")
     results = scan_document.get("results")
@@ -56,6 +67,75 @@ def extract_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def extract_full_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
+    """Extract and merge scan-summary values from nested operational full-scan results."""
+    scanner_type = get_scan_type(scan_document)
+    region = scan_document.get("region")
+    timestamp = scan_document.get("timestamp")
+    results = scan_document.get("results")
+
+    if scanner_type != "full":
+        raise ValueError("Full-scan extractor received a non-full scan document")
+
+    if not region or not timestamp or not isinstance(results, dict):
+        raise ValueError("Full scan JSON is missing required top-level fields")
+
+    successful_scanners = results.get("successful_scanners")
+    if successful_scanners is not None and not isinstance(successful_scanners, list):
+        raise ValueError("Full scan JSON has an invalid results.successful_scanners value")
+
+    merged_summary = {
+        "critical_findings": 0,
+        "high_findings": 0,
+        "medium_findings": 0,
+        "low_findings": 0,
+    }
+    account_id: str | None = None
+    processed_operational_sections = 0
+
+    nested_scan_types = successful_scanners if isinstance(successful_scanners, list) else list(OPERATIONAL_SCANS)
+    for nested_scan_type in nested_scan_types:
+        if nested_scan_type not in OPERATIONAL_SCANS:
+            continue
+
+        nested_results = results.get(nested_scan_type)
+        if not isinstance(nested_results, dict):
+            continue
+
+        nested_summary = nested_results.get("scan_summary")
+        if not isinstance(nested_summary, dict):
+            continue
+
+        if account_id is None:
+            nested_account_id = nested_results.get("account_id")
+            if isinstance(nested_account_id, str) and nested_account_id:
+                account_id = nested_account_id
+
+        for key in merged_summary:
+            value = nested_summary.get(key)
+            if isinstance(value, Number):
+                merged_summary[key] += value
+
+        processed_operational_sections += 1
+
+    if processed_operational_sections == 0:
+        raise ValueError("Full scan JSON does not contain any nested operational scan_summary data")
+
+    if not account_id:
+        raise ValueError("Full scan JSON does not contain an account_id in nested operational results")
+
+    total_findings = sum(value for value in merged_summary.values() if isinstance(value, Number))
+
+    return {
+        "scanner_type": scanner_type,
+        "region": region,
+        "timestamp": timestamp,
+        "account_id": account_id,
+        "scan_summary": merged_summary,
+        "total_findings": total_findings,
+    }
+
+
 def build_email_body(parsed_values: dict[str, Any], s3_bucket_name: str) -> str:
     """Build the SES notification body from parsed scan values."""
     scan_summary_json = json.dumps(parsed_values["scan_summary"])
@@ -66,6 +146,14 @@ def build_email_body(parsed_values: dict[str, Any], s3_bucket_name: str) -> str:
         f"AccountID:{parsed_values['account_id']} at {parsed_values['timestamp']}. "
         f"A total of {parsed_values['total_findings']} vulnerabilities were found. "
         f"Check the results in {s3_bucket_name}."
+    )
+
+
+def build_unavailable_scan_message(scan_type: str, timestamp: str) -> str:
+    """Build the fallback body for non-operational scans that lack extractable findings."""
+    return (
+        f"A {scan_type} scan was ran in your account at {timestamp}. "
+        "The resource is currently not enabled so no information could be extracted."
     )
 
 
@@ -133,9 +221,24 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         try:
             scan_document = load_scan_document(bucket_name, object_key)
-            parsed_values = extract_scan_values(scan_document)
-            email_body = build_email_body(parsed_values, S3_BUCKET_NAME or bucket_name)
-            subject = f"{SES_SUBJECT_PREFIX}: {parsed_values['scanner_type']} scan notification"
+            scan_type = get_scan_type(scan_document)
+            subject = f"{SES_SUBJECT_PREFIX}: {scan_type} scan notification"
+
+            if scan_type in OPERATIONAL_SCANS:
+                parsed_values = extract_scan_values(scan_document)
+                email_body = build_email_body(parsed_values, S3_BUCKET_NAME or bucket_name)
+            elif scan_type == "full":
+                parsed_values = extract_full_scan_values(scan_document)
+                email_body = build_email_body(parsed_values, S3_BUCKET_NAME or bucket_name)
+            elif scan_type in NON_OPERATIONAL_SCANS:
+                timestamp = scan_document.get("timestamp")
+                if not isinstance(timestamp, str) or not timestamp:
+                    raise ValueError("Scan result JSON is missing top-level timestamp")
+
+                email_body = build_unavailable_scan_message(scan_type, timestamp)
+            else:
+                raise ValueError(f"Unsupported scanner_type for SES notification: {scan_type}")
+
             send_notification(subject, email_body)
             logger.info("Sent scan notification for s3://%s/%s", bucket_name, object_key)
             processed += 1
