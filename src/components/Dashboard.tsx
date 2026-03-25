@@ -285,7 +285,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     return sortedScans[0].findings || [];
   }, [scanResults, scanResultsVersion]);
 
-<<<<<<< feat/a8-grafana-findings-over-time
   const severityBreakdownData = useMemo(() => {
     const counts: Record<string, number> = {};
     (allFindings as any[]).forEach((f) => {
@@ -305,8 +304,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     }));
   }, [allFindings, scanResultsVersion]);
 
-=======
->>>>>>> main
   const findingsFilterDefs: FilterDefinition[] = useMemo(() => {
     const severities = [...new Set(allFindings.map((f: any) => f.severity).filter(Boolean))];
     const types = [...new Set(allFindings.map((f: any) => f.finding_type || f.type).filter(Boolean))];
@@ -864,7 +861,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-<<<<<<< feat/a8-grafana-findings-over-time
         {severityBreakdownData.length > 0 && (
             <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
               <p className="mb-2 text-sm font-medium text-muted-foreground">
@@ -892,8 +888,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
             </div>
           )}
-=======
->>>>>>> main
           <FindingsTableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -917,10 +911,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 <TableHead>Resource</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Severity</TableHead>
-<<<<<<< feat/a8-grafana-findings-over-time
                 <TableHead>Timestamp</TableHead>
-=======
->>>>>>> main
                 <TableHead>Description</TableHead>
                 <TableHead>Risk Score</TableHead>
               </TableRow>
@@ -932,10 +923,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
-<<<<<<< feat/a8-grafana-findings-over-time
                     <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
-=======
->>>>>>> main
                     <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
                   </TableRow>
@@ -944,7 +932,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 paginatedFindings.map((finding: any, index: number) => (
                   <TableRow
                     key={finding.id || index}
-<<<<<<< feat/a8-grafana-findings-over-time
                     className={`border-border cursor-pointer hover:bg-accent/10 transition-colors border-l-4 ${
                       finding.severity === "Critical"
                         ? "border-l-[#ff0040]"
@@ -956,9 +943,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                               ? "border-l-[#00ff88]"
                               : "border-l-muted"
                     }`}
-=======
-                    className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
->>>>>>> main
                   >
                     <TableCell>
                       <div>
@@ -974,7 +958,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-<<<<<<< feat/a8-grafana-findings-over-time
                       <div className="flex items-center gap-1.5">
                         {(finding.severity === "Critical" || finding.severity === "High") && (
                           <AlertTriangle className="h-4 w-4 shrink-0 text-[#ff6b35]" aria-hidden />
@@ -1027,45 +1010,11 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                         <span className="text-muted-foreground">--</span>
                       )}
                     </TableCell>
-=======
-                      <Badge
-                        className={
-                          finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
-                          finding.severity === "High" ? "bg-[#ff6b35] text-white" :
-                          finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
-                          "bg-[#00ff88] text-black"
-                        }
-                      >
-                        {finding.severity}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm max-w-md">
-                      <p className="line-clamp-2">{finding.description || 'No description'}</p>
-                    </TableCell>
-                    <TableCell>
-                      {finding.risk_score != null ? (
-                        <span className={
-                          finding.risk_score > 80 ? "text-[#ff0040]" :
-                          finding.risk_score > 60 ? "text-[#ff6b35]" :
-                          finding.risk_score > 40 ? "text-[#ffb000]" :
-                          "text-[#00ff88]"
-                        }>
-                          {finding.risk_score}/100
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">--</span>
-                      )}
-                    </TableCell>
->>>>>>> main
                   </TableRow>
                 ))
               ) : (
                 <TableRow className="border-border">
-<<<<<<< feat/a8-grafana-findings-over-time
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-=======
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
->>>>>>> main
                     {allFindings.length === 0
                       ? 'No findings available. Run a Full Security Scan to get started.'
                       : 'No findings match the current filters.'}
