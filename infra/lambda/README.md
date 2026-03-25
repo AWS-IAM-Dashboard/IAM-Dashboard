@@ -152,3 +152,19 @@ After deployment, the Lambda function can be integrated with:
 - **EventBridge**: For scheduled scans
 - **S3 Event Notifications**: For triggering scans on S3 events
 - **CloudWatch Events**: For cron-based scheduling
+
+## Security Headers
+This Lambda adds the following security-related HTTP headers to all API Gateway proxy responses (both success and error), in addition to `Content-Type` and the existing CORS headers:
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` (unless overridden)
+- `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`
+
+Optional environment variable overrides:
+
+- `SECURITY_HSTS_HEADER_VALUE`: if set, used verbatim for `Strict-Transport-Security`.
+- `SECURITY_HSTS_MAX_AGE`, `SECURITY_HSTS_INCLUDE_SUBDOMAINS`, `SECURITY_HSTS_PRELOAD`: used to construct the default HSTS header when `SECURITY_HSTS_HEADER_VALUE` is not set.
+- `SECURITY_CSP_HEADER_VALUE`: if set, used verbatim for `Content-Security-Policy`.
+
+Note: `OPTIONS` preflight responses are typically handled by API Gateway's CORS configuration rather than this Lambda.
