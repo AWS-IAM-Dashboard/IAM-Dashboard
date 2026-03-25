@@ -19,6 +19,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface GrafanaConnection {
@@ -149,13 +150,13 @@ export function GrafanaIntegration() {
     <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px",  }}>
 
       {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ fontSize: "17px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Grafana Integration</h1>
-          <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.7)", margin: "3px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
-            Pipe security metrics to Grafana dashboards
-          </p>
-        </div>
+      <ScanPageHeader
+        icon={<BarChart3 size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Grafana Integration"
+        subtitle="Pipe security metrics to Grafana dashboards"
+        onRefresh={() => toast.info("Refreshing connections…")}
+      >
         {/* Status pills */}
         <div style={{ display: "flex", gap: "8px" }}>
           {[
@@ -165,7 +166,7 @@ export function GrafanaIntegration() {
             <span key={label} style={{ fontSize: "11px", fontWeight: 600, color, background: `${color}15`, border: `1px solid ${color}30`, padding: "4px 10px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
           ))}
         </div>
-      </div>
+      </ScanPageHeader>
 
       {/* ── Section tabs ── */}
       <div style={{ display: "flex", gap: "2px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0" }}>

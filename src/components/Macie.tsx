@@ -3,8 +3,6 @@ import {
   Eye,
   Database,
   AlertTriangle,
-  RefreshCw,
-  Download,
   Shield,
   Key,
   User,
@@ -14,6 +12,9 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface MacieFinding {
   id: string;
@@ -119,7 +120,7 @@ const CARD_STYLE: React.CSSProperties = {
 const CHIP_BASE: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  padding: '4px 14px',
+  padding: '4px 16px',
   borderRadius: 20,
   fontSize: 12,
   fontWeight: 600,
@@ -149,7 +150,7 @@ function getDataTypePillStyle(label: string): React.CSSProperties {
   return {
     display: 'inline-flex',
     alignItems: 'center',
-    padding: '2px 8px',
+    padding: '4px 8px',
     borderRadius: 10,
     fontSize: 10,
     fontWeight: 600,
@@ -221,87 +222,26 @@ export function Macie() {
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Eye size={28} color="#ff0040" />
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>Macie</h1>
-          </div>
-          <p style={{ margin: '6px 0 0', color: 'rgba(100,116,139,0.7)', fontSize: 14 }}>
-            Automated sensitive data discovery and DLP — PII, credentials, and financial data in S3
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              opacity: isRefreshing ? 0.6 : 1,
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Refresh
-          </button>
-          <button
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: 'pointer',
-            }}
-          >
-            <Download size={14} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Eye size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Macie — Data Security"
+        subtitle="Automated sensitive data discovery and DLP — PII, credentials, and financial data in S3"
+        isScanning={isRefreshing}
+        onRefresh={handleRefresh}
+      />
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        <div style={CARD_STYLE}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total Findings</p>
-          <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>{totalFindings}</p>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>all findings</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,0,64,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>PII Exposed</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ff4060' }}>{piiExposed}</p>
-            <User size={18} color="#ff4060" style={{ opacity: 0.7 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>PII findings</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,0,64,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Credentials Found</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ff4060' }}>{credentialsFound}</p>
-            <Key size={18} color="#ff4060" style={{ opacity: 0.7 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>credential leaks</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,176,0,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Buckets Affected</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ffb000' }}>{bucketsAffected}</p>
-            <Database size={18} color="#ffb000" style={{ opacity: 0.7 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>unique buckets</p>
-        </div>
+        <StatCard label="Total Findings" value={totalFindings} accent="#e2e8f0" icon={AlertTriangle} />
+        <StatCard label="PII Exposed" value={piiExposed} accent="#ff0040" icon={User} />
+        <StatCard label="Credentials Found" value={credentialsFound} accent="#ff0040" icon={Key} />
+        <StatCard label="Buckets Affected" value={bucketsAffected} accent="#ffb000" icon={Database} />
       </div>
 
       {/* Data Type Legend */}
-      <div style={{ ...CARD_STYLE, padding: '14px 24px' }}>
-        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Discovered Data Types</p>
+      <div style={{ ...CARD_STYLE, padding: '16px 24px' }}>
+        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Discovered Data Types</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {DATA_TYPE_LEGEND.map(dt => (
             <span
@@ -309,8 +249,8 @@ export function Macie() {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
-                padding: '3px 10px',
+                gap: 4,
+                padding: '4px 12px',
                 borderRadius: 12,
                 fontSize: 11,
                 fontWeight: 600,
@@ -390,7 +330,7 @@ export function Macie() {
           display: 'grid',
           gridTemplateColumns: '6px 170px 1fr 140px 130px 80px 90px 30px',
           gap: 12,
-          padding: '0 12px 10px',
+          padding: '0 12px 8px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           alignItems: 'center',
         }}>
@@ -425,7 +365,7 @@ export function Macie() {
                     display: 'grid',
                     gridTemplateColumns: '6px 170px 1fr 140px 130px 80px 90px 30px',
                     gap: 12,
-                    padding: '14px 12px',
+                    padding: '16px 12px',
                     borderBottom: idx < filteredFindings.length - 1 || isExpanded ? '1px solid rgba(255,255,255,0.04)' : 'none',
                     cursor: 'pointer',
                     background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent',
@@ -491,18 +431,7 @@ export function Macie() {
 
                   {/* Classification */}
                   <div>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '3px 10px',
-                      borderRadius: 10,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      background: classStyle.bg,
-                      border: `1px solid ${classStyle.border}`,
-                      color: classStyle.text,
-                    }}>
-                      {finding.data_classification}
-                    </span>
+                    <SeverityBadge severity={finding.severity} size="sm" label={finding.data_classification} />
                   </div>
 
                   {/* Occurrences */}
@@ -530,7 +459,7 @@ export function Macie() {
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 14,
+                    gap: 16,
                   }}>
                     <div>
                       <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Finding Title</p>
@@ -574,7 +503,7 @@ export function Macie() {
                       background: 'rgba(255,0,64,0.05)',
                       border: '1px solid rgba(255,0,64,0.18)',
                     }}>
-                      <p style={{ fontSize: 11, color: '#ff0040', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px', fontWeight: 600 }}>Remediation</p>
+                      <p style={{ fontSize: 11, color: '#ff0040', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px', fontWeight: 600 }}>Remediation</p>
                       <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>
                         {getRemediation(finding.category)}
                       </p>

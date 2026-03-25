@@ -22,6 +22,9 @@ import {
 import { toast } from "sonner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 type ResourceType = "VPC" | "Subnet" | "SecurityGroup" | "NACL" | "RouteTable" | "Peering";
 
@@ -453,60 +456,19 @@ export function VPCSecurity() {
   return (
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Network size={22} color="#06b6d4" />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.01em" }}>VPC &amp; Network</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(100,116,139,0.7)", marginTop: 2 }}>
-              Security groups, flow logs, NACLs, subnets, VPC endpoints, and peering misconfigurations
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select
-            value={selectedRegion}
-            onChange={e => setSelectedRegion(e.target.value)}
-            style={{ ...monoStyle, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#e2e8f0", padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-          </select>
-          <button
-            onClick={handleStartScan}
-            disabled={isScanning}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: isScanning ? "rgba(6,182,212,0.1)" : "rgba(6,182,212,0.15)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}
-          >
-            <Play size={13} />
-            {isScanning ? "Scanning…" : "Run Scan"}
-          </button>
-          {isScanning && (
-            <button
-              onClick={handleStopScan}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,0,64,0.2)", border: "1px solid rgba(255,0,64,0.4)", color: "#ff0040", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-            >
-              Stop
-            </button>
-          )}
-          <button
-            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-            Refresh
-          </button>
-          <button
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <Download size={13} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Network size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="VPC & Network Security"
+        subtitle="Security groups, flow logs, NACLs, subnets, VPC endpoints, and peering misconfigurations"
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onStop={handleStopScan}
+        onRefresh={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+        onExport={() => {}}
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      />
 
       {error && (
         <div style={{ padding: "12px 16px", borderRadius: 8, background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.3)", color: "#ff0040", fontSize: 13 }}>
@@ -517,23 +479,15 @@ export function VPCSecurity() {
 
       {/* Stat Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-        {[
-          { label: "Total VPCs", value: summary.total_vpcs, color: "#06b6d4", sub: `${summary.total_subnets} subnets scanned` },
-          { label: "Critical Findings", value: summary.critical_findings, color: "#ff0040", sub: "Immediate action required" },
-          { label: "High Findings", value: summary.high_findings, color: "#ff6b35", sub: "Remediate within 7 days" },
-          { label: "Open SGs", value: summary.open_security_groups, color: "#ffb000", sub: `of ${summary.security_groups} total SGs` },
-          { label: "No Flow Logs", value: summary.flow_logs_missing, color: "#ff6b35", sub: "VPCs with blind spots" },
-        ].map(card => (
-          <div key={card.label} style={{ ...cardStyle, padding: "16px 18px" }}>
-            <p style={{ ...labelStyle, margin: "0 0 8px" }}>{card.label}</p>
-            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: card.color, ...monoStyle, lineHeight: 1 }}>{card.value}</p>
-            <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(100,116,139,0.6)" }}>{card.sub}</p>
-          </div>
-        ))}
+        <StatCard label="Total VPCs" value={summary.total_vpcs} accent="#06b6d4" icon={Network} />
+        <StatCard label="Critical Findings" value={summary.critical_findings} accent="#ff0040" icon={Shield} />
+        <StatCard label="High Findings" value={summary.high_findings} accent="#ff6b35" icon={AlertTriangle} />
+        <StatCard label="Open SGs" value={summary.open_security_groups} accent="#ffb000" icon={Globe} />
+        <StatCard label="No Flow Logs" value={summary.flow_logs_missing} accent="#ff6b35" icon={Eye} />
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cardStyle, padding: "14px 20px" }}>
+      <div style={{ ...cardStyle, padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={labelStyle}>Workflow Pipeline</span>
@@ -575,7 +529,7 @@ export function VPCSecurity() {
       </div>
 
       {/* Risk Indicators Strip */}
-      <div style={{ ...cardStyle, padding: "12px 18px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ ...cardStyle, padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ ...labelStyle, marginRight: 4 }}>Risk Indicators</span>
         {[
           { label: `Open SGs: ${summary.open_security_groups} groups`, color: "#ff0040" },
@@ -583,7 +537,7 @@ export function VPCSecurity() {
           { label: `No Flow Logs: ${summary.flow_logs_missing} VPCs`, color: "#ff6b35" },
           { label: `Total Findings: ${summary.critical_findings + summary.high_findings + summary.medium_findings + summary.low_findings}`, color: "#818cf8" },
         ].map(chip => (
-          <span key={chip.label} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...monoStyle }}>
+          <span key={chip.label} style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...monoStyle }}>
             {chip.label}
           </span>
         ))}
@@ -599,7 +553,7 @@ export function VPCSecurity() {
               <button
                 key={sev}
                 onClick={() => setSeverityFilter(sev)}
-                style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)", transition: "all 0.15s" }}
+                style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)", transition: "all 0.15s" }}
               >
                 {sev}
               </button>
@@ -612,7 +566,7 @@ export function VPCSecurity() {
             value={findingSearch}
             onChange={e => setFindingSearch(e.target.value)}
             placeholder="Search resources, finding types, IDs…"
-            style={{ width: "100%", padding: "7px 10px 7px 30px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...monoStyle }}
+            style={{ width: "100%", padding: "8px 12px 8px 32px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...monoStyle }}
           />
         </div>
         {statusFilter !== "ALL" && (
@@ -628,7 +582,7 @@ export function VPCSecurity() {
 
       {/* Findings Table */}
       <div style={cardStyle}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Resource / Finding</span>
           <span style={labelStyle}>Type</span>
@@ -678,21 +632,17 @@ export function VPCSecurity() {
                   </div>
 
                   <div>
-                    <span style={{ padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, color: typeColor, ...monoStyle }}>
+                    <span style={{ padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: `${typeColor}18`, border: `1px solid ${typeColor}30`, color: typeColor, ...monoStyle }}>
                       {finding.resource_type}
                     </span>
                   </div>
 
                   <div>
-                    <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: WORKFLOW_META[workflowByFinding[finding.id]].bg, color: WORKFLOW_META[workflowByFinding[finding.id]].color, ...monoStyle }}>
-                      {WORKFLOW_META[workflowByFinding[finding.id]].label}
-                    </span>
+                    <SeverityBadge severity={workflowByFinding[finding.id] as string} size="sm" />
                   </div>
 
                   <div>
-                    <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, background: SEVERITY_BG[finding.severity]?.bg ?? "rgba(100,116,139,0.15)", color: sevColor, ...monoStyle }}>
-                      {finding.severity}
-                    </span>
+                    <SeverityBadge severity={finding.severity} size="sm" />
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -726,7 +676,7 @@ export function VPCSecurity() {
 
                 {expanded && (
                   <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.35)" }}>
-                    <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ padding: "8px 20px 8px 32px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ ...labelStyle, marginRight: 6 }}>Workflow</span>
                       {NEXT_STATUS[workflowByFinding[finding.id]] && (
                         <button
@@ -734,7 +684,7 @@ export function VPCSecurity() {
                             e.stopPropagation();
                             setWorkflowOverrides(prev => ({ ...prev, [finding.id]: NEXT_STATUS[workflowByFinding[finding.id]]! }));
                           }}
-                          style={{ padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", cursor: "pointer", ...monoStyle }}
+                          style={{ padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", cursor: "pointer", ...monoStyle }}
                         >
                           Advance → {WORKFLOW_META[NEXT_STATUS[workflowByFinding[finding.id]]!].label}
                         </button>
@@ -748,7 +698,7 @@ export function VPCSecurity() {
                         {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
                       </select>
                       {ticketByFinding[finding.id] ? (
-                        <span style={{ fontSize: 10, ...monoStyle, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "2px 6px" }}>{ticketByFinding[finding.id]}</span>
+                        <span style={{ fontSize: 10, ...monoStyle, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "4px 8px" }}>{ticketByFinding[finding.id]}</span>
                       ) : (
                         <button
                           onClick={e => {
@@ -770,7 +720,7 @@ export function VPCSecurity() {
                         {ticketByFinding[finding.id] ? `Ticket: ${ticketByFinding[finding.id]} · ` : ""}First seen: {new Date(Date.now() - (idx + 1) * 3600000).toLocaleString()}
                       </span>
                     </div>
-                    <div style={{ padding: "0 16px 0 36px" }}>
+                    <div style={{ padding: "0 16px 0 32px" }}>
                       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
                         {[
                           { id: "runbook", label: "Runbook", icon: <GitBranch size={12} /> },
@@ -784,7 +734,7 @@ export function VPCSecurity() {
                               e.stopPropagation();
                               setActiveTab(prev => ({ ...prev, [finding.id]: t.id }));
                             }}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "10px 14px", background: "transparent", border: "none", borderBottom: `2px solid ${(activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "transparent"}`, color: (activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "rgba(100,116,139,0.65)", fontSize: 12, fontWeight: (activeTab[finding.id] ?? "runbook") === t.id ? 600 : 400, cursor: "pointer", marginBottom: -1 }}
+                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "transparent", border: "none", borderBottom: `2px solid ${(activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "transparent"}`, color: (activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "rgba(100,116,139,0.65)", fontSize: 12, fontWeight: (activeTab[finding.id] ?? "runbook") === t.id ? 600 : 400, cursor: "pointer", marginBottom: -1 }}
                           >
                             {t.icon}{t.label}
                           </button>
@@ -792,7 +742,7 @@ export function VPCSecurity() {
                       </div>
                     </div>
 
-                    <div style={{ padding: "12px 16px 16px 36px" }} onClick={e => e.stopPropagation()}>
+                    <div style={{ padding: "12px 16px 16px 32px" }} onClick={e => e.stopPropagation()}>
                       {(activeTab[finding.id] ?? "runbook") === "runbook" && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {[
@@ -807,7 +757,7 @@ export function VPCSecurity() {
                                 <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{step.title}</span>
                               </div>
                               <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step.desc}</p>
-                              <code style={{ display: "block", fontSize: 10, color: "#7dd3fc", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "6px 8px", ...monoStyle }}>{step.cmd}</code>
+                              <code style={{ display: "block", fontSize: 10, color: "#7dd3fc", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "8px 8px", ...monoStyle }}>{step.cmd}</code>
                             </div>
                           ))}
                         </div>
@@ -816,10 +766,10 @@ export function VPCSecurity() {
                       {(activeTab[finding.id] ?? "runbook") === "overview" && (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
                       <div>
-                        <p style={{ ...labelStyle, margin: "0 0 6px" }}>Description</p>
+                        <p style={{ ...labelStyle, margin: "0 0 8px" }}>Description</p>
                         <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
                         <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
-                          <p style={{ ...labelStyle, color: "rgba(255,176,0,0.8)", margin: "0 0 6px" }}>Recommendation</p>
+                          <p style={{ ...labelStyle, color: "rgba(255,176,0,0.8)", margin: "0 0 8px" }}>Recommendation</p>
                           <p style={{ fontSize: 12, color: "#fcd34d", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
                         </div>
                       </div>
@@ -842,16 +792,16 @@ export function VPCSecurity() {
                         </div>
                         {finding.compliance_frameworks.length > 0 && (
                           <div style={{ marginTop: 10 }}>
-                            <p style={{ ...labelStyle, margin: "0 0 6px" }}>Compliance Frameworks</p>
+                            <p style={{ ...labelStyle, margin: "0 0 8px" }}>Compliance Frameworks</p>
                             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                               {finding.compliance_frameworks.map(fw => (
-                                <span key={fw} style={{ padding: "2px 7px", borderRadius: 4, background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)", color: "#06b6d4", fontSize: 11, ...monoStyle }}>{fw}</span>
+                                <span key={fw} style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)", color: "#06b6d4", fontSize: 11, ...monoStyle }}>{fw}</span>
                               ))}
                             </div>
                           </div>
                         )}
                         {finding.is_public && (
-                          <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, background: "rgba(255,0,64,0.07)", border: "1px solid rgba(255,0,64,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(255,0,64,0.07)", border: "1px solid rgba(255,0,64,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
                             <Shield size={14} color="#ff0040" />
                             <span style={{ fontSize: 11, color: "#ff0040" }}>Internet-exposed resource — prioritize immediately</span>
                           </div>
@@ -867,7 +817,7 @@ export function VPCSecurity() {
                             { who: "analyst", action: "Triaged and validated", note: "Marked true positive", ts: "1h ago" },
                             { who: "engineer", action: "Remediation plan drafted", note: "Awaiting approval window", ts: "20m ago" },
                           ].map((e, i) => (
-                            <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                                 <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{e.action}</span>
                                 <span style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{e.ts}</span>
@@ -888,7 +838,7 @@ export function VPCSecurity() {
                             <div key={a.title} style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#06b6d4", marginBottom: 6 }}>{a.icon}<span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{a.title}</span></div>
                               <code style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{a.endpoint}</code>
-                              <button onClick={() => toast.info(`${a.title} stub`, { description: `${a.endpoint} for ${finding.resource_id}` })} style={{ marginTop: 8, width: "100%", padding: "6px 0", borderRadius: 6, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", fontSize: 11, cursor: "pointer" }}>Run Agent</button>
+                              <button onClick={() => toast.info(`${a.title} stub`, { description: `${a.endpoint} for ${finding.resource_id}` })} style={{ marginTop: 8, width: "100%", padding: "8px 0", borderRadius: 6, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", fontSize: 11, cursor: "pointer" }}>Run Agent</button>
                             </div>
                           ))}
                         </div>

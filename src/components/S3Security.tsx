@@ -41,6 +41,9 @@ import {
 import { toast } from "sonner";
 import { scanS3, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -786,55 +789,29 @@ export function S3Security() {
     <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Archive size={22} style={{ color: "#00ff88" }} />
-          </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#f1f5f9" }}>S3 & Storage Security</h2>
-            <p style={{ margin: 0, fontSize: 12, color: "rgba(100,116,139,0.8)", ...ms }}>Enterprise workflow · {findings.length} findings · {summary.total_buckets} buckets monitored</p>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)} style={{ padding: "6px 10px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#94a3b8", fontSize: 12, cursor: "pointer", ...ms }}>
-            <option value="all-regions">All Regions</option>
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-          </select>
-          <button onClick={handleStartScan} disabled={isScanning} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: isScanning ? "rgba(0,255,136,0.05)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: 8, color: "#00ff88", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}>
-            {isScanning ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-            {isScanning ? "Scanning…" : "Run Scan"}
-          </button>
-          <button
-            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-            Refresh
-          </button>
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>
-            <Download size={13} />Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Archive size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="S3 & Storage Security"
+        subtitle={`Enterprise workflow · ${findings.length} findings · ${summary.total_buckets} buckets monitored`}
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onStop={() => { setIsScanning(false); toast.warning("S3 scan stopped"); }}
+        onRefresh={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+        onExport={() => {}}
+        scanLabel="Run Scan"
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      />
 
       {/* KPI Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-        {[
-          { label: "Total Buckets", value: summary.total_buckets, color: "#94a3b8" },
-          { label: "SLA Breaches", value: slaBreaches, color: slaBreaches > 0 ? "#ff0040" : "#00ff88" },
-          { label: "Open Critical", value: openCritical, color: openCritical > 0 ? "#ff0040" : "#00ff88" },
-          { label: "Open High", value: openHigh, color: openHigh > 0 ? "#ff6b35" : "#00ff88" },
-          { label: "Remediated", value: remediated, color: "#00ff88" },
-          { label: "Public Buckets", value: summary.public_buckets, color: summary.public_buckets > 0 ? "#ff6b35" : "#00ff88" },
-        ].map(k => (
-          <div key={k.label} style={{ ...cs, padding: "14px 16px" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: k.color, ...ms }}>{k.value}</div>
-            <div style={{ ...ls, marginTop: 4 }}>{k.label}</div>
-          </div>
-        ))}
+        <StatCard label="Total Buckets" value={summary.total_buckets} accent="#94a3b8" icon={Archive} />
+        <StatCard label="SLA Breaches" value={slaBreaches} accent={slaBreaches > 0 ? "#ff0040" : "#00ff88"} icon={AlertTriangle} />
+        <StatCard label="Open Critical" value={openCritical} accent={openCritical > 0 ? "#ff0040" : "#00ff88"} icon={Shield} />
+        <StatCard label="Open High" value={openHigh} accent={openHigh > 0 ? "#ff6b35" : "#00ff88"} icon={AlertTriangle} />
+        <StatCard label="Remediated" value={remediated} accent="#00ff88" icon={CheckCircle} />
+        <StatCard label="Public Buckets" value={summary.public_buckets} accent={summary.public_buckets > 0 ? "#ff6b35" : "#00ff88"} icon={Globe} />
       </div>
 
       {/* Workflow Pipeline */}
@@ -967,10 +944,10 @@ export function S3Security() {
                   </div>
                 </div>
                 <div>
-                  <span style={{ ...sevBg, padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, ...ms }}>{f.severity}</span>
+                  <SeverityBadge severity={f.severity} size="sm" />
                 </div>
                 <div>
-                  <span style={{ ...wfMeta, padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, ...ms }}>{wfMeta.label.toUpperCase()}</span>
+                  <SeverityBadge severity={wf.status} size="sm" />
                   {wf.sla_breached && <div style={{ fontSize: 9, ...ms, color: "#ff0040", marginTop: 3 }}>SLA BREACH</div>}
                 </div>
                 <div>

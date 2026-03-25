@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Play,
-  Square,
   Users,
-  RefreshCw,
-  Download,
   ChevronDown,
   ChevronUp,
   Search,
 } from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -286,15 +285,15 @@ export function AWSIAMScan() {
   const sectionLabel: React.CSSProperties = {
     fontSize: 10,
     fontWeight: 600,
-    color: "rgba(51,65,85,0.9)",
+    color: "rgba(100,116,139,0.55)",
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     fontFamily: "'JetBrains Mono', monospace",
-    marginBottom: 10,
+    marginBottom: 8,
   };
 
   const chip = (active: boolean, color?: string): React.CSSProperties => ({
-    padding: "3px 10px",
+    padding: "4px 12px",
     borderRadius: 999,
     fontSize: 11,
     cursor: "pointer",
@@ -312,78 +311,22 @@ export function AWSIAMScan() {
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 8, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Users size={20} color="#00ff88" />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em" }}>IAM &amp; Access Control</h1>
-            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.7)", margin: 0, marginTop: 2 }}>
-              Identity posture — users, roles, policies, access keys, MFA coverage, privilege escalation paths
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-          </select>
-          <select
-            value={awsProfile}
-            onChange={(e) => setAwsProfile(e.target.value)}
-            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="default">default</option>
-            <option value="production">production</option>
-            <option value="development">development</option>
-            <option value="staging">staging</option>
-          </select>
-          <button
-            onClick={handleStartScan}
-            disabled={isScanning}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 13, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer", opacity: isScanning ? 0.7 : 1, transition: "all 0.15s" }}
-          >
-            {isScanning ? (
-              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <Play size={14} />
-            )}
-            {isScanning ? "Scanning…" : "Scan"}
-          </button>
-          {isScanning && (
-            <button
-              onClick={handleStopScan}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: "rgba(255,0,64,0.08)", border: "1px solid rgba(255,0,64,0.25)", color: "#ff0040", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-            >
-              <Square size={14} />
-              Stop
-            </button>
-          )}
-          <button
-            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
-            Refresh
-          </button>
-          {scanResult && (
-            <button
-              onClick={() => exportCSV(scanResult.findings)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
-            >
-              <Download size={13} />
-              Export CSV
-            </button>
-          )}
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Users size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="IAM & Access Control"
+        subtitle="Identity posture — users, roles, policies, access keys, MFA coverage, privilege escalation paths"
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onStop={handleStopScan}
+        onRefresh={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+        onExport={scanResult ? () => exportCSV(scanResult.findings) : undefined}
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+        showProfile={true}
+        profile={awsProfile}
+        onProfileChange={setAwsProfile}
+      />
 
       {/* ── Progress bar while scanning ──────────────────────────────────── */}
       {isScanning && (
@@ -400,26 +343,19 @@ export function AWSIAMScan() {
 
       {/* ── Error ────────────────────────────────────────────────────────── */}
       {error && !scanResult && (
-        <div style={{ ...card, border: "1px solid rgba(255,0,64,0.2)", background: "rgba(255,0,64,0.05)", padding: "12px 16px", display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ ...card, border: "1px solid rgba(255,0,64,0.2)", background: "rgba(255,0,64,0.05)", padding: "12px 16px", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ color: "#ff0040", fontSize: 13 }}>⚠ {error}</span>
         </div>
       )}
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-        {[
-          { label: "Total Findings", value: totalFindings, color: "#e2e8f0" },
-          { label: "Critical", value: criticalCount, color: "#ff0040" },
-          { label: "High", value: highCount, color: "#ff6b35" },
-          { label: "Users Without MFA", value: 3, color: "#ffb000" },
-          { label: "Keys Not Rotated", value: 4, color: "#ff6b35" },
-          { label: "Unused Credentials", value: 3, color: "#64748b" },
-        ].map((s) => (
-          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
-            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>{s.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{s.value}</div>
-          </div>
-        ))}
+        <StatCard label="Total Findings" value={totalFindings} accent="#e2e8f0" />
+        <StatCard label="Critical" value={criticalCount} accent="#ff0040" />
+        <StatCard label="High" value={highCount} accent="#ff6b35" />
+        <StatCard label="Users Without MFA" value={3} accent="#ffb000" />
+        <StatCard label="Keys Not Rotated" value={4} accent="#ff6b35" />
+        <StatCard label="Unused Credentials" value={3} accent="#64748b" />
       </div>
 
       {/* ── Identity risk summary row ─────────────────────────────────────── */}
@@ -438,9 +374,9 @@ export function AWSIAMScan() {
 
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
       {scanResult && (
-        <div style={{ ...card, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ ...card, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <span style={sectionLabel}>Severity</span>
               {["all", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map((s) => (
                 <span key={s} onClick={() => setFindingSeverityFilter(s)} style={chip(findingSeverityFilter === s, s !== "all" ? sevColor(s) : undefined)}>
@@ -448,7 +384,7 @@ export function AWSIAMScan() {
                 </span>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <span style={sectionLabel}>Type</span>
               {["all", "user", "role", "policy", "group"].map((t) => (
                 <span key={t} onClick={() => setFindingTypeFilter(t)} style={chip(findingTypeFilter === t)}>
@@ -464,11 +400,11 @@ export function AWSIAMScan() {
                 value={findingSearchTerm}
                 onChange={(e) => setFindingSearchTerm(e.target.value)}
                 placeholder="Search findings…"
-                style={{ ...monoText, width: "100%", padding: "7px 10px 7px 30px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ ...monoText, width: "100%", padding: "8px 12px 8px 32px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
               />
             </div>
             {(findingSearchTerm || findingSeverityFilter !== "all" || findingTypeFilter !== "all") && (
-              <button onClick={clearFindingFilters} style={{ ...chip(false), padding: "6px 12px" }}>Clear</button>
+              <button onClick={clearFindingFilters} style={{ ...chip(false), padding: "8px 12px" }}>Clear</button>
             )}
             <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
               {filteredFindings.length} finding{filteredFindings.length !== 1 ? "s" : ""}
@@ -480,7 +416,7 @@ export function AWSIAMScan() {
       {/* ── Findings table ───────────────────────────────────────────────── */}
       {scanResult && (
         <div style={card}>
-          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={sectionLabel}>IAM Findings</span>
             <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
               {scanResult.account_id} · {scanResult.region}
@@ -488,10 +424,10 @@ export function AWSIAMScan() {
           </div>
 
           {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "6px 12px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "8px 12px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
             <div />
             {["Resource", "Type", "Severity", "Risk", "Last Accessed", "Status"].map((h) => (
-              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
+              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
             ))}
           </div>
 
@@ -512,7 +448,7 @@ export function AWSIAMScan() {
                   {/* Main row */}
                   <div
                     onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
-                    style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "10px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
+                    style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 100px 80px 90px 70px", gap: "0 12px", alignItems: "center", padding: "8px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
                     onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
                     onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                   >
@@ -523,7 +459,7 @@ export function AWSIAMScan() {
 
                     {/* Resource cell */}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.resource_name}</span>
                         {isExpanded ? <ChevronUp size={12} color="rgba(100,116,139,0.5)" /> : <ChevronDown size={12} color="rgba(100,116,139,0.5)" />}
                       </div>
@@ -540,9 +476,7 @@ export function AWSIAMScan() {
 
                     {/* Severity badge */}
                     <div>
-                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: `${sc}18`, border: `1px solid ${sc}40`, color: sc, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
-                        {finding.severity}
-                      </span>
+                      <SeverityBadge severity={finding.severity} />
                     </div>
 
                     {/* Risk score */}
@@ -571,13 +505,13 @@ export function AWSIAMScan() {
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div style={{ margin: "0 12px 10px 16px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ margin: "0 12px 8px 16px", padding: "16px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
                       <div>
-                        <div style={{ ...sectionLabel, marginBottom: 6 }}>Description</div>
+                        <div style={{ ...sectionLabel, marginBottom: 8 }}>Description</div>
                         <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
                       </div>
-                      <div style={{ padding: "10px 14px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
-                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 6 }}>Recommendation</div>
+                      <div style={{ padding: "12px 16px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
+                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 8 }}>Recommendation</div>
                         <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -602,7 +536,7 @@ export function AWSIAMScan() {
               <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
                 Page {currentPage} of {totalPages}
               </span>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
@@ -625,10 +559,10 @@ export function AWSIAMScan() {
 
       {/* ── Empty state (pre-scan) ────────────────────────────────────────── */}
       {!scanResult && !isScanning && (
-        <div style={{ ...card, padding: "60px 24px", textAlign: "center" }}>
+        <div style={{ ...card, padding: "64px 24px", textAlign: "center" }}>
           <Users size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
           <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
-          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 6 }}>Run a scan to analyze your AWS IAM posture</p>
+          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 8 }}>Run a scan to analyze your AWS IAM posture</p>
         </div>
       )}
 

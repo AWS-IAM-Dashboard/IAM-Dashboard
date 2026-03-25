@@ -1,16 +1,18 @@
 import { useState } from "react";
 import {
   Settings2,
+  Settings,
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  RefreshCw,
-  Download,
   Clock,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface ConfigRule {
   id: string;
@@ -156,85 +158,21 @@ export function AWSConfig() {
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Settings2 size={28} color="#00ff88" />
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>AWS Config</h1>
-          </div>
-          <p style={{ margin: '6px 0 0', color: 'rgba(100,116,139,0.7)', fontSize: 14 }}>
-            Continuous configuration compliance evaluation and drift detection across your AWS resources
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              opacity: isRefreshing ? 0.6 : 1,
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Refresh
-          </button>
-          <button
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: 'pointer',
-            }}
-          >
-            <Download size={14} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Settings size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="AWS Config"
+        subtitle="Continuous configuration compliance evaluation and drift detection across your AWS resources"
+        isScanning={isRefreshing}
+        onRefresh={handleRefresh}
+      />
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        {/* Total Rules */}
-        <div style={CARD_STYLE}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total Rules</p>
-          <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>{summary.total_rules}</p>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>across all regions</p>
-        </div>
-
-        {/* Compliant */}
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(0,255,136,0.15)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compliant</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#00ff88' }}>{summary.compliant_rules}</p>
-            <CheckCircle2 size={20} color="#00ff88" style={{ opacity: 0.6 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>rules passing</p>
-        </div>
-
-        {/* Non-Compliant */}
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,0,64,0.15)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Non-Compliant</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ff0040' }}>{summary.non_compliant_rules}</p>
-            <XCircle size={20} color="#ff0040" style={{ opacity: 0.6 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>rules failing</p>
-        </div>
-
-        {/* Compliance % */}
-        <div style={{ ...CARD_STYLE, borderColor: `${complianceColor}22` }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compliance</p>
-          <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: complianceColor }}>
-            {summary.compliance_percentage}%
-          </p>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>overall score</p>
-        </div>
+        <StatCard label="Total Rules" value={summary.total_rules} accent="#e2e8f0" icon={Settings2} />
+        <StatCard label="Compliant" value={summary.compliant_rules} accent="#00ff88" icon={CheckCircle2} />
+        <StatCard label="Non-Compliant" value={summary.non_compliant_rules} accent="#ff0040" icon={XCircle} />
+        <StatCard label="Compliance" value={`${summary.compliance_percentage}%`} accent={complianceColor} />
       </div>
 
       {/* Progress Bar */}
@@ -362,33 +300,11 @@ export function AWSConfig() {
                   {/* Non-Compliant Count */}
                   <div>
                     {rule.compliance_status === 'NON_COMPLIANT' ? (
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 10px',
-                        borderRadius: 12,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        background: 'rgba(255,0,64,0.15)',
-                        color: '#ff0040',
-                        border: '1px solid rgba(255,0,64,0.25)',
-                      }}>
-                        {rule.resource_count}
-                      </span>
+                      <SeverityBadge severity="NON_COMPLIANT" size="sm" label={String(rule.resource_count)} />
                     ) : rule.compliance_status === 'COMPLIANT' ? (
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 10px',
-                        borderRadius: 12,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        background: 'rgba(0,255,136,0.10)',
-                        color: '#00ff88',
-                        border: '1px solid rgba(0,255,136,0.20)',
-                      }}>
-                        0
-                      </span>
+                      <SeverityBadge severity="COMPLIANT" size="sm" label="0" />
                     ) : (
-                      <span style={{ fontSize: 12, color: '#64748b' }}>—</span>
+                      <SeverityBadge severity="NOT_APPLICABLE" size="sm" />
                     )}
                   </div>
 
@@ -431,12 +347,7 @@ export function AWSConfig() {
                       </div>
                       <div>
                         <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Status</p>
-                        <p style={{
-                          fontSize: 12, margin: 0, fontWeight: 600,
-                          color: rule.compliance_status === 'COMPLIANT' ? '#00ff88' : rule.compliance_status === 'NON_COMPLIANT' ? '#ff0040' : '#64748b',
-                        }}>
-                          {rule.compliance_status.replace('_', '-')}
-                        </p>
+                        <SeverityBadge severity={rule.compliance_status} size="sm" />
                       </div>
                     </div>
                     <div style={{

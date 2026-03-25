@@ -22,6 +22,9 @@ import {
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface DynamoDBSecurityFinding {
   id: string;
@@ -464,60 +467,19 @@ export function DynamoDBSecurity() {
   return (
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Database size={22} color="#a78bfa" />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.01em" }}>DynamoDB</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(100,116,139,0.7)", marginTop: 2 }}>
-              Table encryption (CMK), PITR, deletion protection, streams, IAM policies, and retention
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select
-            value={selectedRegion}
-            onChange={e => setSelectedRegion(e.target.value)}
-            style={{ ...monoStyle, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#e2e8f0", padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-          </select>
-          <button
-            onClick={handleStartScan}
-            disabled={isScanning}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: isScanning ? "rgba(167,139,250,0.1)" : "rgba(167,139,250,0.15)", border: "1px solid rgba(167,139,250,0.3)", color: "#a78bfa", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}
-          >
-            <Play size={13} />
-            {isScanning ? "Scanning…" : "Run Scan"}
-          </button>
-          {isScanning && (
-            <button
-              onClick={handleStopScan}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,0,64,0.2)", border: "1px solid rgba(255,0,64,0.4)", color: "#ff0040", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-            >
-              Stop
-            </button>
-          )}
-          <button
-            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-            Refresh
-          </button>
-          <button
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <Download size={13} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Database size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="DynamoDB Security"
+        subtitle="Table encryption (CMK), PITR, deletion protection, streams, IAM policies, and retention"
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onStop={handleStopScan}
+        onRefresh={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+        onExport={() => {}}
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      />
 
       {error && (
         <div style={{ padding: "12px 16px", borderRadius: 8, background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.3)", color: "#ff0040", fontSize: 13 }}>
@@ -528,19 +490,11 @@ export function DynamoDBSecurity() {
 
       {/* Stat Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-        {[
-          { label: "Total Tables", value: summary.total_tables, color: "#a78bfa", sub: "Across all regions" },
-          { label: "Critical Findings", value: summary.critical_findings, color: "#ff0040", sub: "Immediate action required" },
-          { label: "High Findings", value: summary.high_findings, color: "#ff6b35", sub: "Remediate within 7 days" },
-          { label: "PITR Disabled", value: summary.no_pitr, color: "#ffb000", sub: "No point-in-time restore" },
-          { label: "No Streams", value: summary.no_streams, color: "#ff6b35", sub: "CDC and audit gaps" },
-        ].map(card => (
-          <div key={card.label} style={{ ...cardStyle, padding: "16px 18px" }}>
-            <p style={{ ...labelStyle, margin: "0 0 8px" }}>{card.label}</p>
-            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: card.color, ...monoStyle, lineHeight: 1 }}>{card.value}</p>
-            <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(100,116,139,0.6)" }}>{card.sub}</p>
-          </div>
-        ))}
+        <StatCard label="Total Tables" value={summary.total_tables} accent="#a78bfa" icon={Database} />
+        <StatCard label="Critical Findings" value={summary.critical_findings} accent="#ff0040" icon={AlertTriangle} />
+        <StatCard label="High Findings" value={summary.high_findings} accent="#ff6b35" icon={AlertTriangle} />
+        <StatCard label="PITR Disabled" value={summary.no_pitr} accent="#ffb000" icon={Clock} />
+        <StatCard label="No Streams" value={summary.no_streams} accent="#ff6b35" icon={Activity} />
       </div>
 
       {/* Workflow Pipeline */}
@@ -697,9 +651,7 @@ export function DynamoDBSecurity() {
                   </div>
 
                   <div>
-                    <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, background: SEVERITY_BG[finding.severity]?.bg ?? "rgba(100,116,139,0.15)", color: sevColor, ...monoStyle }}>
-                      {finding.severity}
-                    </span>
+                    <SeverityBadge severity={finding.severity} size="sm" />
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

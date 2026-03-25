@@ -291,7 +291,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: "4px",
-            padding: "1px 5px",
+            padding: "4px 4px",
           }}
         >
           ⌘K
@@ -304,7 +304,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             style={{
               background: "rgba(8,12,24,0.99)",
               border: "1px solid rgba(255,255,255,0.09)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,136,0.04)",
+              boxShadow: "0 0 0 1px rgba(0,255,136,0.04)",
             }}
           >
             {searchResults.length > 0 ? (
@@ -415,7 +415,6 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             style={{
               background: "rgba(8,12,24,0.99)",
               border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
             }}
           >
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -530,7 +529,6 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             style={{
               background: "rgba(8,12,24,0.99)",
               border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
             }}
           >
             <div className="px-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>

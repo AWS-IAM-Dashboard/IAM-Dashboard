@@ -128,7 +128,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <span
                   className="text-[9.5px] font-semibold uppercase"
                   style={{
-                    color: "rgba(51,65,85,1)",
+                    color: "rgba(100,116,139,0.55)",
                     letterSpacing: "0.15em",
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
@@ -169,7 +169,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                       collapsed ? "justify-center h-10 px-0" : "h-9 gap-3 pl-4 pr-3",
                     )}
                     style={{
-                      color: isActive ? "#00ff88" : "rgba(71,85,105,0.95)",
+                      color: isActive ? "#00ff88" : "rgba(100,116,139,0.8)",
                       background: isActive ? "rgba(0,255,136,0.07)" : "transparent",
                     }}
                     onMouseEnter={(e) => {
@@ -181,7 +181,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                     onMouseLeave={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "rgba(71,85,105,0.95)";
+                        e.currentTarget.style.color = "rgba(100,116,139,0.8)";
                       }
                     }}
                   >
@@ -232,7 +232,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               </div>
               <p
                 className="text-[10px] leading-relaxed"
-                style={{ color: "rgba(51,65,85,0.9)", fontFamily: "'JetBrains Mono', monospace" }}
+                style={{ color: "rgba(71,85,105,0.75)", fontFamily: "'JetBrains Mono', monospace" }}
               >
                 10 services monitored
               </p>

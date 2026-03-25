@@ -491,152 +491,123 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       <DemoModeBanner />
 
       {/* ── Page Header ──────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground tracking-tight">Security Overview</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Real-time security posture · Last scan:{' '}
-            <span className="text-foreground">{stats.last_scan}</span>
-          </p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const }}>
+        {/* Left: icon + title + subtitle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+            background: "rgba(0,255,136,0.1)",
+            border: "1px solid rgba(0,255,136,0.22)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Shield size={20} color="#00ff88" />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              Security Overview
+            </h1>
+            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.75)", margin: "4px 0 0", lineHeight: 1.4 }}>
+              Real-time posture · Last scan:{" "}
+              <span style={{ color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>{stats.last_scan}</span>
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Right: progress + refresh + scan */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
           {isScanning && (
-            <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs text-primary font-medium">Scanning {scanProgress}%</span>
-              <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-150 ease-out"
-                  style={{ width: `${scanProgress}%` }}
-                />
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)",
+              borderRadius: 8, padding: "6px 12px",
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00ff88", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
+              <span style={{ fontSize: 12, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                {scanProgress}%
+              </span>
+              <div style={{ width: 80, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div className="scan-progress-fill" style={{ width: `${scanProgress}%` }} />
               </div>
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground"
+          <button
             onClick={refreshStats}
             disabled={statsLoading}
+            className="ghost-btn"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 36, height: 36, borderRadius: 6,
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(148,163,184,0.7)", cursor: statsLoading ? "not-allowed" : "pointer",
+              opacity: statsLoading ? 0.5 : 1,
+            }}
           >
-            <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow text-sm font-medium"
+            <RefreshCw size={14} style={statsLoading ? { animation: "spin 1s linear infinite" } : {}} />
+          </button>
+          <button
             onClick={handleQuickScan}
             disabled={isScanning}
+            className="scan-btn"
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 20px", borderRadius: 6,
+              background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)",
+              border: "1px solid rgba(0,255,136,0.28)",
+              color: "#00ff88", fontSize: 13, fontWeight: 600,
+              cursor: isScanning ? "not-allowed" : "pointer",
+              opacity: isScanning ? 0.7 : 1,
+            }}
           >
-            <Play className="h-3.5 w-3.5 mr-1.5" />
-            {isScanning ? 'Scanning…' : 'Full Security Scan'}
-          </Button>
+            {isScanning
+              ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+              : <Play size={14} />}
+            {isScanning ? "Scanning…" : "Full Security Scan"}
+          </button>
         </div>
       </div>
 
       {/* ── KPI Rail ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* Critical */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors hover:bg-[#ff0040]/5"
-          style={{ borderLeft: '3px solid #ff0040' }}
-          onClick={() => onNavigate?.('alerts')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Critical</p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold text-[#ff0040] mt-1 tabular-nums">{stats.critical_alerts}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
-          </CardContent>
-        </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}
+           className="grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        {([
+          { color: "#ff0040", label: "Critical",   value: stats.critical_alerts,  sub: "issues open",    nav: "alerts"     },
+          { color: "#ff6b35", label: "High",        value: stats.high_findings,    sub: "issues open",    nav: "alerts"     },
+          { color: "#ffb000", label: "Medium",      value: stats.medium_findings,  sub: "issues open",    nav: "alerts"     },
+          { color: "#64748b", label: "Total Open",  value: stats.security_findings,sub: "all findings",   nav: "alerts"     },
+          { color: complianceColor, label: "Compliance", value: `${stats.compliance_score}%`, sub: "posture score", nav: "compliance" },
+          { color: "#0ea5e9", label: "Resources",   value: stats.total_resources,  sub: "monitored",      nav: "compliance" },
+        ] as const).map((card) => (
+          <div
+            key={card.label}
+            className="kpi-card"
+            onClick={() => onNavigate?.(card.nav)}
+            style={{
+              background: "rgba(15,23,42,0.8)",
+              border: `1px solid ${card.color}26`,
+              borderRadius: 10,
+              padding: "16px 20px",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Top accent bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${card.color}88, transparent)` }} />
 
-        {/* High */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors hover:bg-[#ff6b35]/5"
-          style={{ borderLeft: '3px solid #ff6b35' }}
-          onClick={() => onNavigate?.('alerts')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">High</p>
+            <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.7)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
+              {card.label}
+            </p>
             {statsLoading ? (
-              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
+              <Skeleton className="h-8 w-12 bg-muted/20" />
             ) : (
-              <p className="text-3xl font-bold text-[#ff6b35] mt-1 tabular-nums">{stats.high_findings}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
-          </CardContent>
-        </Card>
-
-        {/* Medium */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors hover:bg-[#ffb000]/5"
-          style={{ borderLeft: '3px solid #ffb000' }}
-          onClick={() => onNavigate?.('alerts')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Medium</p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold text-[#ffb000] mt-1 tabular-nums">{stats.medium_findings}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Issues open</p>
-          </CardContent>
-        </Card>
-
-        {/* Total Open */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors hover:bg-muted/10"
-          style={{ borderLeft: '3px solid #475569' }}
-          onClick={() => onNavigate?.('alerts')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total Open</p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-12 bg-muted/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold text-foreground mt-1 tabular-nums">{stats.security_findings}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">All findings</p>
-          </CardContent>
-        </Card>
-
-        {/* Compliance */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors"
-          style={{ borderLeft: `3px solid ${complianceColor}` }}
-          onClick={() => onNavigate?.('compliance')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Compliance</p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-14 bg-muted/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold mt-1 tabular-nums" style={{ color: complianceColor }}>
-                {stats.compliance_score}%
+              <p style={{ fontSize: 28, fontWeight: 700, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1, margin: "0 0 6px" }}>
+                {card.value}
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">Overall score</p>
-          </CardContent>
-        </Card>
-
-        {/* Resources */}
-        <Card
-          className="cyber-card cursor-pointer transition-colors hover:bg-[#0ea5e9]/5"
-          style={{ borderLeft: '3px solid #0ea5e9' }}
-          onClick={() => onNavigate?.('compliance')}
-        >
-          <CardContent className="p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Resources</p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-10 bg-muted/20 mt-1" />
-            ) : (
-              <p className="text-3xl font-bold text-[#0ea5e9] mt-1 tabular-nums">{stats.total_resources}</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Monitored</p>
-          </CardContent>
-        </Card>
+            <p style={{ fontSize: 11, color: "rgba(71,85,105,0.75)", fontFamily: "'JetBrains Mono', monospace" }}>
+              {card.sub}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* ── Attack Surface Bar ────────────────────────────────── */}
@@ -802,7 +773,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 {/* Centre label */}
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center"
-                  style={{ paddingBottom: '28px' }}
+                  style={{ paddingBottom: '32px' }}
                 >
                   <span className="text-4xl font-bold tabular-nums" style={{ color: complianceColor }}>
                     {stats.compliance_score}%
@@ -888,7 +859,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     cursor={{ stroke: 'rgba(0,255,136,0.15)', strokeWidth: 1 }}
                   />
                   <Legend
-                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
                     iconType="circle"
                     iconSize={7}
                   />
@@ -1007,7 +978,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     {/* Severity dot */}
                     <div
                       className="flex-shrink-0 w-2 h-2 rounded-full"
-                      style={{ backgroundColor: sColor, boxShadow: `0 0 5px ${sColor}80` }}
+                      style={{ backgroundColor: sColor }}
                     />
 
                     {/* Resource + description */}

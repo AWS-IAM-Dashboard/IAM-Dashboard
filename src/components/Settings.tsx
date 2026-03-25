@@ -4,6 +4,7 @@ import {
   Shield,
   Bell,
   Users,
+  Settings as SettingsIcon,
   Settings2,
   Save,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "./ui/switch";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TeamMember { id: number; name: string; email: string; role: "Admin" | "Analyst" | "Viewer"; status: "Active" | "Inactive"; lastLogin: string; }
@@ -43,7 +45,7 @@ const SERVICES = ["IAM & Access", "EC2 & Compute", "S3 & Storage", "VPC & Networ
 // ─── Shared sub-components ───────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "10px" }}>
+    <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>
       {children}
     </div>
   );
@@ -54,7 +56,7 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
       <div>
         <div style={{ fontSize: "13px", color: "#cbd5e1", fontWeight: 500 }}>{label}</div>
-        {desc && <div style={{ fontSize: "11px", color: "rgba(100,116,139,0.6)", marginTop: "2px" }}>{desc}</div>}
+        {desc && <div style={{ fontSize: "11px", color: "rgba(100,116,139,0.6)", marginTop: "4px" }}>{desc}</div>}
       </div>
       <div style={{ flexShrink: 0, marginLeft: "16px" }}>{children}</div>
     </div>
@@ -64,7 +66,7 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "rgba(100,116,139,0.7)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "'JetBrains Mono', monospace", marginBottom: "5px" }}>{label}</label>
+      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "rgba(100,116,139,0.7)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "'JetBrains Mono', monospace", marginBottom: "4px" }}>{label}</label>
       {children}
     </div>
   );
@@ -140,11 +142,24 @@ export function Settings() {
   ] as const;
 
   return (
-    <div style={{ display: "flex", height: "100%",  }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+
+      {/* ── Page header ── */}
+      <div style={{ padding: "24px 24px 0" }}>
+        <ScanPageHeader
+          icon={<SettingsIcon size={20} color="#00ff88" />}
+          iconColor="#00ff88"
+          title="Settings"
+          subtitle="Configure your AWS environment, scan preferences, and team access"
+        />
+      </div>
+
+      {/* ── Body (nav + content) ── */}
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
 
       {/* ── Left nav ── */}
       <div style={{ width: "200px", flexShrink: 0, padding: "24px 0 24px 24px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "12px", paddingLeft: "10px" }}>Settings</div>
+        <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "12px", paddingLeft: "12px" }}>Sections</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           {SECTIONS.map(({ id, label, icon: Icon }) => {
             const active = activeSection === id;
@@ -153,7 +168,7 @@ export function Settings() {
                 key={id}
                 onClick={() => setActiveSection(id)}
                 style={{
-                  display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "7px",
+                  display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "7px",
                   background: active ? "rgba(0,255,136,0.07)" : "transparent",
                   border: active ? "1px solid rgba(0,255,136,0.12)" : "1px solid transparent",
                   color: active ? "#00ff88" : "rgba(71,85,105,0.95)",
@@ -177,10 +192,10 @@ export function Settings() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>AWS Account</h2>
-              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "3px 0 0" }}>Configure how the dashboard connects to your AWS environment</p>
+              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Configure how the dashboard connects to your AWS environment</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Account Configuration</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <Field label="Default Region">
@@ -194,7 +209,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Credential Method</SectionLabel>
               <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
                 {[["profile", "AWS Profile"], ["keys", "Access Keys"], ["role", "IAM Role"]] .map(([val, lbl]) => (
@@ -202,7 +217,7 @@ export function Settings() {
                     key={val}
                     onClick={() => setCredentialMethod(val as any)}
                     style={{
-                      padding: "6px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
+                      padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
                       background: credentialMethod === val ? "rgba(0,255,136,0.1)" : "rgba(255,255,255,0.03)",
                       border: credentialMethod === val ? "1px solid rgba(0,255,136,0.25)" : "1px solid rgba(255,255,255,0.07)",
                       color: credentialMethod === val ? "#00ff88" : "rgba(100,116,139,0.7)",
@@ -218,7 +233,7 @@ export function Settings() {
                   </Field>
                   <Field label="Secret Access Key">
                     <div style={{ position: "relative" }}>
-                      <input type={showSecret ? "text" : "password"} value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder="wJalrXUtnFEMI/K7MDENG..." style={{ ...inputStyle, paddingRight: "36px" }} />
+                      <input type={showSecret ? "text" : "password"} value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder="wJalrXUtnFEMI/K7MDENG..." style={{ ...inputStyle, paddingRight: "32px" }} />
                       <button onClick={() => setShowSecret((v) => !v)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(100,116,139,0.5)", cursor: "pointer" }}>
                         {showSecret ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
                       </button>
@@ -242,7 +257,7 @@ export function Settings() {
               <button
                 onClick={handleTestConnection}
                 disabled={isTesting}
-                style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "14px", padding: "7px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: connectionStatus === "ok" ? "#00ff88" : "#94a3b8" }}
+                style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "16px", padding: "8px 16px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: connectionStatus === "ok" ? "#00ff88" : "#94a3b8" }}
               >
                 {isTesting ? <><RefreshCw style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />Testing…</> : connectionStatus === "ok" ? <><CheckCircle2 style={{ width: 12, height: 12 }} />Connected</> : <><Key style={{ width: 12, height: 12 }} />Test Connection</>}
               </button>
@@ -255,15 +270,15 @@ export function Settings() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Scan Settings</h2>
-              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "3px 0 0" }}>Control scan scheduling, scope, and detection sensitivity</p>
+              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Control scan scheduling, scope, and detection sensitivity</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Schedule</SectionLabel>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
                 {[["off", "Manual only"], ["daily", "Daily — 02:00 UTC"], ["weekly", "Weekly — Mon 02:00"]] .map(([val, lbl]) => (
-                  <button key={val} onClick={() => setScanSchedule(val)} style={{ padding: "10px", borderRadius: "7px", fontSize: "12px", cursor: "pointer", background: scanSchedule === val ? "rgba(0,255,136,0.08)" : "rgba(255,255,255,0.02)", border: scanSchedule === val ? "1px solid rgba(0,255,136,0.2)" : "1px solid rgba(255,255,255,0.06)", color: scanSchedule === val ? "#00ff88" : "rgba(100,116,139,0.7)", fontWeight: scanSchedule === val ? 600 : 400 }}>
-                    <div style={{ marginBottom: "2px" }}>{val === "off" ? "Off" : val === "daily" ? "Daily" : "Weekly"}</div>
+                  <button key={val} onClick={() => setScanSchedule(val)} style={{ padding: "12px", borderRadius: "7px", fontSize: "12px", cursor: "pointer", background: scanSchedule === val ? "rgba(0,255,136,0.08)" : "rgba(255,255,255,0.02)", border: scanSchedule === val ? "1px solid rgba(0,255,136,0.2)" : "1px solid rgba(255,255,255,0.06)", color: scanSchedule === val ? "#00ff88" : "rgba(100,116,139,0.7)", fontWeight: scanSchedule === val ? 600 : 400 }}>
+                    <div style={{ marginBottom: "4px" }}>{val === "off" ? "Off" : val === "daily" ? "Daily" : "Weekly"}</div>
                     <div style={{ fontSize: "10px", opacity: 0.7 }}>{lbl}</div>
                   </button>
                 ))}
@@ -288,7 +303,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Services in Scope</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
                 {SERVICES.map((svc) => {
@@ -297,7 +312,7 @@ export function Settings() {
                     <button
                       key={svc}
                       onClick={() => setEnabledServices((prev) => { const next = new Set(prev); on ? next.delete(svc) : next.add(svc); return next; })}
-                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", fontSize: "12px", cursor: "pointer", background: on ? "rgba(0,255,136,0.05)" : "transparent", border: on ? "1px solid rgba(0,255,136,0.12)" : "1px solid rgba(255,255,255,0.04)", color: on ? "#94a3b8" : "rgba(71,85,105,0.7)", textAlign: "left" }}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px", fontSize: "12px", cursor: "pointer", background: on ? "rgba(0,255,136,0.05)" : "transparent", border: on ? "1px solid rgba(0,255,136,0.12)" : "1px solid rgba(255,255,255,0.04)", color: on ? "#94a3b8" : "rgba(71,85,105,0.7)", textAlign: "left" }}
                     >
                       <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: on ? "#00ff88" : "rgba(71,85,105,0.4)", flexShrink: 0 }} />
                       {svc}
@@ -314,10 +329,10 @@ export function Settings() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Notifications</h2>
-              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "3px 0 0" }}>Configure alert channels and severity thresholds</p>
+              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Configure alert channels and severity thresholds</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Alert Thresholds</SectionLabel>
               <Row label="Critical findings" desc="Immediate alert on any critical severity finding">
                 <Switch checked={notifCritical} onCheckedChange={setNotifCritical} />
@@ -331,8 +346,8 @@ export function Settings() {
             </div>
 
             {/* Email */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Mail style={{ width: 14, height: 14, color: emailEnabled ? "#00ff88" : "#475569" }} />
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>Email</span>
@@ -356,8 +371,8 @@ export function Settings() {
             </div>
 
             {/* Slack */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Slack style={{ width: 14, height: 14, color: slackEnabled ? "#00ff88" : "#475569" }} />
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>Slack</span>
@@ -372,19 +387,19 @@ export function Settings() {
             </div>
 
             {/* PagerDuty */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <AlertTriangle style={{ width: 14, height: 14, color: pagerEnabled ? "#ff6b35" : "#475569" }} />
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>PagerDuty</span>
-                  <span style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>Critical only</span>
+                  <span style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>Critical only</span>
                 </div>
                 <Switch checked={pagerEnabled} onCheckedChange={setPagerEnabled} />
               </div>
               {pagerEnabled && (
                 <Field label="Integration Key">
                   <div style={{ position: "relative" }}>
-                    <input type={showPager ? "text" : "password"} value={pagerKey} onChange={(e) => setPagerKey(e.target.value)} placeholder="32-character integration key" style={{ ...inputStyle, paddingRight: "36px" }} />
+                    <input type={showPager ? "text" : "password"} value={pagerKey} onChange={(e) => setPagerKey(e.target.value)} placeholder="32-character integration key" style={{ ...inputStyle, paddingRight: "32px" }} />
                     <button onClick={() => setShowPager((v) => !v)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(100,116,139,0.5)", cursor: "pointer" }}>
                       {showPager ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
                     </button>
@@ -400,30 +415,30 @@ export function Settings() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Team & Access</h2>
-              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "3px 0 0" }}>Manage team members and role-based access</p>
+              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Manage team members and role-based access</p>
             </div>
 
             {/* Members table */}
             <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", overflow: "hidden" }}>
-              <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>Members</span>
                 <span style={{ fontSize: "11px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>{team.filter((m) => m.status === "Active").length} active</span>
               </div>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "10px", padding: "8px 18px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "12px", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 {["Name / Email", "Last Login", "Role", "Status", "", ""].map((h, i) => (
-                  <span key={i} style={{ fontSize: "10px", fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</span>
+                  <span key={i} style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</span>
                 ))}
               </div>
               {team.map((m) => {
                 const roleColor: Record<string, string> = { Admin: "#00ff88", Analyst: "#ffb000", Viewer: "#64748b" };
                 return (
-                  <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "10px", padding: "10px 18px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
+                  <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "12px", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: "12px", fontWeight: 500, color: "#cbd5e1" }}>{m.name}</div>
                       <div style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>{m.email}</div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
                       <Clock style={{ width: 11, height: 11 }} />{m.lastLogin}
                     </div>
                     <span style={{ fontSize: "10px", fontWeight: 700, color: roleColor[m.role], background: `${roleColor[m.role]}15`, padding: "2px 8px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace", display: "inline-block", whiteSpace: "nowrap", width: "fit-content" }}>{m.role}</span>
@@ -444,7 +459,7 @@ export function Settings() {
                 );
               })}
               {/* Invite row */}
-              <div style={{ padding: "12px 18px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: "8px" }}>
                 <input value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} placeholder="Invite by email address" style={{ ...inputStyle, flex: 1 }} />
                 <select value={newMemberRole} onChange={(e) => setNewMemberRole(e.target.value as any)} style={{ ...selectStyle, width: "110px" }}>
                   <option value="Analyst">Analyst</option>
@@ -452,7 +467,7 @@ export function Settings() {
                 </select>
                 <button
                   onClick={() => { if (!newMemberEmail) return; setTeam((p) => [...p, { id: Date.now(), name: newMemberEmail.split("@")[0], email: newMemberEmail, role: newMemberRole, status: "Active", lastLogin: "Never" }]); setNewMemberEmail(""); toast.success("Invitation sent"); }}
-                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: "6px", color: "#00ff88", fontSize: "12px", fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
+                  style={{ display: "flex", alignItems: "center", gap: "4px", padding: "8px 12px", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: "6px", color: "#00ff88", fontSize: "12px", fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
                 >
                   <Plus style={{ width: 12, height: 12 }} />Invite
                 </button>
@@ -460,14 +475,14 @@ export function Settings() {
             </div>
 
             {/* Role permissions */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
               {ROLE_PERMS.map(({ role, color, perms }) => (
-                <div key={role} style={{ background: "rgba(15,23,42,0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "10px", padding: "14px", position: "relative", overflow: "hidden" }}>
+                <div key={role} style={{ background: "rgba(15,23,42,0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "10px", padding: "16px", position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: color }} />
-                  <div style={{ fontSize: "12px", fontWeight: 700, color, marginBottom: "10px", fontFamily: "'JetBrains Mono', monospace" }}>{role.toUpperCase()}</div>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "5px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color, marginBottom: "8px", fontFamily: "'JetBrains Mono', monospace" }}>{role.toUpperCase()}</div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
                     {perms.map((p) => (
-                      <li key={p} style={{ fontSize: "11px", color: "rgba(100,116,139,0.7)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <li key={p} style={{ fontSize: "11px", color: "rgba(100,116,139,0.7)", display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, opacity: 0.5, flexShrink: 0 }} />{p}
                       </li>
                     ))}
@@ -483,10 +498,10 @@ export function Settings() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Display</h2>
-              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "3px 0 0" }}>Adjust how the dashboard presents information to you</p>
+              <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Adjust how the dashboard presents information to you</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Interface</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <Field label="Table density">
@@ -521,10 +536,10 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px" }}>
+            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>About</SectionLabel>
               {[["Version", "v2.5.0"], ["Build", "20260324.0900"], ["Environment", "Production"], ["Last scan", "Today, 02:00 UTC"]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                   <span style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)" }}>{k}</span>
                   <span style={{ fontSize: "12px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
                 </div>
@@ -535,10 +550,10 @@ export function Settings() {
 
         {/* ── Save bar ── */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <button onClick={() => toast.info("Reset to defaults")} style={{ padding: "7px 14px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "rgba(100,116,139,0.7)", fontSize: "12px", cursor: "pointer" }}>
+          <button onClick={() => toast.info("Reset to defaults")} style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "rgba(100,116,139,0.7)", fontSize: "12px", cursor: "pointer" }}>
             Reset
           </button>
-          <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 16px", background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: "6px", color: "#00ff88", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 16px", background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: "6px", color: "#00ff88", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
             <Save style={{ width: 13, height: 13 }} />
             Save Settings
           </button>
@@ -546,6 +561,7 @@ export function Settings() {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>{/* end body flex */}
     </div>
   );
 }

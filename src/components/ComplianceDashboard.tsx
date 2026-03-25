@@ -12,9 +12,13 @@ import {
   XCircle,
   ChevronRight,
   Info,
+  BadgeCheck,
 } from "lucide-react";
 import { useScanResults } from "../context/ScanResultsContext";
 import { maskSensitiveData } from "../utils/security";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 // ─── Framework metadata ───────────────────────────────────────────────────────
 const FRAMEWORKS = [
@@ -286,78 +290,20 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
               }}
     >
       {/* ── Page header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1
-            style={{
-              fontSize: "17px",
-              fontWeight: 600,
-              color: "#e2e8f0",
-              letterSpacing: "-0.01em",
-              margin: 0,
-            }}
-          >
-            Compliance
-          </h1>
-          <p
-            style={{
-              fontSize: "12px",
-              color: "rgba(100,116,139,0.8)",
-              margin: "2px 0 0",
-              fontFamily: "'JetBrains Mono', monospace",
-            }}
-          >
-            {scanResults.length > 0
-              ? `${allFindings.length} findings mapped across 4 frameworks`
-              : "No scan data — scores are baseline estimates"}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            onClick={handleRefresh}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 12px",
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "6px",
-              color: "rgba(100,116,139,0.8)",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
-            <RefreshCcw
-              style={{
-                width: 13,
-                height: 13,
-                animation: isRefreshing ? "spin 1s linear infinite" : "none",
-              }}
-            />
-            Refresh
-          </button>
-          <button
-            onClick={handleExportAuditPackage}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 14px",
-              background: "rgba(0,255,136,0.08)",
-              border: "1px solid rgba(0,255,136,0.2)",
-              borderRadius: "6px",
-              color: "#00ff88",
-              fontSize: "12px",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            <Download style={{ width: 13, height: 13 }} />
-            Audit Package
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<BadgeCheck size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Compliance Dashboard"
+        subtitle={
+          scanResults.length > 0
+            ? `${allFindings.length} findings mapped across 4 frameworks`
+            : "No scan data — scores are baseline estimates"
+        }
+        isScanning={isRefreshing}
+        onRefresh={handleRefresh}
+        onExport={handleExportAuditPackage}
+        scanLabel="Audit Package"
+      />
 
       {/* ── Framework score overview row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
@@ -513,7 +459,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                 style={{
                   fontSize: "10px",
                   fontWeight: 600,
-                  color: "rgba(51,65,85,0.9)",
+                  color: "rgba(100,116,139,0.55)",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   fontFamily: "'JetBrains Mono', monospace",

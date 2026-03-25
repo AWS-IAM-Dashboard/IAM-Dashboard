@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Play,
-  Square,
   ScanLine,
-  RefreshCw,
   Globe,
   Lock,
   HardDrive,
@@ -15,6 +12,9 @@ import {
   ChevronUp,
   Search,
 } from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -243,7 +243,7 @@ export function AccessAnalyzer() {
   const sectionLabel: React.CSSProperties = {
     fontSize: 10,
     fontWeight: 600,
-    color: "rgba(51,65,85,0.9)",
+    color: "rgba(100,116,139,0.55)",
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     fontFamily: "'JetBrains Mono', monospace",
@@ -275,67 +275,31 @@ export function AccessAnalyzer() {
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 8, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <ScanLine size={20} color="#00ff88" />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em" }}>Access Analyzer</h1>
-            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.7)", margin: 0, marginTop: 2 }}>
-              External access findings — public resources, cross-account access, and unused permissions
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {/* Analyzer type chips */}
-          <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: 3 }}>
-            {(["account", "organization"] as const).map((t) => (
-              <span
-                key={t}
-                onClick={() => setAnalyzerType(t)}
-                style={{ padding: "4px 12px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: analyzerType === t ? "rgba(0,255,136,0.1)" : "transparent", color: analyzerType === t ? "#00ff88" : "rgba(100,116,139,0.6)", border: analyzerType === t ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", transition: "all 0.15s" }}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </span>
-            ))}
-          </div>
-          <select
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            style={{ ...monoText, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-          </select>
-          <button
-            onClick={handleStartScan}
-            disabled={isScanning}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 13, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer", opacity: isScanning ? 0.7 : 1 }}
-          >
-            {isScanning ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={14} />}
-            {isScanning ? "Scanning…" : "Scan"}
-          </button>
-          {isScanning && (
-            <button
-              onClick={handleStopScan}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, background: "rgba(255,0,64,0.08)", border: "1px solid rgba(255,0,64,0.25)", color: "#ff0040", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+      <ScanPageHeader
+        icon={<ScanLine size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Access Analyzer"
+        subtitle="External access findings — public resources, cross-account access, and unused permissions"
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onStop={handleStopScan}
+        onRefresh={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      >
+        {/* Analyzer type chips */}
+        <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: 3 }}>
+          {(["account", "organization"] as const).map((t) => (
+            <span
+              key={t}
+              onClick={() => setAnalyzerType(t)}
+              style={{ padding: "4px 12px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: analyzerType === t ? "rgba(0,255,136,0.1)" : "transparent", color: analyzerType === t ? "#00ff88" : "rgba(100,116,139,0.6)", border: analyzerType === t ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", transition: "all 0.15s" }}
             >
-              <Square size={14} />
-              Stop
-            </button>
-          )}
-          <button
-            onClick={() => { setLoading(true); setTimeout(() => setLoading(false), 800); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
-            Refresh
-          </button>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </span>
+          ))}
         </div>
-      </div>
+      </ScanPageHeader>
 
       {/* ── Progress bar while scanning ──────────────────────────────────── */}
       {isScanning && (
@@ -359,18 +323,11 @@ export function AccessAnalyzer() {
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-        {[
-          { label: "Total Findings", value: findings.length, color: "#e2e8f0" },
-          { label: "Public Resources", value: publicCount, color: "#ff0040" },
-          { label: "Cross-Account", value: crossAccountCount, color: "#ff6b35" },
-          { label: "Unused Access", value: unusedCount, color: "#64748b" },
-          { label: "Secrets / Keys", value: sensitiveCount, color: "#ffb000" },
-        ].map((s) => (
-          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
-            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", marginBottom: 6, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.05em" }}>{s.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: s.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{s.value}</div>
-          </div>
-        ))}
+        <StatCard label="Total Findings" value={findings.length} accent="#e2e8f0" />
+        <StatCard label="Public Resources" value={publicCount} accent="#ff0040" />
+        <StatCard label="Cross-Account" value={crossAccountCount} accent="#ff6b35" />
+        <StatCard label="Unused Access" value={unusedCount} accent="#64748b" />
+        <StatCard label="Secrets / Keys" value={sensitiveCount} accent="#ffb000" />
       </div>
 
       {/* ── External access risk banner ──────────────────────────────────── */}
@@ -441,7 +398,7 @@ export function AccessAnalyzer() {
           <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "6px 12px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
             <div />
             {["Type", "Resource", "Finding", "Public", "Risk", "Analyzed"].map((h) => (
-              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(51,65,85,0.9)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
+              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
             ))}
           </div>
 

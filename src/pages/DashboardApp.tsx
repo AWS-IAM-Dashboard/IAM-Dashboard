@@ -3,23 +3,50 @@ import { Header } from "../components/Header";
 
 function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
   return (
-    <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "17px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>{title}</h1>
-        <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.7)", margin: "3px 0 0" }}>{subtitle}</p>
-      </div>
-      <div style={{ background: "rgba(15,23,42,0.5)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "12px", padding: "32px", textAlign: "center" }}>
-        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-          <span style={{ fontSize: "18px" }}>⚡</span>
+    <div style={{ padding: "24px 28px", maxWidth: "860px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 18 }}>⚡</span>
         </div>
-        <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>In Development</div>
-        <p style={{ fontSize: "12px", color: "rgba(71,85,105,0.7)", marginBottom: "20px", maxWidth: "380px", margin: "0 auto 20px", lineHeight: 1.6 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em" }}>{title}</h1>
+          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.75)", margin: "4px 0 0", lineHeight: 1.4 }}>{subtitle}</p>
+        </div>
+      </div>
+
+      {/* Body card */}
+      <div style={{
+        background: "rgba(15,23,42,0.5)",
+        border: "1px dashed rgba(255,255,255,0.08)",
+        borderRadius: 12, padding: "32px 40px",
+      }}>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "4px 10px", borderRadius: 999,
+            background: "rgba(255,176,0,0.08)", border: "1px solid rgba(255,176,0,0.2)",
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
+            fontFamily: "'JetBrains Mono', monospace", color: "#ffb000",
+          }}>
+            IN DEVELOPMENT
+          </span>
+        </div>
+        <p style={{ fontSize: 13, color: "rgba(100,116,139,0.7)", margin: "12px 0 20px", maxWidth: 440, lineHeight: 1.6 }}>
           Backend scanning logic for this module is not yet wired up. The following capabilities are planned:
         </p>
-        <div style={{ display: "inline-flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((item) => (
-            <div key={item} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(100,116,139,0.6)" }}>
-              <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "rgba(100,116,139,0.3)", flexShrink: 0 }} />
+            <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(100,116,139,0.65)" }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: "rgba(0,255,136,0.3)", flexShrink: 0,
+              }} />
               {item}
             </div>
           ))}

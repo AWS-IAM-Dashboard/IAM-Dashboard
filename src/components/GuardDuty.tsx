@@ -11,6 +11,9 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface GuardDutyFinding {
   id: string;
@@ -156,7 +159,7 @@ function Chip({
     <button
       onClick={onClick}
       style={{
-        padding: "4px 10px",
+        padding: "4px 12px",
         borderRadius: 999,
         fontSize: 11,
         fontWeight: 600,
@@ -190,7 +193,7 @@ function CountBar({
 }) {
   const pct = max === 0 ? 0 : Math.min((count / max) * 100, 100);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span style={{ fontFamily: C.mono, fontSize: 12, color: C.text, minWidth: 24, textAlign: "right" as const }}>
         {count}
       </span>
@@ -258,184 +261,24 @@ export function GuardDuty() {
 
   const maxCount = Math.max(...findings.map((f) => f.count), 1);
 
-  // ── Stat card ──────────────────────────────────────────────────────────────
-  const StatCard = ({
-    label,
-    value,
-    accent,
-    icon: Icon,
-  }: {
-    label: string;
-    value: number | string;
-    accent: string;
-    icon?: React.ElementType;
-  }) => (
-    <div
-      style={{
-        background: C.cardBg,
-        border: `1px solid ${accent}33`,
-        borderRadius: C.borderRadius,
-        padding: "16px 20px",
-        flex: 1,
-        minWidth: 0,
-        position: "relative" as const,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 2,
-          background: `linear-gradient(90deg, ${accent}99, transparent)`,
-        }}
-      />
-      <span
-        style={{
-          display: "block",
-          fontSize: 10,
-          color: C.muted,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase" as const,
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          display: "block",
-          fontSize: 32,
-          fontWeight: 700,
-          color: accent,
-          fontFamily: C.mono,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </span>
-      {Icon && (
-        <div
-          style={{
-            position: "absolute",
-            right: 14,
-            top: "50%",
-            transform: "translateY(-50%)",
-            opacity: 0.1,
-          }}
-        >
-          <Icon size={40} color={accent} />
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div
       style={{
-        padding: "24px 28px",
+        padding: "24px 32px",
         color: C.text,
         fontFamily: "DM Sans, sans-serif",
         minHeight: "100vh",
       }}
     >
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginBottom: 28,
-          gap: 16,
-          flexWrap: "wrap" as const,
-        }}
-      >
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 6,
-            }}
-          >
-            <Zap size={24} color={C.critical} />
-            <h1
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                color: C.text,
-                margin: 0,
-              }}
-            >
-              GuardDuty
-            </h1>
-          </div>
-          <p
-            style={{
-              fontSize: 13,
-              color: C.muted,
-              margin: 0,
-              maxWidth: 480,
-            }}
-          >
-            ML-powered threat detection — anomalous behavior, known malicious
-            IPs, credential compromise
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              background: "transparent",
-              color: C.text,
-              fontWeight: 500,
-              fontSize: 13,
-              cursor: isRefreshing ? "not-allowed" : "pointer",
-              opacity: isRefreshing ? 0.5 : 1,
-            }}
-          >
-            <RefreshCw
-              size={14}
-              style={{
-                animation: isRefreshing
-                  ? "spin 1s linear infinite"
-                  : "none",
-              }}
-            />
-            Refresh
-          </button>
-
-          <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              background: "transparent",
-              color: C.text,
-              fontWeight: 500,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            <Download size={14} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Zap size={20} color="#ff6b35" />}
+        iconColor="#ff6b35"
+        title="GuardDuty"
+        subtitle="ML-powered threat detection — anomalous behavior, known malicious IPs, credential compromise"
+        onRefresh={handleRefresh}
+        onExport={() => {}}
+      />
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
       <div
@@ -478,11 +321,11 @@ export function GuardDuty() {
           background: C.cardBg,
           border: `1px solid ${C.border}`,
           borderRadius: C.borderRadius,
-          padding: "12px 18px",
+          padding: "12px 16px",
           marginBottom: 16,
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           flexWrap: "wrap" as const,
         }}
       >
@@ -504,7 +347,7 @@ export function GuardDuty() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 5,
+              gap: 4,
               opacity: presentCategories.includes(key) ? 1 : 0.3,
             }}
           >
@@ -536,7 +379,7 @@ export function GuardDuty() {
           background: C.cardBg,
           border: `1px solid ${C.border}`,
           borderRadius: C.borderRadius,
-          padding: "12px 18px",
+          padding: "12px 16px",
           marginBottom: 16,
           display: "flex",
           flexDirection: "column" as const,
@@ -548,7 +391,7 @@ export function GuardDuty() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 8,
             flexWrap: "wrap" as const,
           }}
         >
@@ -585,7 +428,7 @@ export function GuardDuty() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 8,
             flexWrap: "wrap" as const,
           }}
         >
@@ -636,7 +479,7 @@ export function GuardDuty() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "13px 20px",
+            padding: "12px 20px",
             borderBottom: `1px solid ${C.border}`,
           }}
         >
@@ -651,7 +494,7 @@ export function GuardDuty() {
                 fontFamily: C.mono,
                 color: C.muted,
                 background: "rgba(255,255,255,0.06)",
-                padding: "1px 7px",
+                padding: "4px 8px",
                 borderRadius: 4,
               }}
             >
@@ -740,7 +583,7 @@ export function GuardDuty() {
                       ? "transparent"
                       : "rgba(255,255,255,0.015)",
                   borderBottom: `1px solid ${C.border}`,
-                  padding: "10px 16px",
+                  padding: "8px 16px",
                   transition: "background 0.12s",
                   gap: 0,
                 }}
@@ -757,24 +600,7 @@ export function GuardDuty() {
               >
                 {/* Severity score pill */}
                 <div>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "3px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      fontFamily: C.mono,
-                      background: `${sevColor}22`,
-                      color: sevColor,
-                      border: `1px solid ${sevColor}55`,
-                      minWidth: 44,
-                    }}
-                  >
-                    {finding.severity.toFixed(1)}
-                  </span>
+                  <SeverityBadge severity={getSeverityLabel(finding.severity).toUpperCase()} size="sm" />
                 </div>
 
                 {/* Finding type — split display */}
@@ -792,7 +618,7 @@ export function GuardDuty() {
                 </div>
 
                 {/* Title */}
-                <div style={{ paddingRight: 12, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                <div style={{ paddingRight: 12, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <p
                     style={{
                       margin: 0,
@@ -840,7 +666,7 @@ export function GuardDuty() {
                   style={{
                     display: "flex",
                     flexDirection: "column" as const,
-                    gap: 2,
+                    gap: 4,
                   }}
                 >
                   <div
@@ -884,7 +710,7 @@ export function GuardDuty() {
                   <div>
                     <p
                       style={{
-                        margin: "0 0 5px",
+                        margin: "0 0 4px",
                         fontSize: 10,
                         color: C.muted,
                         textTransform: "uppercase" as const,
@@ -908,7 +734,7 @@ export function GuardDuty() {
                   <div>
                     <p
                       style={{
-                        margin: "0 0 5px",
+                        margin: "0 0 4px",
                         fontSize: 10,
                         color: C.muted,
                         textTransform: "uppercase" as const,
@@ -917,7 +743,7 @@ export function GuardDuty() {
                     >
                       Resource Details
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 3 }}>
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                       <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
                         Type: {finding.resource_type}
                       </span>
@@ -933,7 +759,7 @@ export function GuardDuty() {
                   <div>
                     <p
                       style={{
-                        margin: "0 0 5px",
+                        margin: "0 0 4px",
                         fontSize: 10,
                         color: C.muted,
                         textTransform: "uppercase" as const,
@@ -942,7 +768,7 @@ export function GuardDuty() {
                     >
                       Account & Timing
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 3 }}>
+                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
                       <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
                         Account: {finding.account_id}
                       </span>

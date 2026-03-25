@@ -13,6 +13,7 @@ import {
   Search,
   RefreshCcw,
 } from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
 import { toast } from "sonner";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -297,29 +298,14 @@ export function Reports({ reports }: ReportsProps) {
               }}
     >
       {/* ── Page header ── */}
-      <div>
-        <h1
-          style={{
-            fontSize: "17px",
-            fontWeight: 600,
-            color: "#e2e8f0",
-            letterSpacing: "-0.01em",
-            margin: 0,
-          }}
-        >
-          Reports
-        </h1>
-        <p
-          style={{
-            fontSize: "12px",
-            color: "rgba(100,116,139,0.7)",
-            margin: "3px 0 0",
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          Generate, export, and deliver security evidence
-        </p>
-      </div>
+      <ScanPageHeader
+        icon={<FileText size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Reports"
+        subtitle="Generate, export, and deliver security evidence"
+        onRefresh={() => {}}
+        onExport={() => {}}
+      />
 
       {/* ── Quick generate hero grid ── */}
       <div>
@@ -327,7 +313,7 @@ export function Reports({ reports }: ReportsProps) {
           style={{
             fontSize: "10px",
             fontWeight: 600,
-            color: "rgba(51,65,85,0.9)",
+            color: "rgba(100,116,139,0.55)",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
             fontFamily: "'JetBrains Mono', monospace",
@@ -340,7 +326,7 @@ export function Reports({ reports }: ReportsProps) {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "10px",
+            gap: "8px",
           }}
         >
           {QUICK_REPORTS.map((qr) => {
@@ -375,7 +361,7 @@ export function Reports({ reports }: ReportsProps) {
                   }}
                 />
 
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "8px" }}>
                   <div
                     style={{
                       width: "32px",
@@ -398,7 +384,7 @@ export function Reports({ reports }: ReportsProps) {
                       fontFamily: "'JetBrains Mono', monospace",
                       letterSpacing: "0.1em",
                       background: `${qr.accent}12`,
-                      padding: "2px 6px",
+                      padding: "4px 8px",
                       borderRadius: "4px",
                     }}
                   >
@@ -415,7 +401,7 @@ export function Reports({ reports }: ReportsProps) {
                   style={{
                     fontSize: "11px",
                     color: "rgba(100,116,139,0.7)",
-                    margin: "0 0 14px",
+                    margin: "0 0 16px",
                     lineHeight: 1.5,
                   }}
                 >
@@ -427,7 +413,7 @@ export function Reports({ reports }: ReportsProps) {
                   disabled={!!generating}
                   style={{
                     width: "100%",
-                    padding: "7px 0",
+                    padding: "8px 0",
                     background: isRunning
                       ? `${qr.accent}20`
                       : isBundle
@@ -442,7 +428,7 @@ export function Reports({ reports }: ReportsProps) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "6px",
+                    gap: "8px",
                     transition: "all 0.15s",
                     opacity: generating && !isRunning ? 0.5 : 1,
                   }}
@@ -478,7 +464,7 @@ export function Reports({ reports }: ReportsProps) {
           onClick={() => setShowBuilder((v) => !v)}
           style={{
             width: "100%",
-            padding: "14px 18px",
+            padding: "16px 16px",
             background: "transparent",
             border: "none",
             display: "flex",
@@ -487,7 +473,7 @@ export function Reports({ reports }: ReportsProps) {
             cursor: "pointer",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <FileText style={{ width: 14, height: 14, color: "rgba(100,116,139,0.6)" }} />
             <span style={{ fontSize: "13px", fontWeight: 500, color: "#cbd5e1" }}>
               Advanced Report Builder
@@ -498,7 +484,7 @@ export function Reports({ reports }: ReportsProps) {
                 color: "rgba(100,116,139,0.5)",
                 fontFamily: "'JetBrains Mono', monospace",
                 background: "rgba(255,255,255,0.04)",
-                padding: "2px 7px",
+                padding: "4px 8px",
                 borderRadius: "4px",
               }}
             >
@@ -515,7 +501,7 @@ export function Reports({ reports }: ReportsProps) {
         {showBuilder && (
           <div
             style={{
-              padding: "0 18px 18px",
+              padding: "0 16px 16px",
               borderTop: "1px solid rgba(255,255,255,0.04)",
             }}
           >
@@ -537,7 +523,7 @@ export function Reports({ reports }: ReportsProps) {
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                     fontFamily: "'JetBrains Mono', monospace",
-                    marginBottom: "6px",
+                    marginBottom: "8px",
                   }}
                 >
                   Report Type
@@ -547,7 +533,7 @@ export function Reports({ reports }: ReportsProps) {
                   onChange={(e) => setBuilderType(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "8px 10px",
+                    padding: "8px 12px",
                     background: "rgba(30,41,59,0.8)",
                     border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: "6px",
@@ -573,7 +559,7 @@ export function Reports({ reports }: ReportsProps) {
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                     fontFamily: "'JetBrains Mono', monospace",
-                    marginBottom: "6px",
+                    marginBottom: "8px",
                   }}
                 >
                   Custom Name (optional)
@@ -584,7 +570,7 @@ export function Reports({ reports }: ReportsProps) {
                   placeholder="Auto-named if blank"
                   style={{
                     width: "100%",
-                    padding: "8px 10px",
+                    padding: "8px 12px",
                     background: "rgba(30,41,59,0.8)",
                     border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: "6px",
@@ -597,7 +583,7 @@ export function Reports({ reports }: ReportsProps) {
               </div>
             </div>
 
-            <div style={{ marginTop: "14px" }}>
+            <div style={{ marginTop: "16px" }}>
               <label
                 style={{
                   display: "block",
@@ -618,7 +604,7 @@ export function Reports({ reports }: ReportsProps) {
                     key={fmt}
                     onClick={() => setFormats((f) => ({ ...f, [fmt]: !f[fmt] }))}
                     style={{
-                      padding: "5px 14px",
+                      padding: "4px 16px",
                       borderRadius: "6px",
                       background: formats[fmt] ? "rgba(0,255,136,0.12)" : "rgba(255,255,255,0.04)",
                       border: formats[fmt] ? "1px solid rgba(0,255,136,0.3)" : "1px solid rgba(255,255,255,0.07)",
@@ -639,8 +625,8 @@ export function Reports({ reports }: ReportsProps) {
             <button
               onClick={runBuilderGenerate}
               style={{
-                marginTop: "14px",
-                padding: "8px 18px",
+                marginTop: "16px",
+                padding: "8px 16px",
                 background: "rgba(0,255,136,0.1)",
                 border: "1px solid rgba(0,255,136,0.25)",
                 borderRadius: "6px",
@@ -650,7 +636,7 @@ export function Reports({ reports }: ReportsProps) {
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
+                gap: "8px",
               }}
             >
               <Download style={{ width: 13, height: 13 }} />
@@ -672,7 +658,7 @@ export function Reports({ reports }: ReportsProps) {
         >
           <div
             style={{
-              padding: "14px 18px",
+              padding: "16px 16px",
               borderBottom: "1px solid rgba(255,255,255,0.05)",
               display: "flex",
               alignItems: "center",
@@ -686,8 +672,8 @@ export function Reports({ reports }: ReportsProps) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "6px 10px",
+                gap: "8px",
+                padding: "8px 12px",
                 background: "rgba(255,255,255,0.03)",
                 border: "1px solid rgba(255,255,255,0.06)",
                 borderRadius: "6px",
@@ -715,7 +701,7 @@ export function Reports({ reports }: ReportsProps) {
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
-              padding: "8px 18px",
+              padding: "8px 16px",
               borderBottom: "1px solid rgba(255,255,255,0.04)",
             }}
           >
@@ -725,7 +711,7 @@ export function Reports({ reports }: ReportsProps) {
                 style={{
                   fontSize: "10px",
                   fontWeight: 600,
-                  color: "rgba(51,65,85,0.9)",
+                  color: "rgba(100,116,139,0.55)",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   fontFamily: "'JetBrains Mono', monospace",
@@ -747,7 +733,7 @@ export function Reports({ reports }: ReportsProps) {
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
-                  padding: "10px 18px",
+                  padding: "8px 16px",
                   borderBottom: "1px solid rgba(255,255,255,0.03)",
                   alignItems: "center",
                 }}
@@ -883,7 +869,7 @@ export function Reports({ reports }: ReportsProps) {
             style={{
               fontSize: "11px",
               color: "rgba(71,85,105,0.6)",
-              margin: "3px 0 0",
+              margin: "4px 0 0",
             }}
           >
             Auto-generate and email reports on a cadence — weekly security digest, monthly compliance
@@ -895,7 +881,7 @@ export function Reports({ reports }: ReportsProps) {
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.06)",
             color: "rgba(100,116,139,0.5)",
-            padding: "4px 10px",
+            padding: "4px 12px",
             borderRadius: "999px",
             fontFamily: "'JetBrains Mono', monospace",
           }}

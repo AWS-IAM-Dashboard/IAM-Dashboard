@@ -7,6 +7,9 @@ import {
   Shield, Users, ChevronDown, ChevronRight, Copy, Download, Play,
   Search, X, GitBranch, Eye, Activity, Bot, Zap, Ticket, ExternalLink, UserCircle,
 } from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -356,93 +359,49 @@ export function CloudSecurityAlerts() {
     <div className="p-6 space-y-4">
       <DemoModeBanner />
 
-      {/* ── Page header (EC2 style) ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(255,64,96,0.14)", border: "1px solid rgba(255,64,96,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <AlertTriangle size={22} color="#ff4060" />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.01em" }}>Security Alerts</h1>
-            <p style={{ margin: 0, fontSize: 13, color: "rgba(100,116,139,0.7)", marginTop: 2 }}>
-              Alert queue · Workflow triage · Runbook remediation · Agent automation
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            style={{ ...ms, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#e2e8f0", padding: "6px 10px", fontSize: 12, cursor: "pointer" }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-          </select>
-          <button
-            type="button"
-            onClick={handleRunScan}
-            disabled={isScanning}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: isScanning ? "rgba(99,102,241,0.3)" : "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)", color: "#818cf8", fontSize: 12, fontWeight: 600, cursor: isScanning ? "not-allowed" : "pointer" }}
-          >
-            <Play size={13} />
-            {isScanning ? "Scanning…" : "Run Scan"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setHeaderRefreshSpin(true);
-              window.setTimeout(() => setHeaderRefreshSpin(false), 800);
-            }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <RefreshCw size={13} style={{ animation: headerRefreshSpin ? "spin 1s linear infinite" : "none" }} />
-            Refresh
-          </button>
-          <button
-            type="button"
-            onClick={() => setView((v) => v === "queue" ? "rules" : "queue")}
-            style={view === "rules"
-              ? { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,64,96,0.12)", border: "1px solid rgba(255,64,96,0.35)", color: "#ff4060", fontSize: 12, fontWeight: 600, cursor: "pointer" }
-              : { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" }
-            }
-          >
-            <Settings size={13} />
-            {view === "queue" ? "Detection Rules" : "Alert Queue"}
-          </button>
-          <button
-            type="button"
-            onClick={() => toast.info("Exporting CSV…")}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}
-          >
-            <Download size={13} />
-            Export
-          </button>
-        </div>
-      </div>
+      {/* ── Page header ── */}
+      <ScanPageHeader
+        icon={<AlertTriangle size={20} color="#ff6b35" />}
+        iconColor="#ff6b35"
+        title="Security Alerts"
+        subtitle="Alert queue · Workflow triage · Runbook remediation · Agent automation"
+        isScanning={isScanning}
+        onScan={handleRunScan}
+        onStop={() => setIsScanning(false)}
+        onRefresh={() => {
+          setHeaderRefreshSpin(true);
+          window.setTimeout(() => setHeaderRefreshSpin(false), 800);
+        }}
+        onExport={() => toast.info("Exporting CSV…")}
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      >
+        <button
+          type="button"
+          onClick={() => setView((v) => v === "queue" ? "rules" : "queue")}
+          style={view === "rules"
+            ? { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 7, background: "rgba(255,64,96,0.12)", border: "1px solid rgba(255,64,96,0.35)", color: "#ff4060", fontSize: 12, fontWeight: 600, cursor: "pointer" }
+            : { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" }
+          }
+        >
+          <Settings size={13} />
+          {view === "queue" ? "Detection Rules" : "Alert Queue"}
+        </button>
+      </ScanPageHeader>
 
-      {/* ── KPI Metrics Row (EC2 style cards) ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-        {[
-          { label: "Total Alerts", value: stats.total, color: "#94a3b8", sub: "Across all services" },
-          { label: "Critical", value: stats.critical, color: "#ff0040", sub: "Immediate response" },
-          { label: "High", value: stats.high, color: "#ff6b35", sub: "Escalate within SLA" },
-          { label: "Active", value: stats.active, color: "#ff4060", sub: "Open and unassigned" },
-          { label: "In Review", value: stats.inReview, color: "#ffb000", sub: "Triaged by analyst" },
-          { label: "Resolved", value: stats.resolved, color: "#00ff88", sub: "Closed findings" },
-        ].map((card) => (
-          <div key={card.label} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px" }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", margin: "0 0 6px" }}>{card.label}</p>
-            <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{card.value}</p>
-            <p style={{ margin: "5px 0 0", fontSize: 10, color: "rgba(100,116,139,0.6)" }}>{card.sub}</p>
-          </div>
-        ))}
+      {/* ── KPI Metrics Row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+        <StatCard label="Total Alerts"  value={stats.total}    accent="#94a3b8" />
+        <StatCard label="Critical"      value={stats.critical} accent="#ff0040" />
+        <StatCard label="High"          value={stats.high}     accent="#ff6b35" />
+        <StatCard label="Active"        value={stats.active}   accent="#ff4060" />
+        <StatCard label="In Review"     value={stats.inReview} accent="#ffb000" />
+        <StatCard label="Resolved"      value={stats.resolved} accent="#00ff88" />
       </div>
 
       {/* ── Workflow Pipeline ── */}
-      <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 20px" }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 10 }}>
+      <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "16px 20px" }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 8 }}>
           Workflow Pipeline
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -616,7 +575,6 @@ export function CloudSecurityAlerts() {
                   style={{
                     background: "rgba(7,11,22,0.99)",
                     border: "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: "0 16px 40px rgba(0,0,0,0.55)",
                     minWidth: "160px",
                   }}
                 >
@@ -676,7 +634,7 @@ export function CloudSecurityAlerts() {
             /* ── Alert table ── */
             <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
               {/* Table header */}
-              <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
                 <div />
                 <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", paddingLeft: 12 }}>Alert / Resource</span>
                 <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>Severity</span>
@@ -725,17 +683,17 @@ export function CloudSecurityAlerts() {
                         </div>
                       </div>
                       <div>
-                        <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 700, background: sv.bg, color: sv.text, fontFamily: "'JetBrains Mono', monospace" }}>{alert.severity.toUpperCase()}</span>
+                        <SeverityBadge severity={alert.severity} size="sm" />
                       </div>
                       <div>
-                        <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: workflowMeta.bg, color: workflowMeta.color, fontFamily: "'JetBrains Mono', monospace" }}>{workflowMeta.label}</span>
+                        <SeverityBadge severity={workflow} size="sm" />
                       </div>
                       <div>
                         <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", fontFamily: "'JetBrains Mono', monospace" }}>{age(alert.timestamp)} old</span>
                       </div>
                       <div>
                         {alert.assignee ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#818cf8", flexShrink: 0 }}>{initials(alert.assignee)}</div>
                             <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{alert.assignee}</span>
                           </div>
@@ -756,12 +714,12 @@ export function CloudSecurityAlerts() {
                         className="pt-4"
                         style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.01)" }}
                       >
-                        <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginRight: 6 }}>Workflow</span>
+                        <div style={{ padding: "8px 20px 8px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginRight: 8 }}>Workflow</span>
                           {NEXT_STATUS[workflow] && (
                             <button
                               onClick={() => advanceWorkflow(alert.id, workflow)}
-                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                             >
                               <Activity size={11} />
                               Advance → {WORKFLOW_META[NEXT_STATUS[workflow]!].label}
@@ -776,18 +734,18 @@ export function CloudSecurityAlerts() {
                             {ALERT_ASSIGNEES.map((a) => <option key={a} value={a}>{a}</option>)}
                           </select>
                           {ticketByAlert[alert.id] ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#00ff88", background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 5, padding: "4px 10px", fontFamily: "'JetBrains Mono', monospace" }}><Ticket size={11} />{ticketByAlert[alert.id]}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#00ff88", background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 5, padding: "4px 12px", fontFamily: "'JetBrains Mono', monospace" }}><Ticket size={11} />{ticketByAlert[alert.id]}</span>
                           ) : (
                             <button
                               onClick={() => setTicketByAlert((p) => ({ ...p, [alert.id]: `SEC-${5400 + idx}` }))}
-                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                             >
                               <Ticket size={11} /> Create Ticket
                             </button>
                           )}
                           <button
                             onClick={() => { setWorkflowByAlert((p) => ({ ...p, [alert.id]: "FALSE_POSITIVE" })); toast.success("Marked as false positive"); }}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, fontSize: 11, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                           >
                             <AlertTriangle size={11} />
                             False Positive
@@ -810,8 +768,8 @@ export function CloudSecurityAlerts() {
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: 5,
-                                  padding: "10px 14px",
+                                  gap: 4,
+                                  padding: "8px 16px",
                                   background: "transparent",
                                   border: "none",
                                   borderBottom: `2px solid ${tab === t.id ? "#818cf8" : "transparent"}`,
@@ -834,7 +792,7 @@ export function CloudSecurityAlerts() {
                           <div>
                             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                               {["IDENTIFY", "CONTAIN", "REMEDIATE", "VERIFY"].map((ph, i) => (
-                                <span key={ph} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: i === 0 ? "rgba(129,140,248,0.18)" : i === 1 ? "rgba(255,107,53,0.18)" : i === 2 ? "rgba(255,176,0,0.18)" : "rgba(0,255,136,0.18)", border: i === 0 ? "1px solid rgba(129,140,248,0.3)" : i === 1 ? "1px solid rgba(255,107,53,0.3)" : i === 2 ? "1px solid rgba(255,176,0,0.3)" : "1px solid rgba(0,255,136,0.3)", color: i === 0 ? "#818cf8" : i === 1 ? "#ff6b35" : i === 2 ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                                <span key={ph} style={{ padding: "4px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: i === 0 ? "rgba(129,140,248,0.18)" : i === 1 ? "rgba(255,107,53,0.18)" : i === 2 ? "rgba(255,176,0,0.18)" : "rgba(0,255,136,0.18)", border: i === 0 ? "1px solid rgba(129,140,248,0.3)" : i === 1 ? "1px solid rgba(255,107,53,0.3)" : i === 2 ? "1px solid rgba(255,176,0,0.3)" : "1px solid rgba(0,255,136,0.3)", color: i === 0 ? "#818cf8" : i === 1 ? "#ff6b35" : i === 2 ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
                                   {ph}
                                 </span>
                               ))}
@@ -863,13 +821,13 @@ export function CloudSecurityAlerts() {
                                     </div>
                                     <div style={{ paddingBottom: 8 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                        <span style={{ padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: `${phaseColor}18`, color: phaseColor, fontFamily: "'JetBrains Mono', monospace" }}>{phase}</span>
+                                        <span style={{ padding: "4px 8px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: `${phaseColor}18`, color: phaseColor, fontFamily: "'JetBrains Mono', monospace" }}>{phase}</span>
                                         <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Remediation Step {i + 1}</span>
                                         <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>~4 min</span>
                                       </div>
                                       <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step}</p>
                                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "6px 10px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', monospace" }}>
+                                        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', monospace" }}>
                                           <span style={{ flex: 1, fontSize: 11, color: "#a5b4fc", wordBreak: "break-all", lineHeight: 1.5 }}>{command}</span>
                                         </div>
                                       </div>
@@ -893,7 +851,7 @@ export function CloudSecurityAlerts() {
                             </div>
                             <div>
                               <p className="section-label">Alert Details</p>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
                                 {[
                                   ["Service", alert.service],
                                   ["Severity", alert.severity],
@@ -908,7 +866,7 @@ export function CloudSecurityAlerts() {
                                   </div>
                                 ))}
                               </div>
-                              <div style={{ marginTop: 10 }}>
+                              <div style={{ marginTop: 8 }}>
                                 <p className="section-label">Investigation Notes</p>
                                 {notes[alert.id] && (
                                   <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, color: "#cbd5e1", marginBottom: 8 }}>
@@ -950,7 +908,7 @@ export function CloudSecurityAlerts() {
                                   <div style={{ paddingBottom: 4 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                                       <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{ev.action}</span>
-                                      <span style={{ padding: "1px 5px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${actorColors[ev.actorType]}20`, color: actorColors[ev.actorType], fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>{ev.actorType}</span>
+                                      <span style={{ padding: "4px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${actorColors[ev.actorType]}20`, color: actorColors[ev.actorType], fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>{ev.actorType}</span>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                       <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{ev.actor}</span>
@@ -969,10 +927,10 @@ export function CloudSecurityAlerts() {
                             <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, background: "rgba(167,139,250,0.07)", border: "1px solid rgba(167,139,250,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
                               <Bot size={14} color="#a78bfa" />
                               <span style={{ fontSize: 11, color: "#a78bfa" }}>
-                                AI Agent integration ready — wire endpoints below to <code style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(167,139,250,0.15)", padding: "1px 5px", borderRadius: 3 }}>/api/agents</code>
+                                AI Agent integration ready — wire endpoints below to <code style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(167,139,250,0.15)", padding: "4px 8px", borderRadius: 3 }}>/api/agents</code>
                               </span>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                               {[
                                 { icon: <Zap size={16} color="#818cf8" />, title: "AI Triage Analysis", desc: "Send finding context to LLM agent for automated severity validation, false-positive scoring, and enrichment from threat intel feeds.", endpoint: "POST /api/agents/triage", color: "#818cf8" },
                                 { icon: <Bot size={16} color="#a78bfa" />, title: "Auto-Remediate", desc: "Trigger Lambda-backed remediation agent to execute the runbook steps automatically. Requires approval workflow.", endpoint: "POST /api/agents/remediate", color: "#a78bfa" },
@@ -982,7 +940,7 @@ export function CloudSecurityAlerts() {
                                 { icon: <CheckCircle size={16} color="#00ff88" />, title: "Verify Remediation", desc: "Re-scan this specific finding post-remediation to confirm the issue is resolved and advance workflow to REMEDIATED.", endpoint: "POST /api/agents/verify", color: "#00ff88" },
                               ].map((a) => (
                                 <div key={a.title} style={{ padding: 14, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                                     {a.icon}
                                     <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{a.title}</span>
                                   </div>
@@ -1017,7 +975,7 @@ export function CloudSecurityAlerts() {
 
           {/* Pagination */}
           {filtered.length > pageSize && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
                 Page {currentPage} of {totalPages}
               </span>
@@ -1079,12 +1037,7 @@ export function CloudSecurityAlerts() {
                 <div className="flex-1 min-w-0 pl-2">
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <span className="text-sm font-semibold text-slate-200">{rule.name}</span>
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                      style={{ background: sv.bg, border: `1px solid ${sv.border}`, color: sv.text, fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {rule.severity.toUpperCase()}
-                    </span>
+                    <SeverityBadge severity={rule.severity} size="sm" />
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded"
                       style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(148,163,184,0.75)", fontFamily: "'JetBrains Mono', monospace" }}

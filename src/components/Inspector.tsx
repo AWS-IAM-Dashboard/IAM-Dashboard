@@ -1,9 +1,6 @@
 import { useState } from "react";
 import {
-  Search,
   AlertTriangle,
-  RefreshCw,
-  Download,
   Package,
   Server,
   Box,
@@ -11,8 +8,12 @@ import {
   ChevronUp,
   ExternalLink,
   Zap,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface InspectorFinding {
   id: string;
@@ -195,79 +196,21 @@ export function Inspector() {
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Search size={28} color="#ff6b35" />
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>Inspector</h1>
-          </div>
-          <p style={{ margin: '6px 0 0', color: 'rgba(100,116,139,0.7)', fontSize: 14 }}>
-            Automated vulnerability management for EC2, Lambda, and ECR container images
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              opacity: isRefreshing ? 0.6 : 1,
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Refresh
-          </button>
-          <button
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: '#e2e8f0', cursor: 'pointer',
-            }}
-          >
-            <Download size={14} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Lock size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Inspector"
+        subtitle="Automated vulnerability management for EC2, Lambda, and ECR container images"
+        isScanning={isRefreshing}
+        onRefresh={handleRefresh}
+      />
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        <div style={CARD_STYLE}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total CVEs</p>
-          <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#e2e8f0' }}>{totalCVEs}</p>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>total findings</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,0,64,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Critical</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ff0040' }}>{criticalCount}</p>
-            <AlertTriangle size={18} color="#ff0040" style={{ opacity: 0.7 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>immediate action</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,107,53,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>High</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ff6b35' }}>{highCount}</p>
-            <AlertTriangle size={18} color="#ff6b35" style={{ opacity: 0.7 }} />
-          </div>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>high severity</p>
-        </div>
-
-        <div style={{ ...CARD_STYLE, borderColor: 'rgba(255,176,0,0.18)' }}>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: 0, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Affected Resources</p>
-          <p style={{ fontSize: 30, fontWeight: 700, margin: 0, color: '#ffb000' }}>{affectedResources}</p>
-          <p style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)', margin: '4px 0 0' }}>unique resources</p>
-        </div>
+        <StatCard label="Total CVEs" value={totalCVEs} accent="#e2e8f0" icon={Package} />
+        <StatCard label="Critical" value={criticalCount} accent="#ff0040" icon={AlertTriangle} />
+        <StatCard label="High" value={highCount} accent="#ff6b35" icon={AlertTriangle} />
+        <StatCard label="Affected Resources" value={affectedResources} accent="#ffb000" icon={Server} />
       </div>
 
       {/* Filter Bar */}

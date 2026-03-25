@@ -4,15 +4,15 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle2,
-  RefreshCw,
-  Download,
   Filter,
   Search,
   X,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
 } from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard as SharedStatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -349,164 +349,22 @@ export function SecurityHub() {
     return true;
   });
 
-  // ─── Stat card ──────────────────────────────────────────────────────────────
-  const StatCard = ({
-    label,
-    value,
-    accent,
-    icon: Icon,
-  }: {
-    label: string;
-    value: string | number;
-    accent: string;
-    icon?: React.ElementType;
-  }) => (
-    <div
-      style={{
-        background: C.cardBg,
-        border: `1px solid ${accent}33`,
-        borderRadius: C.borderRadius,
-        padding: "16px 20px",
-        display: "flex",
-        flexDirection: "column" as const,
-        gap: 4,
-        flex: 1,
-        minWidth: 0,
-        position: "relative" as const,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 2,
-          background: `linear-gradient(90deg, ${accent}99, transparent)`,
-        }}
-      />
-      <span style={{ fontSize: 11, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase" as const }}>
-        {label}
-      </span>
-      <span style={{ fontSize: 32, fontWeight: 700, color: accent, lineHeight: 1.1, fontFamily: C.mono }}>
-        {value}
-      </span>
-      {Icon && (
-        <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", opacity: 0.12 }}>
-          <Icon size={40} color={accent} />
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div style={{ padding: "24px 28px", color: C.text, fontFamily: "DM Sans, sans-serif", minHeight: "100vh" }}>
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" as const }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <Shield size={26} color={C.green} />
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: C.text, margin: 0 }}>Security Hub</h1>
-          </div>
-          <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 520 }}>
-            Centralized aggregation of findings from GuardDuty, Config, Inspector, Macie, and IAM Access Analyzer
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-          {/* Region selector */}
-          <select
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            style={{
-              background: C.cardBg,
-              border: `1px solid ${C.border}`,
-              borderRadius: 8,
-              color: C.text,
-              padding: "7px 10px",
-              fontSize: 12,
-              fontFamily: C.mono,
-              cursor: "pointer",
-              outline: "none",
-            }}
-          >
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-east-2">us-east-2</option>
-            <option value="us-west-1">us-west-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
-            <option value="eu-west-2">eu-west-2</option>
-            <option value="eu-central-1">eu-central-1</option>
-            <option value="ap-southeast-1">ap-southeast-1</option>
-            <option value="ap-northeast-1">ap-northeast-1</option>
-          </select>
-
-          {/* Scan button */}
-          <button
-            onClick={handleStartScan}
-            disabled={isScanning || isRefreshing}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "none",
-              background: isScanning || isRefreshing ? "rgba(0,255,136,0.3)" : C.green,
-              color: "#000814",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: isScanning || isRefreshing ? "not-allowed" : "pointer",
-              transition: "opacity 0.15s",
-            }}
-          >
-            <Play size={14} style={{ opacity: isScanning ? 0.5 : 1 }} />
-            {isScanning ? "Scanning…" : "Scan Security Hub"}
-          </button>
-
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing || isScanning}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              background: "transparent",
-              color: C.text,
-              fontWeight: 500,
-              fontSize: 13,
-              cursor: isRefreshing || isScanning ? "not-allowed" : "pointer",
-              opacity: isRefreshing || isScanning ? 0.5 : 1,
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isRefreshing ? "spin 1s linear infinite" : "none" }} />
-            Refresh
-          </button>
-
-          <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: `1px solid ${C.border}`,
-              background: "transparent",
-              color: C.text,
-              fontWeight: 500,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            <Download size={14} />
-            Export
-          </button>
-        </div>
-      </div>
+      <ScanPageHeader
+        icon={<Shield size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Security Hub"
+        subtitle="Centralized aggregation of findings from GuardDuty, Config, Inspector, Macie, and IAM Access Analyzer"
+        isScanning={isScanning}
+        onScan={handleStartScan}
+        onRefresh={handleRefresh}
+        onExport={() => {}}
+        scanLabel="Scan Security Hub"
+        region={selectedRegion}
+        onRegionChange={setSelectedRegion}
+      />
 
       {/* ── Error state ──────────────────────────────────────────────────── */}
       {error && (
@@ -564,11 +422,12 @@ export function SecurityHub() {
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" as const }}>
-        <StatCard label="Total Findings" value={summary.total_findings} accent={C.text} icon={Shield} />
-        <StatCard label="Critical" value={summary.critical_findings} accent={C.critical} icon={AlertTriangle} />
-        <StatCard label="High" value={summary.high_findings} accent={C.high} icon={AlertTriangle} />
-        <StatCard label="Medium" value={summary.medium_findings} accent={C.medium} />
-        <StatCard label="Compliance" value={`${summary.compliance_score}%`} accent={C.green} icon={CheckCircle2} />
+        <SharedStatCard label="Total Findings" value={summary.total_findings} accent={C.text} icon={Shield} />
+        <SharedStatCard label="Critical" value={summary.critical_findings} accent={C.critical} icon={AlertTriangle} />
+        <SharedStatCard label="High" value={summary.high_findings} accent={C.high} icon={AlertTriangle} />
+        <SharedStatCard label="Medium" value={summary.medium_findings} accent={C.medium} />
+        <SharedStatCard label="Low" value={summary.low_findings} accent={C.low} />
+        <SharedStatCard label="Resolved" value={summary.resolved_findings} accent={C.info} icon={CheckCircle2} />
       </div>
 
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
@@ -870,21 +729,7 @@ export function SecurityHub() {
 
                 {/* Status badge */}
                 <div>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      background: `${statusColor(finding.status)}22`,
-                      color: statusColor(finding.status),
-                      border: `1px solid ${statusColor(finding.status)}44`,
-                    }}
-                  >
-                    {finding.status}
-                  </span>
+                  <SeverityBadge severity={finding.status} size="sm" />
                 </div>
 
                 {/* Age */}
@@ -916,21 +761,11 @@ export function SecurityHub() {
                   <div style={{ display: "flex", gap: 24 }}>
                     <div>
                       <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Compliance</p>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: finding.compliance_status === "FAILED" ? C.critical : C.low,
-                        }}
-                      >
-                        {finding.compliance_status}
-                      </span>
+                      <SeverityBadge severity={finding.compliance_status} size="sm" />
                     </div>
                     <div>
                       <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Workflow</p>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(finding.workflow_status) }}>
-                        {finding.workflow_status}
-                      </span>
+                      <SeverityBadge severity={finding.workflow_status} size="sm" />
                     </div>
                     <div>
                       <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Resource Type</p>
