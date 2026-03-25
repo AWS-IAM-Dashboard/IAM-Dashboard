@@ -34,6 +34,7 @@ import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 import { EmptyState } from "./EmptyState";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface AWSIAMFinding {
   id: string;
@@ -311,9 +312,65 @@ export function AWSIAMScan() {
   return (
     <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Tour: No scan run yet */}
+      {!isScanning && !hasScanResult && (
+        <PageTour
+          welcomeTitle="IAM Security Scanner"
+          welcomeDescription="You haven’t run an IAM scan yet, so there are no findings to show. This page lets you audit every IAM user, role, policy, and group in your AWS account. Let’s walk through how it works."
+          welcomeIcon={<Shield className="h-7 w-7" />}
+          steps={[
+            {
+              target: "iam-credentials",
+              title: "1. Set Your AWS Credentials",
+              description: "Start here — choose the AWS profile and region you want to scan. The scanner will use these credentials to read IAM resources (read-only, no changes are made).",
+              hint: "Make sure the profile has IAM read permissions (e.g. SecurityAudit policy).",
+              icon: <Cloud className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-scope",
+              title: "2. Pick What to Scan",
+              description: "Check the boxes for the resource types you want to audit. By default, users, roles, and policies are selected. Enable cross-account access for a broader view.",
+              hint: "Tip: Start with the defaults. You can always re-scan with a wider scope later.",
+              icon: <Settings2 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-compliance",
+              title: "3. Select Compliance Frameworks",
+              description: "Choose which frameworks to check against — CIS AWS Foundations and SOC 2 Type II are enabled by default. Enable PCI-DSS or NIST if your organization requires those certifications.",
+              hint: "Tip: Each framework adds specific checks. More frameworks means a more thorough audit.",
+              icon: <Shield className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "iam-actions",
+              title: "4. Launch the Scan",
+              description: "Once configured, hit Start IAM Scan. The scanner audits each resource against CIS, SOC 2, and other compliance frameworks. Results typically appear within 30–60 seconds.",
+              icon: <Play className="h-5 w-5" />,
+              placement: "top",
+              action: {
+                label: "Start IAM Scan",
+                onClick: handleStartScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "iam-config",
+              title: "5. Review & Remediate",
+              description: "After the scan, a findings table appears below with severity ratings, affected resources, and specific remediation recommendations. You can filter, sort, and export results.",
+              hint: "Critical and High findings should be addressed first — they represent the biggest risks to your account.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "bottom",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       
       {/* AWS Configuration */}
-      <Card className="cyber-card">
+      <Card data-tour="iam-config" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cloud className="h-5 w-5 text-primary" />
@@ -322,7 +379,7 @@ export function AWSIAMScan() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
+            <div data-tour="iam-credentials" className="space-y-4">
               <div>
                 <Label htmlFor="aws-profile">AWS Profile</Label>
                 <Select value={awsProfile} onValueChange={setAwsProfile}>
@@ -353,7 +410,7 @@ export function AWSIAMScan() {
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div data-tour="iam-scope" className="space-y-4">
               <div>
                 <Label>Scan Scope</Label>
                 <div className="space-y-2 mt-2">
@@ -377,7 +434,7 @@ export function AWSIAMScan() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div data-tour="iam-compliance" className="space-y-4">
               <div>
                 <Label>Compliance Frameworks</Label>
                 <div className="space-y-2 mt-2">
@@ -402,7 +459,7 @@ export function AWSIAMScan() {
             </div>
           </div>
           
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div data-tour="iam-actions" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={handleStartScan}
               disabled={isScanning}
@@ -439,20 +496,6 @@ export function AWSIAMScan() {
             <strong>Scan Error:</strong> {error}
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* Empty State: No scan run yet */}
-      {!isScanning && !hasScanResult && (
-        <EmptyState
-          icon={<Shield className="h-5 w-5" />}
-          title="No IAM scan results yet"
-          description="Run your first scan to discover risky users, roles, policies, and groups. You’ll see findings and compliance impact here once a scan completes."
-          primaryAction={{
-            label: "Run your first scan",
-            onClick: handleStartScan,
-            icon: <Play className="h-4 w-4" />,
-          }}
-        />
       )}
 
       {/* Scan Progress */}

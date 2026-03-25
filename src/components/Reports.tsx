@@ -7,12 +7,12 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { FileText, Download, Calendar, Filter, Search, Eye, Plus } from "lucide-react";
+import { FileText, Download, Calendar, Filter, Search, Eye, Plus, BarChart3 } from "lucide-react";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
 import { toast } from "sonner@2.0.3";
 import { useScanResults } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
-import { EmptyState } from "./EmptyState";
+import { PageTour, type TourStep } from "./PageTour";
 
 const REPORT_TYPE_TABS = [
   {
@@ -541,7 +541,7 @@ export function Reports({ reports }: ReportsProps) {
   return (
     <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       {/* Report Generation */}
-      <Card className="cyber-card">
+      <Card data-tour="report-generator" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
@@ -550,7 +550,7 @@ export function Reports({ reports }: ReportsProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-2">
+            <div data-tour="report-type" className="space-y-2">
                 <Label htmlFor="report-type">Report Type</Label>
                 <Select value={reportType} onValueChange={setReportType}>
                   <SelectTrigger className="bg-input border-border">
@@ -632,7 +632,7 @@ export function Reports({ reports }: ReportsProps) {
             </div>
           </div>
           
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div data-tour="report-actions" className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button 
               onClick={generateReport}
               disabled={!reportType || isGenerating}
@@ -651,15 +651,47 @@ export function Reports({ reports }: ReportsProps) {
       </Card>
 
       {reports.length === 0 ? (
-        <EmptyState
-          icon={<FileText className="h-5 w-5" />}
-          title="No reports yet"
-          description="Generate your first report to build a history of exports and shareable summaries."
-          primaryAction={{
-            label: "Generate a report",
-            onClick: () => setShowGenerateDialog(true),
-            icon: <Plus className="h-4 w-4" />,
-          }}
+        <PageTour
+          welcomeTitle="Reports & Compliance Exports"
+          welcomeDescription="No reports have been generated yet. Reports are built from scan data — once you run a security scan, you can export the results as shareable, audit-ready documents. Let’s walk through the process."
+          welcomeIcon={<FileText className="h-7 w-7" />}
+          steps={[
+            {
+              target: "report-type",
+              title: "1. Choose a Report Type",
+              description: "Pick from Security Hub, GuardDuty, AWS Config, or IAM report templates. Each one focuses on a different area of your security posture and formats the data accordingly.",
+              hint: "Security Hub reports give the broadest coverage. Start there if you’re unsure.",
+              icon: <Filter className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "report-generator",
+              title: "2. Name & Configure",
+              description: "Give your report a name and optional description. Then choose your export formats — PDF for sharing with leadership, CSV for spreadsheet analysis, or JSON for programmatic use.",
+              icon: <FileText className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "report-actions",
+              title: "3. Generate the Report",
+              description: "Click Generate to create the report from your latest scan data. If no scan data exists yet, head to IAM Security first and run a scan.",
+              icon: <BarChart3 className="h-5 w-5" />,
+              placement: "top",
+              action: {
+                label: "Generate Report",
+                onClick: () => generateReport(),
+                icon: <Plus className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "report-generator",
+              title: "4. History & Scheduling",
+              description: "Every generated report is saved in a history table below this card. You can re-download, preview, or schedule recurring reports to keep your team up to date automatically.",
+              hint: "Use the Schedule Report button to set up weekly or monthly automated exports.",
+              icon: <Calendar className="h-5 w-5" />,
+              placement: "bottom",
+            },
+          ] satisfies TourStep[]}
         />
       ) : (
         <Card className="cyber-card">

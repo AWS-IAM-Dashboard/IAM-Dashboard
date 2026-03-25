@@ -6,13 +6,14 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users } from "lucide-react";
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, FileText, BarChart3 } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData, type SecurityAlert } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
 import { toast } from "sonner@2.0.3";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
+import { PageTour, type TourStep } from "./PageTour";
 
 interface DashboardProps {
   onNavigate?: (tab: string) => void;
@@ -460,8 +461,63 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   return (
     <div className="max-w-full overflow-x-hidden p-4 md:p-6 space-y-6">
       <DemoModeBanner />
+
+      {/* Interactive Page Tour for first-time users */}
+      {scanResults.length === 0 && !isScanning && (
+        <PageTour
+          welcomeTitle="Welcome to Your Security Dashboard"
+          welcomeDescription="No scans have been run yet, so there’s no security data to display. Let us walk you through the dashboard so you know exactly where everything is and how to get started."
+          welcomeIcon={<Shield className="h-7 w-7" />}
+          steps={[
+            {
+              target: "stats-grid",
+              title: "Security Metrics at a Glance",
+              description: "These four cards track your key security numbers — last scan time, total AWS resources monitored, active findings, and your compliance score. They’re all zeros right now because no scan has been run yet.",
+              hint: "Tip: Click any card to jump to its detail page.",
+              icon: <BarChart3 className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "aws-status",
+              title: "AWS IAM Security Status",
+              description: "This panel will show a breakdown of findings by severity — Critical, High, Medium — once you run a scan. Right now it’s empty because there’s no scan data yet.",
+              hint: "Click this card to go straight to the IAM Security page for deeper analysis.",
+              icon: <Cloud className="h-5 w-5" />,
+              placement: "bottom",
+            },
+            {
+              target: "quick-actions",
+              title: "Quick Actions — Start Here",
+              description: "This is your launch pad. Hit “Full Security Scan” to audit IAM users, roles, policies, EC2 instances, and S3 buckets across your AWS account. The scan typically finishes in under a minute.",
+              icon: <Zap className="h-5 w-5" />,
+              placement: "bottom",
+              action: {
+                label: "Run Full Security Scan",
+                onClick: handleQuickScan,
+                icon: <Play className="h-4 w-4" />,
+              },
+            },
+            {
+              target: "charts-section",
+              title: "Compliance Charts & Trends",
+              description: "After your first scan, a compliance pie chart and weekly trend bar chart will appear here. Over time they’ll show how your security posture is improving (or where it needs attention).",
+              hint: "Run multiple scans over time to build up trend data.",
+              icon: <BarChart3 className="h-5 w-5" />,
+              placement: "top",
+            },
+            {
+              target: "activity-table",
+              title: "Recent Security Alerts",
+              description: "Security alerts land here in real time after each scan — sorted by severity so the most critical issues surface first. You can click any row to investigate further.",
+              icon: <AlertTriangle className="h-5 w-5" />,
+              placement: "top",
+            },
+          ] satisfies TourStep[]}
+        />
+      )}
+
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+      <div data-tour="stats-grid" className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
         <Card 
           className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
           onClick={() => onNavigate?.('timeline')}
@@ -549,6 +605,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
       {/* AWS Security Status */}
       <Card 
+        data-tour="aws-status"
         className="cyber-card cursor-pointer hover:cyber-glow transition-all duration-300"
         onClick={() => onNavigate?.('aws-iam-scan')}
       >
@@ -589,7 +646,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </Card>
 
       {/* Scan Controls */}
-      <Card className="cyber-card">
+      <Card data-tour="quick-actions" className="cyber-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
@@ -667,7 +724,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </Card>
 
       {/* Charts and Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div data-tour="charts-section" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="cyber-card">
           <CardHeader>
             <CardTitle>Security Compliance Overview</CardTitle>
@@ -785,7 +842,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </div>
 
       {/* Recent Activity */}
-      <Card className="cyber-card">
+      <Card data-tour="activity-table" className="cyber-card">
         <CardHeader>
           <CardTitle>Recent Security Alerts</CardTitle>
         </CardHeader>
