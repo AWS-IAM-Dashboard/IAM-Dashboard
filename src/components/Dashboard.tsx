@@ -285,6 +285,25 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     return sortedScans[0].findings || [];
   }, [scanResults, scanResultsVersion]);
 
+  const severityBreakdownData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (allFindings as any[]).forEach((f) => {
+      const key = String(f.severity ?? "Unknown");
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    const colorMap: Record<string, string> = {
+      Critical: "#ff0040",
+      High: "#ff6b35",
+      Medium: "#ffb000",
+      Low: "#00ff88",
+    };
+    return Object.entries(counts).map(([name, value]) => ({
+      name,
+      value,
+      color: colorMap[name] || "#64748b",
+    }));
+  }, [allFindings, scanResultsVersion]);
+
   const findingsFilterDefs: FilterDefinition[] = useMemo(() => {
     const severities = [...new Set(allFindings.map((f: any) => f.severity).filter(Boolean))];
     const types = [...new Set(allFindings.map((f: any) => f.finding_type || f.type).filter(Boolean))];
@@ -842,6 +861,33 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+        {severityBreakdownData.length > 0 && (
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
+              <p className="mb-2 text-sm font-medium text-muted-foreground">
+                Severity breakdown (this scan)
+              </p>
+              <div className="h-[200px] w-full min-h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={severityBreakdownData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      label={({ name, value }) => `${name}: ${value}`}
+                    >
+                      {severityBreakdownData.map((entry, i) => (
+                        <Cell key={`cell-${i}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
           <FindingsTableToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -865,17 +911,19 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 <TableHead>Resource</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Severity</TableHead>
+                <TableHead>Timestamp</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Risk Score</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {statsLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
+                Array.from({ length: 6 }).map((_, index) => (
                   <TableRow key={index} className="border-border">
                     <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16 bg-muted/20" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
                   </TableRow>
@@ -884,7 +932,17 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 paginatedFindings.map((finding: any, index: number) => (
                   <TableRow
                     key={finding.id || index}
-                    className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
+                    className={`border-border cursor-pointer hover:bg-accent/10 transition-colors border-l-4 ${
+                      finding.severity === "Critical"
+                        ? "border-l-[#ff0040]"
+                        : finding.severity === "High"
+                          ? "border-l-[#ff6b35]"
+                          : finding.severity === "Medium"
+                            ? "border-l-[#ffb000]"
+                            : finding.severity === "Low"
+                              ? "border-l-[#00ff88]"
+                              : "border-l-muted"
+                    }`}
                   >
                     <TableCell>
                       <div>
@@ -900,16 +958,39 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        className={
-                          finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
-                          finding.severity === "High" ? "bg-[#ff6b35] text-white" :
-                          finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
-                          "bg-[#00ff88] text-black"
+                      <div className="flex items-center gap-1.5">
+                        {(finding.severity === "Critical" || finding.severity === "High") && (
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-[#ff6b35]" aria-hidden />
+                        )}
+                        <Badge
+                          className={
+                            finding.severity === "Critical" ? "bg-[#ff0040] text-white" :
+                            finding.severity === "High" ? "bg-[#ff6b35] text-white" :
+                            finding.severity === "Medium" ? "bg-[#ffb000] text-black" :
+                            finding.severity === "Low" ? "bg-[#00ff88] text-black" :
+                            "bg-muted text-white"
+                          }
+                        >
+                          {finding.severity}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      <span
+                        title={
+                          finding.created_date
+                            ? String(finding.created_date)
+                            : finding.timestamp
+                              ? String(finding.timestamp)
+                              : ""
                         }
                       >
-                        {finding.severity}
-                      </Badge>
+                        {finding.created_date || finding.timestamp
+                          ? formatTimestamp(
+                              String(finding.created_date || finding.timestamp)
+                            )
+                          : "—"}
+                      </span>
                     </TableCell>
                     <TableCell className="text-sm max-w-md">
                       <p className="line-clamp-2">{finding.description || 'No description'}</p>
@@ -920,7 +1001,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                           finding.risk_score > 80 ? "text-[#ff0040]" :
                           finding.risk_score > 60 ? "text-[#ff6b35]" :
                           finding.risk_score > 40 ? "text-[#ffb000]" :
-                          "text-[#00ff88]"
+                          finding.risk_score > 20 ? "text-[#00ff88]" :
+                          "text-muted-foreground"
                         }>
                           {finding.risk_score}/100
                         </span>
@@ -932,7 +1014,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 ))
               ) : (
                 <TableRow className="border-border">
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     {allFindings.length === 0
                       ? 'No findings available. Run a Full Security Scan to get started.'
                       : 'No findings match the current filters.'}
