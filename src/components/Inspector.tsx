@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import {
   AlertTriangle,
   Package,
@@ -164,6 +165,23 @@ export function Inspector() {
   const [selectedResourceType, setSelectedResourceType] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+
+  useEffect(() => {
+    setWorkflows(prev => {
+      const next = { ...prev };
+      findings.forEach(f => {
+        if (!next[f.id]) {
+          next[f.id] = { status: "NEW", first_seen: f.first_observed_at, timeline: [] };
+        }
+      });
+      return next;
+    });
+  }, [findings]);
+
+  const advanceStatus = (id: string) => { const NEXT: Record<string, WorkflowData["status"]> = { NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS", IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED" }; setWorkflows(prev => { const w = prev[id]; if (!w) return prev; const n = NEXT[w.status]; if (!n) return prev; return { ...prev, [id]: { ...w, status: n, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Status advanced to ${n}` }] } }; }); };
+  const assignFinding = (id: string, assignee: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } }; }); toast.success(`Assigned to ${assignee}`); };
+  const markFalsePositive = (id: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } }; }); toast.info("Marked as false positive"); };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -417,65 +435,32 @@ export function Inspector() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <div style={{
-                    padding: '16px 24px 20px',
-                    background: 'rgba(0,0,0,0.25)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 14,
-                  }}>
-                    <div>
-                      <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Title</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0, fontWeight: 500 }}>{finding.title}</p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Description</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>{finding.description}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Vulnerability ID</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, fontFamily: '"JetBrains Mono", monospace' }}>{finding.vulnerability_id}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Full Resource ID</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, fontFamily: '"JetBrains Mono", monospace', wordBreak: 'break-all' }}>{finding.resource_id}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Region</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, fontFamily: '"JetBrains Mono", monospace' }}>{finding.region}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Resource Type</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {getResourceIcon(finding.resource_type)}
-                          <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{getResourceLabel(finding.resource_type)}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 32 }}>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>First Observed</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{new Date(finding.first_observed_at).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Last Observed</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{new Date(finding.last_observed_at).toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: 8,
-                      background: 'rgba(255,107,53,0.06)',
-                      border: '1px solid rgba(255,107,53,0.18)',
-                    }}>
-                      <p style={{ fontSize: 11, color: '#ff6b35', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px', fontWeight: 600 }}>Recommended Action</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0, fontFamily: '"JetBrains Mono", "Fira Mono", monospace' }}>
-                        {getRemediation(finding.resource_type, finding.package_name)}
-                      </p>
-                    </div>
-                  </div>
+                  <FindingDetailPanel
+                    finding={{
+                      id: finding.id,
+                      title: finding.title ?? finding.cve_id ?? finding.vulnerability_id,
+                      resource_name: finding.resource_id,
+                      resource_arn: undefined,
+                      severity: finding.severity,
+                      description: finding.description,
+                      recommendation: getRemediation(finding.resource_type, finding.package_name),
+                      risk_score: undefined,
+                      compliance_frameworks: undefined,
+                      last_seen: finding.last_observed_at,
+                      first_seen: finding.first_observed_at,
+                      region: finding.region,
+                      metadata: {
+                        ...(finding.cve_id ? { "CVE": finding.cve_id } : {}),
+                        ...(finding.package_name ? { "Package": finding.package_name } : {}),
+                      },
+                    }}
+                    workflow={workflows[finding.id]}
+                    onAdvanceStatus={advanceStatus}
+                    onAssign={assignFinding}
+                    onMarkFalsePositive={markFalsePositive}
+                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                    onClose={() => setExpandedId(null)}
+                  />
                 )}
               </div>
             );

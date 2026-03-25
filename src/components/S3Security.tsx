@@ -44,6 +44,7 @@ import { useScanResults } from "../context/ScanResultsContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { FindingDetailPanel } from "./ui/FindingDetailPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -635,6 +636,8 @@ const NEXT_STATUS: Partial<Record<WorkflowStatus, WorkflowStatus>> = {
 
 const PIPELINE_STAGES: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
 
+const ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Taylor Brooks", "Priya Nair", "Alex Rodriguez", "Jordan Kim"];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STYLE HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -648,7 +651,7 @@ const SEVERITY_BG: Record<string, { bg: string; color: string }> = {
   MEDIUM: { bg: "rgba(255,176,0,0.15)", color: "#ffb000" },
   LOW: { bg: "rgba(0,255,136,0.15)", color: "#00ff88" },
 };
-const cs: React.CSSProperties = { background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+const cs: React.CSSProperties = { background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" };
 const ls: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" };
 const ms: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 
@@ -968,181 +971,37 @@ export function S3Security() {
 
               {/* Expanded panel */}
               {isExpanded && (
-                <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.4)" }}>
-                  <div style={{ padding: "10px 20px 10px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ ...ls, marginRight: 6 }}>Workflow</span>
-                    {NEXT_STATUS[wf.status] && (
-                      <button onClick={() => { advanceStatus(f.id); toast.success(`${f.bucket_name}: ${WORKFLOW_META[wf.status].label} → ${WORKFLOW_META[NEXT_STATUS[wf.status]!].label}`); }} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", cursor: "pointer", ...ms }}>
-                        Advance → {WORKFLOW_META[NEXT_STATUS[wf.status]!].label}
-                      </button>
-                    )}
-                    <select defaultValue="" onChange={e => { if (e.target.value) assignFinding(f.id, e.target.value); }} style={{ padding: "4px 8px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", ...ms }}>
-                      <option value="" disabled>{wf.assignee ?? "Assign…"}</option>
-                      {["sarah.chen","marcus.webb","taylor.brooks","alex.rodriguez","priya.nair"].map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    {wf.ticket_id ? (
-                      <span style={{ fontSize: 10, ...ms, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "2px 6px" }}>{wf.ticket_id}</span>
-                    ) : (
-                      <button onClick={() => toast.info("Ticket creation: wire to /api/tickets/create")} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", cursor: "pointer", ...ms }}>+ Ticket</button>
-                    )}
-                    <button onClick={() => markFalsePositive(f.id)} style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "transparent", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.5)", cursor: "pointer", ...ms }}>FP</button>
-                    <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...ms }}>
-                      {wf.ticket_id ? `Ticket: ${wf.ticket_id} · ` : ""}First seen: {new Date(wf.first_seen).toLocaleString()}
-                    </span>
-                  </div>
-                  {/* Tab bar */}
-                  <div style={{ display: "flex", gap: 0, padding: "0 20px 0 36px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    {[
-                      { id: "runbook", icon: GitBranch, label: "Runbook" },
-                      { id: "overview", icon: Eye, label: "Overview" },
-                      { id: "timeline", icon: Activity, label: "Timeline" },
-                      { id: "agents", icon: Bot, label: "Agent Actions" },
-                    ].map(t => (
-                      <button key={t.id} onClick={() => setActiveTab(p => ({ ...p, [f.id]: t.id }))} style={{ display: "flex", alignItems: "center", gap: 5, padding: "10px 16px", fontSize: 12, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? "#00ff88" : "rgba(100,116,139,0.7)", borderBottom: `2px solid ${tab === t.id ? "#00ff88" : "transparent"}`, background: "transparent", border: "none", borderBottom: `2px solid ${tab === t.id ? "#00ff88" : "transparent"}`, cursor: "pointer", marginBottom: -1 }}>
-                        <t.icon size={12} /> {t.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div style={{ padding: "16px 20px 20px 36px" }}>
-                    {/* RUNBOOK TAB */}
-                    {tab === "runbook" && (
-                      <div>
-                        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                          {(["IDENTIFY","CONTAIN","REMEDIATE","VERIFY"] as PlaybookPhase[]).map(ph => (
-                            <span key={ph} style={{ padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, ...ms, background: PHASE_META[ph].bg, color: PHASE_META[ph].color }}>{ph}</span>
-                          ))}
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                          {playbook.map(step => (
-                            <div key={step.step} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 14 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                                <span style={{ width: 22, height: 22, borderRadius: 11, background: PHASE_META[step.phase].bg, border: `1px solid ${PHASE_META[step.phase].color}50`, color: PHASE_META[step.phase].color, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...ms }}>{step.step}</span>
-                                <span style={{ padding: "1px 7px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: PHASE_META[step.phase].bg, color: PHASE_META[step.phase].color, ...ms }}>{step.phase}</span>
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{step.title}</span>
-                                <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.6)", ...ms }}>~{step.estimated_time}</span>
-                              </div>
-                              <p style={{ margin: "0 0 10px 0", fontSize: 12, color: "rgba(148,163,184,0.8)", lineHeight: 1.5 }}>{step.description}</p>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {step.commands.map((cmd, ci) => (
-                                  <div key={ci} style={{ position: "relative", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "8px 40px 8px 12px" }}>
-                                    <code style={{ fontSize: 11, color: "#a3e635", ...ms, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{cmd}</code>
-                                    <button onClick={() => copyCommand(cmd)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: copiedCmd === cmd ? "#00ff88" : "rgba(100,116,139,0.5)", padding: 4 }}>
-                                      {copiedCmd === cmd ? <Check size={12} /> : <Copy size={12} />}
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* OVERVIEW TAB */}
-                    {tab === "overview" && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                        <div>
-                          <div style={{ ...ls, marginBottom: 8 }}>Description</div>
-                          <p style={{ fontSize: 13, color: "rgba(148,163,184,0.9)", lineHeight: 1.6, margin: 0 }}>{f.description}</p>
-                          <div style={{ ...ls, marginTop: 16, marginBottom: 8 }}>Recommendation</div>
-                          <p style={{ fontSize: 13, color: "rgba(148,163,184,0.9)", lineHeight: 1.6, margin: 0 }}>{f.recommendation}</p>
-                        </div>
-                        <div>
-                          <div style={{ ...ls, marginBottom: 8 }}>Bucket Details</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            {[
-                              ["Bucket", f.bucket_name],
-                              ["Region", f.region],
-                              ["Objects", f.object_count.toLocaleString()],
-                              ["Size", `${f.size_gb.toLocaleString()} GB`],
-                              ["Encryption", f.encryption_type],
-                              ["Versioning", f.versioning_enabled ? "Enabled" : "Disabled"],
-                              ["Logging", f.logging_enabled ? "Enabled" : "Disabled"],
-                              ["MFA Delete", f.mfa_delete ? "Enabled" : "Disabled"],
-                              ["Public Read", f.public_read ? "YES" : "No"],
-                              ["Risk Score", `${f.risk_score}/10`],
-                            ].map(([k, v]) => (
-                              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 5 }}>
-                                <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", ...ms }}>{k}</span>
-                                <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, ...ms }}>{String(v)}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <div style={{ ...ls, marginTop: 16, marginBottom: 8 }}>Compliance Frameworks</div>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            {f.compliance_frameworks.map(fw => (
-                              <span key={fw} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", ...ms }}>{fw}</span>
-                            ))}
-                          </div>
-                          {wf.risk_acceptance_note && (
-                            <div style={{ marginTop: 16, padding: 12, background: "rgba(251,146,60,0.06)", border: "1px solid rgba(251,146,60,0.2)", borderRadius: 8 }}>
-                              <div style={{ ...ls, color: "#fb923c", marginBottom: 6 }}>Risk Acceptance Note</div>
-                              <p style={{ fontSize: 11, color: "rgba(251,146,60,0.9)", margin: 0, lineHeight: 1.5 }}>{wf.risk_acceptance_note}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* TIMELINE TAB */}
-                    {tab === "timeline" && (
-                      <div>
-                        <div style={{ ...ls, marginBottom: 12 }}>Activity Log — {wf.timeline.length} events</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                          {[...wf.timeline].reverse().map((ev, i) => {
-                            const actorColors = { system: "#64748b", analyst: "#06b6d4", engineer: "#00ff88", automation: "#818cf8" };
-                            return (
-                              <div key={ev.id} style={{ display: "flex", gap: 12, paddingBottom: 14, position: "relative" }}>
-                                {i < wf.timeline.length - 1 && <div style={{ position: "absolute", left: 7, top: 18, bottom: 0, width: 1, background: "rgba(255,255,255,0.05)" }} />}
-                                <div style={{ width: 15, height: 15, borderRadius: 8, background: actorColors[ev.actor_type] + "25", border: `1px solid ${actorColors[ev.actor_type]}50`, flexShrink: 0, marginTop: 2 }} />
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 3 }}>
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: actorColors[ev.actor_type], ...ms }}>{ev.actor}</span>
-                                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", ...ms }}>{new Date(ev.timestamp).toLocaleString()}</span>
-                                  </div>
-                                  <div style={{ fontSize: 12, color: "#e2e8f0" }}>{ev.action}</div>
-                                  {ev.note && <div style={{ fontSize: 11, color: "rgba(148,163,184,0.7)", marginTop: 3 }}>{ev.note}</div>}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AGENT ACTIONS TAB */}
-                    {tab === "agents" && (
-                      <div>
-                        <div style={{ ...ls, marginBottom: 12 }}>AI Agent Actions — Wire to /api/agents/* endpoints</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                          {[
-                            { id: "triage", icon: Zap, label: "AI Triage", desc: "Classify severity, blast radius, and recommend priority", endpoint: "/api/agents/triage", color: "#818cf8" },
-                            { id: "remediate", icon: Shield, label: "Auto-Remediate", desc: "Execute runbook steps 1-2 automatically via Lambda", endpoint: "/api/agents/s3-remediate", color: "#00ff88" },
-                            { id: "ticket", icon: Ticket, label: "Create Ticket", desc: "Create JIRA/ServiceNow ticket with full context", endpoint: "/api/agents/ticket", color: "#06b6d4" },
-                            { id: "threat", icon: AlertTriangle, label: "Threat Intel", desc: "Enrich with CVE database and threat actor TTPs", endpoint: "/api/agents/threat-intel", color: "#ffb000" },
-                            { id: "blast", icon: Activity, label: "Blast Radius", desc: "Enumerate downstream resources and data impact", endpoint: "/api/agents/blast-radius", color: "#f472b6" },
-                            { id: "verify", icon: CheckCircle, label: "Verify Remediation", desc: "Re-scan bucket and confirm control effectiveness", endpoint: "/api/agents/verify", color: "#34d399" },
-                          ].map(agent => (
-                            <div key={agent.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 14 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: `${agent.color}15`, border: `1px solid ${agent.color}30`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                  <agent.icon size={14} style={{ color: agent.color }} />
-                                </div>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{agent.label}</span>
-                              </div>
-                              <p style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", margin: "0 0 10px 0", lineHeight: 1.4 }}>{agent.desc}</p>
-                              <code style={{ display: "block", fontSize: 10, color: "rgba(100,116,139,0.5)", marginBottom: 10, ...ms }}>{agent.endpoint}</code>
-                              <button onClick={() => toast.info(`Agent stub: ${agent.endpoint}`, { description: `Finding: ${f.id} · Bucket: ${f.bucket_name}` })} style={{ width: "100%", padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${agent.color}10`, border: `1px solid ${agent.color}30`, color: agent.color, cursor: "pointer" }}>
-                                Run Agent
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <FindingDetailPanel
+                  finding={{
+                    id: f.id,
+                    title: f.finding_type,
+                    resource_name: f.bucket_name,
+                    resource_arn: `arn:aws:s3:::${f.bucket_name}`,
+                    severity: f.severity,
+                    description: f.description,
+                    recommendation: f.recommendation,
+                    risk_score: f.risk_score,
+                    compliance_frameworks: f.compliance_frameworks,
+                    last_seen: f.last_seen,
+                    first_seen: f.created_date,
+                    region: f.region,
+                    metadata: {
+                      "Bucket": f.bucket_name,
+                      ...(f.bucket_size_gb !== undefined ? { "Size": `${f.bucket_size_gb} GB` } : {}),
+                      ...(f.is_public !== undefined ? { "Public": f.is_public ? "Yes" : "No" } : {}),
+                      ...(f.encryption_status ? { "Encryption": f.encryption_status } : {}),
+                    },
+                  }}
+                  playbook={S3_PLAYBOOKS[f.id]}
+                  workflow={wf}
+                  assignees={ASSIGNEES}
+                  onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
+                  onAssign={(id, assignee) => { assignFinding(id, assignee); }}
+                  onMarkFalsePositive={(id) => { markFalsePositive(id); }}
+                  onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
+                  onClose={() => toggleRow(f.id)}
+                  isLast={isLast}
+                />
               )}
             </div>
           );

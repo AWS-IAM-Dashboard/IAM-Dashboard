@@ -8,6 +8,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -62,6 +63,60 @@ const mockFindings: AWSIAMFinding[] = [
   { id: "iam-009", type: "user", resource_name: "dev-user1", resource_arn: "arn:aws:iam::123456789012:user/dev-user1", severity: "MEDIUM", finding_type: "Unused IAM User (95 days)", description: "IAM user dev-user1 has had no console login or API activity in 95 days. Still has active credentials and group memberships.", recommendation: "Disable user and deactivate credentials. If inactive for 90+ days, consider deleting. Review group memberships before deletion.", compliance_frameworks: ["CIS 1.3"], last_accessed: "2023-10-12T09:00:00Z", created_date: "2022-05-15T00:00:00Z", risk_score: 5, status: "open" },
   { id: "iam-010", type: "policy", resource_name: "S3FullAccessManagedPolicy", resource_arn: "arn:aws:iam::aws:policy/AmazonS3FullAccess", severity: "MEDIUM", finding_type: "AWS Managed Full-Access Policy in Use", description: "AWS managed policy AmazonS3FullAccess is attached to 3 users. AWS managed full-access policies are overly broad and rarely appropriate.", recommendation: "Replace with customer-managed policies scoped to specific buckets and required actions only. Use IAM Access Analyzer policy generation.", compliance_frameworks: ["CIS 1.16"], last_accessed: "2024-01-15T08:00:00Z", created_date: "2023-06-01T00:00:00Z", risk_score: 5, status: "open" },
 ];
+
+// ── pre-populated workflows (blueprint / demo state) ────────────────────────
+const INITIAL_IAM_WORKFLOWS: Record<string, WorkflowData> = {
+  "iam-001": {
+    status: "IN_PROGRESS",
+    assignee: "Alice Chen",
+    ticket_id: "SEC-1041",
+    first_seen: "2024-01-10T14:22:00Z",
+    sla_hours_remaining: -2,
+    sla_breached: true,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-10T14:22:00Z", actor: "IAM Scanner", actor_type: "system", action: "Finding detected", note: "Active root access keys identified on account 123456789012" },
+      { id: "e2", timestamp: "2024-01-10T15:05:00Z", actor: "PagerDuty", actor_type: "automation", action: "P1 alert fired", note: "Automatic escalation — CRITICAL root credential exposure" },
+      { id: "e3", timestamp: "2024-01-10T15:18:00Z", actor: "Alice Chen", actor_type: "analyst", action: "Triaged — confirmed true positive", note: "Verified in AWS Console: 2 active access keys on root account, last used 5 days ago. Escalating immediately." },
+      { id: "e4", timestamp: "2024-01-10T15:45:00Z", actor: "Alice Chen", actor_type: "analyst", action: "Assigned to self — initiated remediation", note: "Coordinating with cloud team to schedule key deletion. Notified account owner." },
+      { id: "e5", timestamp: "2024-01-10T16:20:00Z", actor: "Alice Chen", actor_type: "engineer", action: "Remediation in progress", note: "Awaiting approval from CISO before deleting keys. Alternative IAM admin user created as replacement." },
+    ],
+  },
+  "iam-002": {
+    status: "TRIAGED",
+    first_seen: "2021-06-01T00:00:00Z",
+    sla_hours_remaining: 1.5,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-14T09:00:00Z", actor: "IAM Scanner", actor_type: "system", action: "Finding detected", note: "LegacyAdminPolicy with Action:* Resource:* attached to 4 users and 2 roles" },
+      { id: "e2", timestamp: "2024-01-14T09:30:00Z", actor: "Bob Martinez", actor_type: "analyst", action: "Triaged — confirmed overprivilege", note: "Cross-referenced with org chart: 3 of 4 attached users are non-admin engineers. Policy dates to 2021 migration — never scoped down." },
+    ],
+  },
+  "iam-003": {
+    status: "ASSIGNED",
+    assignee: "Bob Martinez",
+    first_seen: "2020-01-01T00:00:00Z",
+    sla_hours_remaining: 18,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2023-07-17T12:00:00Z", actor: "IAM Scanner", actor_type: "system", action: "Finding detected", note: "admin-legacy inactive 183 days, retains AdministratorAccess" },
+      { id: "e2", timestamp: "2024-01-12T10:00:00Z", actor: "Bob Martinez", actor_type: "analyst", action: "Assigned — pending user offboarding confirmation", note: "Checking with HR whether this user was formally offboarded. Access keys AKIAIOSFODNN7EXAMPLE still active." },
+    ],
+  },
+  "iam-004": {
+    status: "PENDING_VERIFY",
+    assignee: "Carol Singh",
+    ticket_id: "SEC-1044",
+    first_seen: "2023-03-20T00:00:00Z",
+    sla_hours_remaining: 20,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-15T08:30:00Z", actor: "IAM Scanner", actor_type: "system", action: "Finding detected", note: "john.smith console access without MFA device registered" },
+      { id: "e2", timestamp: "2024-01-15T09:00:00Z", actor: "Carol Singh", actor_type: "analyst", action: "Triaged and assigned", note: "User confirmed active. SCP blocking MFA-less access deployed to non-prod. Prod enforcement pending." },
+      { id: "e3", timestamp: "2024-01-15T14:00:00Z", actor: "Carol Singh", actor_type: "engineer", action: "MFA enforcement policy applied", note: "IAM policy denying all actions without MFA attached to user group. Waiting for john.smith to confirm device registration." },
+      { id: "e4", timestamp: "2024-01-15T16:00:00Z", actor: "john.smith", actor_type: "analyst", action: "User registered MFA device", note: "Hardware TOTP device registered and tested. Console access re-verified with MFA challenge." },
+    ],
+  },
+};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -125,7 +180,109 @@ export function AWSIAMScan() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useScanResults();
+
+  // Initialise workflow state when findings arrive; seed from INITIAL_IAM_WORKFLOWS blueprint
+  useEffect(() => {
+    const findings = scanResult?.findings ?? [];
+    if (!findings.length) return;
+    setWorkflows((prev) => {
+      const next = { ...prev };
+      findings.forEach((f) => {
+        if (!next[f.id]) {
+          next[f.id] = INITIAL_IAM_WORKFLOWS[f.id] ?? {
+            status: "NEW",
+            first_seen: f.created_date ?? new Date().toISOString(),
+            sla_hours_remaining:
+              f.severity === "CRITICAL" ? 4 :
+              f.severity === "HIGH" ? 24 :
+              f.severity === "MEDIUM" ? 168 : 720,
+            sla_breached: false,
+            timeline: [{
+              id: `${f.id}-init`,
+              timestamp: f.created_date ?? new Date().toISOString(),
+              actor: "IAM Scanner",
+              actor_type: "system",
+              action: "Finding detected",
+              note: `${f.finding_type} identified on ${f.resource_name}`,
+            }],
+          };
+        }
+      });
+      return next;
+    });
+  }, [scanResult?.findings]);
+
+  const advanceStatus = (findingId: string) => {
+    const NEXT: Record<string, WorkflowData["status"]> = {
+      NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS",
+      IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED",
+    };
+    setWorkflows((prev) => {
+      const w = prev[findingId];
+      if (!w) return prev;
+      const next = NEXT[w.status];
+      if (!next) return prev;
+      return {
+        ...prev,
+        [findingId]: {
+          ...w,
+          status: next,
+          timeline: [...w.timeline, {
+            id: `${findingId}-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            actor: "Security Analyst",
+            actor_type: "analyst",
+            action: `Status advanced to ${next}`,
+          }],
+        },
+      };
+    });
+  };
+
+  const assignFinding = (findingId: string, assignee: string) => {
+    setWorkflows((prev) => {
+      const w = prev[findingId] ?? { status: "NEW", first_seen: new Date().toISOString(), timeline: [] };
+      return {
+        ...prev,
+        [findingId]: {
+          ...w,
+          assignee,
+          status: w.status === "NEW" || w.status === "TRIAGED" ? "ASSIGNED" : w.status,
+          timeline: [...w.timeline, {
+            id: `${findingId}-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            actor: "Security Analyst",
+            actor_type: "analyst",
+            action: `Assigned to ${assignee}`,
+          }],
+        },
+      };
+    });
+    toast.success(`Assigned to ${assignee}`);
+  };
+
+  const markFalsePositive = (findingId: string) => {
+    setWorkflows((prev) => {
+      const w = prev[findingId] ?? { status: "NEW", first_seen: new Date().toISOString(), timeline: [] };
+      return {
+        ...prev,
+        [findingId]: {
+          ...w,
+          status: "FALSE_POSITIVE",
+          timeline: [...w.timeline, {
+            id: `${findingId}-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            actor: "Security Analyst",
+            actor_type: "analyst",
+            action: "Marked as false positive",
+          }],
+        },
+      };
+    });
+    toast.info("Marked as false positive");
+  };
 
   useEffect(() => {
     if (scanResult?.status === "Completed") {
@@ -505,25 +662,29 @@ export function AWSIAMScan() {
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div style={{ margin: "0 12px 8px 16px", padding: "16px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
-                      <div>
-                        <div style={{ ...sectionLabel, marginBottom: 8 }}>Description</div>
-                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
-                      </div>
-                      <div style={{ padding: "12px 16px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
-                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 8 }}>Recommendation</div>
-                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={sectionLabel}>Compliance</span>
-                        {finding.compliance_frameworks.map((fw) => (
-                          <span key={fw} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>{fw}</span>
-                        ))}
-                      </div>
-                      <div style={{ fontSize: 11, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        Created {new Date(finding.created_date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                      </div>
-                    </div>
+                    <FindingDetailPanel
+                      finding={{
+                        id: finding.id,
+                        title: finding.finding_type,
+                        resource_name: finding.resource_name,
+                        resource_arn: finding.resource_arn,
+                        severity: finding.severity,
+                        description: finding.description,
+                        recommendation: finding.recommendation,
+                        risk_score: finding.risk_score,
+                        compliance_frameworks: finding.compliance_frameworks,
+                        last_seen: finding.last_accessed,
+                        first_seen: finding.created_date,
+                        region: scanResult.region,
+                        metadata: { Type: finding.type },
+                      }}
+                      workflow={workflows[finding.id]}
+                      onAdvanceStatus={advanceStatus}
+                      onAssign={assignFinding}
+                      onMarkFalsePositive={markFalsePositive}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA/ServiceNow for finding ${id}` })}
+                      onClose={() => setExpandedRow(null)}
+                    />
                   )}
                 </div>
               );

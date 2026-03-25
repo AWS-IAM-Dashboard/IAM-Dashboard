@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import {
   Settings2,
   Settings,
@@ -120,6 +121,23 @@ export function AWSConfig() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+
+  useEffect(() => {
+    setWorkflows(prev => {
+      const next = { ...prev };
+      rules.forEach(r => {
+        if (!next[r.id]) {
+          next[r.id] = { status: "NEW", first_seen: r.last_evaluated, timeline: [] };
+        }
+      });
+      return next;
+    });
+  }, [rules]);
+
+  const advanceStatus = (id: string) => { const NEXT: Record<string, WorkflowData["status"]> = { NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS", IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED" }; setWorkflows(prev => { const w = prev[id]; if (!w) return prev; const n = NEXT[w.status]; if (!n) return prev; return { ...prev, [id]: { ...w, status: n, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Status advanced to ${n}` }] } }; }); };
+  const assignFinding = (id: string, assignee: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } }; }); toast.success(`Assigned to ${assignee}`); };
+  const markFalsePositive = (id: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } }; }); toast.info("Marked as false positive"); };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -324,42 +342,33 @@ export function AWSConfig() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <div style={{
-                    padding: '16px 24px 20px',
-                    background: 'rgba(0,0,0,0.25)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 14,
-                  }}>
-                    <div>
-                      <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Description</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>{rule.description}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 32 }}>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Resource Count</p>
-                        <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>{rule.resource_count} resource{rule.resource_count !== 1 ? 's' : ''}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Rule ID</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0, fontFamily: '"JetBrains Mono", monospace' }}>{rule.id}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Status</p>
-                        <SeverityBadge severity={rule.compliance_status} size="sm" />
-                      </div>
-                    </div>
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: 8,
-                      background: 'rgba(255,176,0,0.06)',
-                      border: '1px solid rgba(255,176,0,0.18)',
-                    }}>
-                      <p style={{ fontSize: 11, color: '#ffb000', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 6px', fontWeight: 600 }}>Remediation</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>{getRemediationHint(rule.name)}</p>
-                    </div>
-                  </div>
+                  <FindingDetailPanel
+                    finding={{
+                      id: rule.id,
+                      title: rule.name,
+                      resource_name: rule.resource_type ?? rule.id,
+                      resource_arn: undefined,
+                      severity: "MEDIUM",
+                      description: rule.description,
+                      recommendation: getRemediationHint(rule.name),
+                      risk_score: undefined,
+                      compliance_frameworks: undefined,
+                      last_seen: rule.last_evaluated,
+                      first_seen: rule.last_evaluated,
+                      region: undefined,
+                      metadata: {
+                        ...(rule.compliance_status ? { "Status": rule.compliance_status } : {}),
+                        ...(rule.name ? { "Rule": rule.name } : {}),
+                        ...(rule.resource_type ? { "Resource Type": rule.resource_type } : {}),
+                      },
+                    }}
+                    workflow={workflows[rule.id]}
+                    onAdvanceStatus={advanceStatus}
+                    onAssign={assignFinding}
+                    onMarkFalsePositive={markFalsePositive}
+                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                    onClose={() => setExpandedId(null)}
+                  />
                 )}
               </div>
             );

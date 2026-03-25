@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import {
   Eye,
   Database,
@@ -190,6 +191,23 @@ export function Macie() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+
+  useEffect(() => {
+    setWorkflows(prev => {
+      const next = { ...prev };
+      findings.forEach(f => {
+        if (!next[f.id]) {
+          next[f.id] = { status: "NEW", first_seen: f.first_observed_at, timeline: [] };
+        }
+      });
+      return next;
+    });
+  }, [findings]);
+
+  const advanceStatus = (id: string) => { const NEXT: Record<string, WorkflowData["status"]> = { NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS", IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED" }; setWorkflows(prev => { const w = prev[id]; if (!w) return prev; const n = NEXT[w.status]; if (!n) return prev; return { ...prev, [id]: { ...w, status: n, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Status advanced to ${n}` }] } }; }); };
+  const assignFinding = (id: string, assignee: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } }; }); toast.success(`Assigned to ${assignee}`); };
+  const markFalsePositive = (id: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } }; }); toast.info("Marked as false positive"); };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -453,62 +471,34 @@ export function Macie() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <div style={{
-                    padding: '16px 24px 20px',
-                    background: 'rgba(0,0,0,0.25)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16,
-                  }}>
-                    <div>
-                      <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Finding Title</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0, fontWeight: 500 }}>{finding.title}</p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Description</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>{finding.description}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Object Key</p>
-                        <p style={{ fontSize: 12, color: '#00ff88', margin: 0, fontFamily: '"JetBrains Mono", monospace', wordBreak: 'break-all' }}>{finding.object_key}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>All Sensitive Types</p>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 2 }}>
-                          {pills.map(p => (
-                            <span key={p} style={getDataTypePillStyle(p)}>{p}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 32 }}>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>First Observed</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{formatDate(finding.first_observed_at)}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Last Observed</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{formatDate(finding.last_observed_at)}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 4px' }}>Category</p>
-                        <p style={{ fontSize: 12, color: '#e2e8f0', margin: 0 }}>{finding.category}</p>
-                      </div>
-                    </div>
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: 8,
-                      background: 'rgba(255,0,64,0.05)',
-                      border: '1px solid rgba(255,0,64,0.18)',
-                    }}>
-                      <p style={{ fontSize: 11, color: '#ff0040', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px', fontWeight: 600 }}>Remediation</p>
-                      <p style={{ fontSize: 13, color: '#e2e8f0', margin: 0 }}>
-                        {getRemediation(finding.category)}
-                      </p>
-                    </div>
-                  </div>
+                  <FindingDetailPanel
+                    finding={{
+                      id: finding.id,
+                      title: finding.type ?? finding.title,
+                      resource_name: finding.bucket_name,
+                      resource_arn: undefined,
+                      severity: finding.severity,
+                      description: finding.description,
+                      recommendation: getRemediation(finding.category),
+                      risk_score: undefined,
+                      compliance_frameworks: ["GDPR Art.32", "HIPAA 164.312", "PCI-DSS 3.4"],
+                      last_seen: finding.last_observed_at,
+                      first_seen: finding.first_observed_at,
+                      region: undefined,
+                      metadata: {
+                        ...(finding.bucket_name ? { "Bucket": finding.bucket_name } : {}),
+                        ...(finding.occurrences !== undefined ? { "Objects": String(finding.occurrences) } : {}),
+                        ...(finding.data_classification ? { "Data Type": finding.data_classification } : {}),
+                        ...(finding.sensitive_data_type ? { "Sensitive Data": finding.sensitive_data_type } : {}),
+                      },
+                    }}
+                    workflow={workflows[finding.id]}
+                    onAdvanceStatus={advanceStatus}
+                    onAssign={assignFinding}
+                    onMarkFalsePositive={markFalsePositive}
+                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                    onClose={() => setExpandedId(null)}
+                  />
                 )}
               </div>
             );

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import {
   Play,
   Shield,
@@ -154,6 +155,7 @@ export function SecurityHub() {
   const [error, setError] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult, getScanResult } = useScanResults();
 
   // Animate scan progress bar
@@ -173,6 +175,50 @@ export function SecurityHub() {
       transformAndSetFindings(existingResult);
     }
   }, []);
+
+  // Initialize workflow stubs when findings load
+  useEffect(() => {
+    if (!findings.length) return;
+    setWorkflows(prev => {
+      const next = { ...prev };
+      findings.forEach(f => {
+        if (!next[f.id]) {
+          next[f.id] = {
+            status: "NEW",
+            first_seen: f.created_at ?? new Date().toISOString(),
+            sla_hours_remaining: f.severity === "CRITICAL" || (typeof f.severity === "number" && f.severity >= 9) ? 4 : f.severity === "HIGH" || (typeof f.severity === "number" && f.severity >= 7) ? 24 : 168,
+            sla_breached: false,
+            timeline: [{ id: `${f.id}-init`, timestamp: new Date().toISOString(), actor: "Scanner", actor_type: "system" as const, action: "Finding detected", note: `${f.title ?? f.id}` }],
+          };
+        }
+      });
+      return next;
+    });
+  }, [findings]);
+
+  const advanceStatus = (id: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      const order: WorkflowData["status"][] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
+      const idx = order.indexOf(prev[id].status as WorkflowData["status"]);
+      const next = idx < order.length - 1 ? order[idx + 1] : prev[id].status as WorkflowData["status"];
+      return { ...prev, [id]: { ...prev[id], status: next, timeline: [...prev[id].timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: `Status advanced to ${next}`, note: "" }] } };
+    });
+  };
+
+  const assignFinding = (id: string, assignee: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      return { ...prev, [id]: { ...prev[id], assignee, status: "ASSIGNED", timeline: [...prev[id].timeline, { id: `${id}-assign-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}`, note: "" }] } };
+    });
+  };
+
+  const markFalsePositive = (id: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      return { ...prev, [id]: { ...prev[id], status: "FALSE_POSITIVE", timeline: [...prev[id].timeline, { id: `${id}-fp-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: "Marked as false positive", note: "" }] } };
+    });
+  };
 
   // Transform Lambda response to component format
   const transformAndSetFindings = (scanResponse: any) => {
@@ -740,53 +786,33 @@ export function SecurityHub() {
 
               {/* Expanded detail panel */}
               {isExpanded && (
-                <div
-                  style={{
-                    background: "rgba(15,23,42,0.95)",
-                    borderBottom: `1px solid ${accent}44`,
-                    padding: "16px 20px 16px 24px",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px 32px",
+                <FindingDetailPanel
+                  finding={{
+                    id: finding.id,
+                    title: finding.title,
+                    resource_name: finding.resource_id,
+                    resource_arn: finding.resource_id,
+                    severity: finding.severity,
+                    description: finding.description,
+                    recommendation: undefined,
+                    risk_score: undefined,
+                    compliance_frameworks: undefined,
+                    last_seen: finding.updated_at,
+                    first_seen: finding.created_at,
+                    region: finding.region,
+                    metadata: {
+                      product_name: finding.product_name,
+                      resource_type: finding.resource_type,
+                      compliance_status: finding.compliance_status,
+                    },
                   }}
-                >
-                  <div>
-                    <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Full Description</p>
-                    <p style={{ margin: 0, fontSize: 12, color: C.text, lineHeight: 1.6 }}>{finding.description}</p>
-                  </div>
-                  <div>
-                    <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Resource ARN</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", fontFamily: C.mono, wordBreak: "break-all" as const }}>{finding.resource_id}</p>
-                  </div>
-                  <div style={{ display: "flex", gap: 24 }}>
-                    <div>
-                      <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Compliance</p>
-                      <SeverityBadge severity={finding.compliance_status} size="sm" />
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Workflow</p>
-                      <SeverityBadge severity={finding.workflow_status} size="sm" />
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Resource Type</p>
-                      <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: C.mono }}>{finding.resource_type}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 24 }}>
-                    <div>
-                      <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Created</p>
-                      <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: C.mono }}>
-                        {new Date(finding.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 4px", fontSize: 10, color: C.muted, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Updated</p>
-                      <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: C.mono }}>
-                        {new Date(finding.updated_at).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  workflow={workflows[finding.id]}
+                  onAdvanceStatus={advanceStatus}
+                  onAssign={assignFinding}
+                  onMarkFalsePositive={markFalsePositive}
+                  onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
+                  onClose={() => setExpandedRow(null)}
+                />
               )}
             </div>
           );

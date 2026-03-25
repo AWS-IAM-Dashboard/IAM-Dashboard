@@ -43,6 +43,7 @@ import { useScanResults } from "../context/ScanResultsContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { FindingDetailPanel } from "./ui/FindingDetailPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -383,7 +384,7 @@ const NEXT_STATUS: Partial<Record<WorkflowStatus, WorkflowStatus>> = {
 
 const ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Dev Patel", "Priya Singh", "Infra Team", "Platform Eng", "SOC L2"];
 
-const cs: React.CSSProperties = { background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 };
+const cs: React.CSSProperties = { background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" };
 const ls: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" };
 const ms: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 
@@ -690,269 +691,38 @@ export function EC2Security() {
 
               {/* Expanded Workflow Panel */}
               {expanded && (
-                <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.4)" }}>
-
-                  {/* Workflow Action Bar */}
-                  <div style={{ padding: "8px 20px 8px 36px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ ...ls, marginRight: 8 }}>Workflow</span>
-                    {w && NEXT_STATUS[w.status] && (
-                      <button onClick={() => { advanceStatus(finding.id); toast.success(`Status → ${NEXT_STATUS[w.status]}`); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                        <Activity size={11} /> Advance → {WORKFLOW_META[NEXT_STATUS[w.status]!]?.label}
-                      </button>
-                    )}
-                    <select onChange={e => { if (e.target.value) assignFinding(finding.id, e.target.value); e.target.value = ""; }} defaultValue="" style={{ ...ms, padding: "4px 12px", borderRadius: 5, background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.25)", color: "#06b6d4", fontSize: 11, cursor: "pointer" }}>
-                      <option value="" disabled>Assign to…</option>
-                      {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    {w?.ticket_id ? (
-                      <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", fontSize: 11 }}>
-                        <Ticket size={11} /> {w.ticket_id}
-                      </span>
-                    ) : (
-                      <button onClick={() => { toast.info("Ticket creation — wire to JIRA/ServiceNow API"); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>
-                        <Ticket size={11} /> Create Ticket
-                      </button>
-                    )}
-                    {w?.status !== "FALSE_POSITIVE" && w?.status !== "REMEDIATED" && (
-                      <button onClick={() => markFalsePositive(finding.id)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", fontSize: 11, cursor: "pointer" }}>
-                        <Circle size={11} /> False Positive
-                      </button>
-                    )}
-                    <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...ms }}>
-                      {w?.ticket_id && `Ticket: ${w.ticket_id} · `}First seen: {w ? new Date(w.first_seen).toLocaleString() : "—"}
-                    </span>
-                  </div>
-
-                  {/* Tabs */}
-                  <div style={{ padding: "0 20px 0 36px" }}>
-                    <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
-                      {[
-                        { id: "playbook", label: "Runbook", icon: <GitBranch size={12} /> },
-                        { id: "overview", label: "Overview", icon: <Shield size={12} /> },
-                        { id: "timeline", label: "Timeline", icon: <Clock size={12} /> },
-                        { id: "agent", label: "Agent Actions", icon: <Bot size={12} /> },
-                      ].map(t => (
-                        <button key={t.id} onClick={e => { e.stopPropagation(); setActiveTab(prev => ({ ...prev, [finding.id]: t.id })); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 16px", background: "transparent", border: "none", borderBottom: `2px solid ${tab === t.id ? "#818cf8" : "transparent"}`, color: tab === t.id ? "#818cf8" : "rgba(100,116,139,0.6)", fontSize: 12, fontWeight: tab === t.id ? 600 : 400, cursor: "pointer", marginBottom: -1 }}>
-                          {t.icon}{t.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div style={{ padding: "16px 0 20px" }} onClick={e => e.stopPropagation()}>
-
-                      {/* ── RUNBOOK TAB ── */}
-                      {tab === "playbook" && (
-                        <div>
-                          {playbook.length === 0 ? (
-                            <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13 }}>No playbook available for this finding type.</p>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                              {/* Phase legend */}
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                                {(Object.keys(PHASE_META) as PlaybookPhase[]).map(ph => (
-                                  <span key={ph} style={{ padding: "4px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: `${PHASE_META[ph].color}18`, border: `1px solid ${PHASE_META[ph].color}30`, color: PHASE_META[ph].color, ...ms }}>{ph}</span>
-                                ))}
-                                <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)" }}>
-                                  Est. total: {playbook.reduce((sum, s) => sum + parseInt(s.estimated_time), 0)} min
-                                </span>
-                              </div>
-
-                              {playbook.map(step => {
-                                const ph = PHASE_META[step.phase];
-                                return (
-                                  <div key={step.step} style={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: 12, alignItems: "start" }}>
-                                    {/* Step number */}
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${ph.color}18`, border: `1px solid ${ph.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: ph.color, ...ms, flexShrink: 0 }}>{step.step}</div>
-                                      {step.step < playbook.length && <div style={{ width: 1, flex: 1, minHeight: 12, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />}
-                                    </div>
-                                    {/* Step content */}
-                                    <div style={{ paddingBottom: 8 }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                        <span style={{ padding: "4px 8px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: `${ph.color}18`, color: ph.color, ...ms }}>{ph.label}</span>
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{step.title}</span>
-                                        <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...ms }}>~{step.estimated_time}</span>
-                                      </div>
-                                      <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step.description}</p>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                        {step.commands.map((cmd, ci) => (
-                                          <div key={ci} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", fontFamily: "'JetBrains Mono', monospace" }}>
-                                            <span style={{ flex: 1, fontSize: 11, color: cmd.startsWith("#") ? "rgba(100,116,139,0.5)" : "#a5b4fc", wordBreak: "break-all", lineHeight: 1.5 }}>{cmd}</span>
-                                            {!cmd.startsWith("#") && (
-                                              <button onClick={() => copyCommand(cmd)} style={{ background: "none", border: "none", cursor: "pointer", color: copiedCmd === cmd ? "#00ff88" : "rgba(100,116,139,0.4)", padding: "0 2px", flexShrink: 0 }}>
-                                                {copiedCmd === cmd ? <Check size={12} /> : <Copy size={12} />}
-                                              </button>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* ── OVERVIEW TAB ── */}
-                      {tab === "overview" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                          <div>
-                            <p style={{ ...ls, margin: "0 0 6px" }}>Description</p>
-                            <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.7, margin: 0 }}>{finding.description}</p>
-                            <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
-                              <p style={{ ...ls, color: "rgba(255,176,0,0.8)", margin: "0 0 6px" }}>Recommendation</p>
-                              <p style={{ fontSize: 12, color: "#fcd34d", lineHeight: 1.7, margin: 0 }}>{finding.recommendation}</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p style={{ ...ls, margin: "0 0 8px" }}>Instance Details</p>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, ...ms }}>
-                              {[["VPC", finding.vpc_id], ["Subnet", finding.subnet_id], ["Region", finding.region], ["State", finding.state], ["Instance Type", finding.instance_type], ["Launch Time", new Date(finding.launch_time).toLocaleDateString()]].map(([k, v]) => (
-                                <div key={k}><span style={{ color: "rgba(100,116,139,0.6)" }}>{k}: </span><span style={{ color: "#94a3b8" }}>{v}</span></div>
-                              ))}
-                            </div>
-                            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                              {finding.public_ip ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#ff0040" }}><Globe size={11} color="#ff0040" />Public: {finding.public_ip}</span> : <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#00ff88" }}><Lock size={11} color="#00ff88" />Private</span>}
-                            </div>
-                            {finding.security_groups.length > 0 && (
-                              <div style={{ marginTop: 8 }}>
-                                <p style={{ ...ls, margin: "0 0 4px" }}>Security Groups</p>
-                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                  {finding.security_groups.map(sg => <span key={sg} style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", fontSize: 11, ...ms }}>{sg}</span>)}
-                                </div>
-                              </div>
-                            )}
-                            {finding.compliance_frameworks.length > 0 && (
-                              <div style={{ marginTop: 8 }}>
-                                <p style={{ ...ls, margin: "0 0 4px" }}>Compliance Frameworks</p>
-                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                  {finding.compliance_frameworks.map(fw => <span key={fw} style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", fontSize: 11, ...ms }}>{fw}</span>)}
-                                </div>
-                              </div>
-                            )}
-                            {w?.risk_acceptance_note && (
-                              <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(251,146,60,0.07)", border: "1px solid rgba(251,146,60,0.2)" }}>
-                                <p style={{ ...ls, color: "rgba(251,146,60,0.8)", margin: "0 0 4px" }}>Risk Acceptance Note</p>
-                                <p style={{ fontSize: 11, color: "#fb923c", margin: 0, lineHeight: 1.5 }}>{w.risk_acceptance_note}</p>
-                                {w.risk_acceptance_expiry && <p style={{ fontSize: 10, color: "rgba(251,146,60,0.5)", margin: "4px 0 0", ...ms }}>Expires: {new Date(w.risk_acceptance_expiry).toLocaleDateString()}</p>}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── TIMELINE TAB ── */}
-                      {tab === "timeline" && (
-                        <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                          {(w?.timeline ?? []).map((event, ei) => (
-                            <div key={event.id} style={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 12, marginBottom: 12 }}>
-                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: ACTOR_COLORS[event.actor_type] ?? "#64748b", border: `1px solid ${ACTOR_COLORS[event.actor_type] ?? "#64748b"}40`, flexShrink: 0, marginTop: 3 }} />
-                                {ei < (w?.timeline.length ?? 0) - 1 && <div style={{ width: 1, flex: 1, minHeight: 8, background: "rgba(255,255,255,0.06)", marginTop: 4 }} />}
-                              </div>
-                              <div style={{ paddingBottom: 4 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                  <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{event.action}</span>
-                                  <span style={{ padding: "4px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${ACTOR_COLORS[event.actor_type]}20`, color: ACTOR_COLORS[event.actor_type], ...ms, textTransform: "uppercase" }}>{event.actor_type}</span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{event.actor}</span>
-                                  <span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", ...ms }}>{new Date(event.timestamp).toLocaleString()}</span>
-                                </div>
-                                {event.note && <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0", lineHeight: 1.5 }}>{event.note}</p>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* ── AGENT ACTIONS TAB ── */}
-                      {tab === "agent" && (
-                        <div>
-                          <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, background: "rgba(167,139,250,0.07)", border: "1px solid rgba(167,139,250,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
-                            <Bot size={14} color="#a78bfa" />
-                            <span style={{ fontSize: 11, color: "#a78bfa" }}>AI Agent integration ready — wire endpoints below to <code style={{ ...ms, background: "rgba(167,139,250,0.15)", padding: "4px 8px", borderRadius: 3 }}>/api/agents</code></span>
-                          </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                            {[
-                              {
-                                icon: <Zap size={16} color="#818cf8" />,
-                                title: "AI Triage Analysis",
-                                desc: "Send finding context to LLM agent for automated severity validation, false-positive scoring, and enrichment from threat intel feeds.",
-                                endpoint: "POST /api/agents/triage",
-                                payload: `{ "finding_id": "${finding.id}", "finding_type": "${finding.finding_type}", "instance_id": "${finding.instance_id}" }`,
-                                btnColor: "#818cf8",
-                                action: () => toast.info("AI Triage Agent", { description: `POST /api/agents/triage → finding ${finding.id}` }),
-                              },
-                              {
-                                icon: <Bot size={16} color="#a78bfa" />,
-                                title: "Auto-Remediate",
-                                desc: "Trigger Lambda-backed remediation agent to execute the runbook steps automatically. Requires approval workflow.",
-                                endpoint: "POST /api/agents/remediate",
-                                payload: `{ "finding_id": "${finding.id}", "playbook": "${finding.id}", "dry_run": true }`,
-                                btnColor: "#a78bfa",
-                                action: () => toast.info("Remediation Agent", { description: `POST /api/agents/remediate → dry_run=true` }),
-                              },
-                              {
-                                icon: <Ticket size={16} color="#06b6d4" />,
-                                title: "Create Ticket",
-                                desc: "Auto-generate a Jira/ServiceNow incident with pre-filled description, severity, assignee, and runbook link.",
-                                endpoint: "POST /api/integrations/ticket",
-                                payload: `{ "finding_id": "${finding.id}", "platform": "jira", "priority": "${finding.severity}" }`,
-                                btnColor: "#06b6d4",
-                                action: () => toast.info("Ticket Agent", { description: `POST /api/integrations/ticket → Jira` }),
-                              },
-                              {
-                                icon: <ExternalLink size={16} color="#fb923c" />,
-                                title: "Enrich with Threat Intel",
-                                desc: "Query Shodan, VirusTotal, and internal threat feeds for the public IP / resource to assess active exploitation.",
-                                endpoint: "POST /api/agents/enrich",
-                                payload: `{ "finding_id": "${finding.id}", "ip": "${finding.public_ip ?? 'N/A'}", "feeds": ["shodan","virustotal","misp"] }`,
-                                btnColor: "#fb923c",
-                                action: () => toast.info("Threat Intel Agent", { description: `POST /api/agents/enrich → Shodan, VT, MISP` }),
-                              },
-                              {
-                                icon: <UserCircle size={16} color="#34d399" />,
-                                title: "Blast Radius Analysis",
-                                desc: "Identify all resources reachable from this instance using IAM role graph, VPC routing, and SG rules.",
-                                endpoint: "POST /api/agents/blast-radius",
-                                payload: `{ "finding_id": "${finding.id}", "instance_id": "${finding.instance_id}", "vpc_id": "${finding.vpc_id}" }`,
-                                btnColor: "#34d399",
-                                action: () => toast.info("Blast Radius Agent", { description: `POST /api/agents/blast-radius → ${finding.instance_id}` }),
-                              },
-                              {
-                                icon: <CheckCircle size={16} color="#00ff88" />,
-                                title: "Verify Remediation",
-                                desc: "Re-scan this specific finding post-remediation to confirm the issue is resolved and advance workflow to REMEDIATED.",
-                                endpoint: "POST /api/agents/verify",
-                                payload: `{ "finding_id": "${finding.id}", "advance_on_pass": true }`,
-                                btnColor: "#00ff88",
-                                action: () => { advanceStatus(finding.id, "Verify Agent"); toast.success("Verify Agent", { description: "Finding advanced to PENDING_VERIFY" }); },
-                              },
-                            ].map(action => (
-                              <div key={action.title} style={{ padding: 14, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                  {action.icon}
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{action.title}</span>
-                                </div>
-                                <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 8px", lineHeight: 1.5 }}>{action.desc}</p>
-                                <div style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(0,0,0,0.3)", marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}>
-                                  <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{action.endpoint}</span>
-                                </div>
-                                <button onClick={action.action} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 5, background: `${action.btnColor}15`, border: `1px solid ${action.btnColor}35`, color: action.btnColor, fontSize: 11, fontWeight: 600, cursor: "pointer", width: "100%" }}>
-                                  <Zap size={11} /> Run Agent
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-                  </div>
-                </div>
+                <FindingDetailPanel
+                  finding={{
+                    id: finding.id,
+                    title: finding.finding_type,
+                    resource_name: finding.instance_name,
+                    resource_arn: `arn:aws:ec2:${finding.region}:123456789012:instance/${finding.instance_id}`,
+                    severity: finding.severity,
+                    description: finding.description,
+                    recommendation: finding.recommendation,
+                    risk_score: finding.risk_score,
+                    compliance_frameworks: finding.compliance_frameworks,
+                    last_seen: finding.last_seen,
+                    first_seen: finding.launch_time,
+                    region: finding.region,
+                    metadata: {
+                      "Instance ID": finding.instance_id,
+                      "Instance Type": finding.instance_type,
+                      "VPC": finding.vpc_id,
+                      "State": finding.state,
+                      ...(finding.public_ip ? { "Public IP": finding.public_ip } : { "Network": "Private only" }),
+                    },
+                  }}
+                  playbook={PLAYBOOKS[finding.id]}
+                  workflow={workflows[finding.id]}
+                  assignees={ASSIGNEES}
+                  onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
+                  onAssign={(id, assignee) => { assignFinding(id, assignee); }}
+                  onMarkFalsePositive={(id) => { markFalsePositive(id); }}
+                  onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
+                  onClose={() => toggleRow(finding.id)}
+                  isLast={isLast}
+                />
               )}
             </div>
           );

@@ -15,6 +15,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -65,6 +66,57 @@ const mockFindings: AccessAnalyzerFinding[] = [
   { id: "aa-007", resource_type: "Secrets Manager", resource_arn: "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod/db-credentials", resource_name: "prod/db-credentials", principal: "arn:aws:iam::444455556666:role/DevOpsTeam", finding_type: "Secret Shared Cross-Account", severity: "HIGH", description: "Secrets Manager secret prod/db-credentials grants secretsmanager:GetSecretValue to an external account role. This secret contains production database credentials.", recommendation: "Remove cross-account access. Share secrets via AWS Secrets Manager replication or use separate secrets per account. Rotate the secret immediately.", is_public: false, last_analyzed: "2024-01-11T08:00:00Z", risk_score: 8 },
   { id: "aa-008", resource_type: "IAM", resource_arn: "arn:aws:iam::123456789012:user/report-generator", resource_name: "report-generator", principal: "internal", finding_type: "Unused Access — 94 Days", severity: "LOW", description: "IAM user report-generator has been granted s3:GetObject on 12 buckets but has not accessed any S3 resource in 94 days. Unused permissions expand blast radius.", recommendation: "Use IAM Access Analyzer policy generation to create a minimal policy based on actual CloudTrail usage. Remove unused bucket permissions.", is_public: false, last_analyzed: "2024-01-10T06:00:00Z", risk_score: 3 },
 ];
+
+// ── pre-populated workflows (blueprint / demo state) ────────────────────────
+const INITIAL_AA_WORKFLOWS: Record<string, WorkflowData> = {
+  "aa-001": {
+    status: "IN_PROGRESS",
+    assignee: "Dave Kim",
+    ticket_id: "SEC-1052",
+    first_seen: "2024-01-14T08:00:00Z",
+    sla_hours_remaining: -6,
+    sla_breached: true,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-14T08:00:00Z", actor: "Access Analyzer", actor_type: "system", action: "Finding detected", note: "marketing-assets-prod bucket policy grants s3:GetObject to Principal:* — full public read confirmed" },
+      { id: "e2", timestamp: "2024-01-14T08:12:00Z", actor: "PagerDuty", actor_type: "automation", action: "P1 alert triggered", note: "Public S3 bucket containing marketing assets — potential data exposure" },
+      { id: "e3", timestamp: "2024-01-14T08:35:00Z", actor: "Dave Kim", actor_type: "analyst", action: "Triaged — true positive", note: "Verified bucket contains customer-facing assets only. No PII found in initial scan. Checking if intentional CDN origin." },
+      { id: "e4", timestamp: "2024-01-14T09:00:00Z", actor: "Dave Kim", actor_type: "engineer", action: "S3 Block Public Access enabled", note: "Account-level Block Public Access enabled as immediate containment. Coordinating with marketing team to migrate to CloudFront + OAC." },
+    ],
+  },
+  "aa-002": {
+    status: "ASSIGNED",
+    assignee: "Carol Singh",
+    first_seen: "2024-01-13T12:00:00Z",
+    sla_hours_remaining: 14,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-13T12:00:00Z", actor: "Access Analyzer", actor_type: "system", action: "Finding detected", note: "data-backups-prod grants cross-account read to account 111122223333" },
+      { id: "e2", timestamp: "2024-01-14T09:00:00Z", actor: "Carol Singh", actor_type: "analyst", action: "Assigned — pending vendor verification", note: "Account 111122223333 may be a 3rd party backup vendor. Checking contracts before removing access." },
+    ],
+  },
+  "aa-003": {
+    status: "TRIAGED",
+    first_seen: "2024-01-12T16:00:00Z",
+    sla_hours_remaining: 10,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-12T16:00:00Z", actor: "Access Analyzer", actor_type: "system", action: "Finding detected", note: "AnalyticsPartnerRole assumable by external account 222233334444 with no conditions" },
+      { id: "e2", timestamp: "2024-01-13T10:00:00Z", actor: "Bob Martinez", actor_type: "analyst", action: "Triaged — reviewing partner agreement", note: "Role created for analytics vendor onboarding. Trust policy missing ExternalId — known gap from 2022 setup. Scheduling fix." },
+    ],
+  },
+  "aa-007": {
+    status: "ASSIGNED",
+    assignee: "Alice Chen",
+    ticket_id: "SEC-1055",
+    first_seen: "2024-01-11T08:00:00Z",
+    sla_hours_remaining: 22,
+    sla_breached: false,
+    timeline: [
+      { id: "e1", timestamp: "2024-01-11T08:00:00Z", actor: "Access Analyzer", actor_type: "system", action: "Finding detected", note: "prod/db-credentials secret shared with external account role DevOpsTeam" },
+      { id: "e2", timestamp: "2024-01-11T09:30:00Z", actor: "Alice Chen", actor_type: "analyst", action: "URGENT — production credentials exposed cross-account", note: "Secret contains RDS master credentials. External account is contractor DevOps team. Initiating emergency rotation." },
+    ],
+  },
+};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,7 +169,68 @@ export function AccessAnalyzer() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useScanResults();
+
+  useEffect(() => {
+    const findings = scanResult?.findings ?? [];
+    if (!findings.length) return;
+    setWorkflows((prev) => {
+      const next = { ...prev };
+      findings.forEach((f) => {
+        if (!next[f.id]) {
+          next[f.id] = INITIAL_AA_WORKFLOWS[f.id] ?? {
+            status: "NEW",
+            first_seen: f.last_analyzed ?? new Date().toISOString(),
+            sla_hours_remaining:
+              f.severity === "CRITICAL" ? 4 :
+              f.severity === "HIGH" ? 24 :
+              f.severity === "MEDIUM" ? 168 : 720,
+            sla_breached: false,
+            timeline: [{
+              id: `${f.id}-init`,
+              timestamp: f.last_analyzed ?? new Date().toISOString(),
+              actor: "Access Analyzer",
+              actor_type: "system",
+              action: "Finding detected",
+              note: `${f.finding_type} on ${f.resource_name}`,
+            }],
+          };
+        }
+      });
+      return next;
+    });
+  }, [scanResult?.findings]);
+
+  const advanceStatus = (findingId: string) => {
+    const NEXT: Record<string, WorkflowData["status"]> = {
+      NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS",
+      IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED",
+    };
+    setWorkflows((prev) => {
+      const w = prev[findingId];
+      if (!w) return prev;
+      const next = NEXT[w.status];
+      if (!next) return prev;
+      return { ...prev, [findingId]: { ...w, status: next, timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst", action: `Status advanced to ${next}` }] } };
+    });
+  };
+
+  const assignFinding = (findingId: string, assignee: string) => {
+    setWorkflows((prev) => {
+      const w = prev[findingId] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] };
+      return { ...prev, [findingId]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } };
+    });
+    toast.success(`Assigned to ${assignee}`);
+  };
+
+  const markFalsePositive = (findingId: string) => {
+    setWorkflows((prev) => {
+      const w = prev[findingId] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] };
+      return { ...prev, [findingId]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } };
+    });
+    toast.info("Marked as false positive");
+  };
 
   useEffect(() => {
     if (scanResult?.status === "Completed") {
@@ -475,27 +588,33 @@ export function AccessAnalyzer() {
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div style={{ margin: "0 12px 10px 16px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 12 }}>
-                      <div>
-                        <div style={{ ...sectionLabel, marginBottom: 6 }}>Description</div>
-                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
-                      </div>
-                      <div style={{ padding: "10px 14px", background: "rgba(255,176,0,0.05)", border: "1px solid rgba(255,176,0,0.15)", borderRadius: 6 }}>
-                        <div style={{ ...sectionLabel, color: "#ffb000", marginBottom: 6 }}>Recommendation</div>
-                        <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div style={{ ...sectionLabel, marginBottom: 0 }}>Principal Details</div>
-                        <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(100,116,139,0.7)", fontFamily: "'JetBrains Mono', monospace", display: "inline-block", wordBreak: "break-all" }}>
-                          {finding.principal}
-                        </span>
-                      </div>
-                      <div style={{ padding: "8px 12px", background: "rgba(100,116,139,0.05)", border: "1px solid rgba(100,116,139,0.1)", borderRadius: 4 }}>
-                        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)" }}>
-                          Compliance note: This finding may violate CIS AWS Foundations Benchmark controls for resource-based policy security and least-privilege access.
-                        </span>
-                      </div>
-                    </div>
+                    <FindingDetailPanel
+                      finding={{
+                        id: finding.id,
+                        title: finding.finding_type,
+                        resource_name: finding.resource_name,
+                        resource_arn: finding.resource_arn,
+                        severity: finding.severity,
+                        description: finding.description,
+                        recommendation: finding.recommendation,
+                        risk_score: finding.risk_score,
+                        compliance_frameworks: ["CIS 1.16", "SOC2 CC6.3", "AWS FBP"],
+                        last_seen: finding.last_analyzed,
+                        first_seen: finding.last_analyzed,
+                        region: scanResult?.region,
+                        metadata: {
+                          "Resource Type": finding.resource_type,
+                          "Principal": finding.principal.length > 50 ? finding.principal.slice(0, 48) + "…" : finding.principal,
+                          "Public": finding.is_public ? "Yes — externally accessible" : "No — private",
+                        },
+                      }}
+                      workflow={workflows[finding.id]}
+                      onAdvanceStatus={advanceStatus}
+                      onAssign={assignFinding}
+                      onMarkFalsePositive={markFalsePositive}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA/ServiceNow for finding ${id}` })}
+                      onClose={() => setExpandedRow(null)}
+                    />
                   )}
                 </div>
               );

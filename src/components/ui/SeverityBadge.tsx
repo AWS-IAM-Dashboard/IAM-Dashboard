@@ -165,7 +165,7 @@ interface SeverityBadgeProps {
 export function SeverityBadge({ severity, size = "default", label }: SeverityBadgeProps) {
   const tok = TOKENS[severity?.toUpperCase()] ?? FALLBACK;
   const paddingV = size === "sm" ? "2px" : "4px";
-  const paddingH = size === "sm" ? "8px" : "10px";
+  const paddingH = size === "sm" ? "8px" : "12px";
   const fontSize = size === "sm" ? 10 : 11;
 
   return (

@@ -25,6 +25,7 @@ import { useScanResults } from "../context/ScanResultsContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 
 type ResourceType = "VPC" | "Subnet" | "SecurityGroup" | "NACL" | "RouteTable" | "Peering";
 
@@ -295,6 +296,7 @@ const cardStyle: React.CSSProperties = {
   background: "rgba(15,23,42,0.6)",
   border: "1px solid rgba(255,255,255,0.06)",
   borderRadius: 10,
+  overflow: "hidden",
 };
 const labelStyle: React.CSSProperties = {
   fontSize: 10,
@@ -339,6 +341,7 @@ export function VPCSecurity() {
   const [workflowOverrides, setWorkflowOverrides] = useState<Record<string, WorkflowStage>>({});
   const [assigneeByFinding, setAssigneeByFinding] = useState<Record<string, string>>({});
   const [ticketByFinding, setTicketByFinding] = useState<Record<string, string>>({});
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
   const { addScanResult } = useScanResults();
 
   // Auto-load mock data on mount
@@ -429,6 +432,37 @@ export function VPCSecurity() {
   };
 
   const findings = scanResult?.findings ?? mockVPCFindings;
+
+  useEffect(() => {
+    if (!findings.length) return;
+    setWorkflows(prev => {
+      const next = { ...prev };
+      findings.forEach(f => {
+        if (!next[f.id]) {
+          next[f.id] = {
+            status: "NEW",
+            first_seen: (f as any).created_date ?? (f as any).first_seen ?? new Date().toISOString(),
+            sla_hours_remaining: f.severity === "CRITICAL" ? 4 : f.severity === "HIGH" ? 24 : f.severity === "MEDIUM" ? 168 : 720,
+            sla_breached: false,
+            timeline: [{ id: `${f.id}-init`, timestamp: new Date().toISOString(), actor: "Scanner", actor_type: "system" as const, action: "Finding detected", note: `${f.finding_type ?? f.id} identified` }],
+          };
+        }
+      });
+      return next;
+    });
+  }, [findings]);
+
+  const advanceStatus = (findingId: string) => {
+    const NEXT: Record<string, WorkflowData["status"]> = { NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS", IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED" };
+    setWorkflows(prev => { const w = prev[findingId]; if (!w) return prev; const next = NEXT[w.status]; if (!next) return prev; return { ...prev, [findingId]: { ...w, status: next, timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Status advanced to ${next}` }] } }; });
+  };
+  const assignFinding = (findingId: string, assignee: string) => {
+    setWorkflows(prev => { const w = prev[findingId] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [findingId]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } }; });
+    toast.success(`Assigned to ${assignee}`);
+  };
+  const markFalsePositive = (findingId: string) => {
+    setWorkflows(prev => { const w = prev[findingId] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [findingId]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${findingId}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } }; });
+  };
   const baseWorkflowByFinding = findings.reduce((acc, finding, idx) => {
     acc[finding.id] = WORKFLOW_PIPELINE[idx % WORKFLOW_PIPELINE.length];
     return acc;
@@ -675,176 +709,36 @@ export function VPCSecurity() {
                 </div>
 
                 {expanded && (
-                  <div style={{ borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)", background: "rgba(5,10,20,0.35)" }}>
-                    <div style={{ padding: "8px 20px 8px 32px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ ...labelStyle, marginRight: 6 }}>Workflow</span>
-                      {NEXT_STATUS[workflowByFinding[finding.id]] && (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setWorkflowOverrides(prev => ({ ...prev, [finding.id]: NEXT_STATUS[workflowByFinding[finding.id]]! }));
-                          }}
-                          style={{ padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", cursor: "pointer", ...monoStyle }}
-                        >
-                          Advance → {WORKFLOW_META[NEXT_STATUS[workflowByFinding[finding.id]]!].label}
-                        </button>
-                      )}
-                      <select
-                        defaultValue=""
-                        onChange={e => { if (e.target.value) setAssigneeByFinding(prev => ({ ...prev, [finding.id]: e.target.value })); }}
-                        style={{ padding: "4px 8px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(100,116,139,0.8)", fontSize: 10, cursor: "pointer", ...monoStyle }}
-                      >
-                        <option value="" disabled>{assigneeByFinding[finding.id] ?? "Assign to…"}</option>
-                        {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
-                      </select>
-                      {ticketByFinding[finding.id] ? (
-                        <span style={{ fontSize: 10, ...monoStyle, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: 4, padding: "4px 8px" }}>{ticketByFinding[finding.id]}</span>
-                      ) : (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setTicketByFinding(prev => ({ ...prev, [finding.id]: `SEC-${4700 + idx}` }));
-                          }}
-                          style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)", color: "#818cf8", cursor: "pointer", ...monoStyle }}
-                        >
-                          + Ticket
-                        </button>
-                      )}
-                      <button
-                        onClick={e => { e.stopPropagation(); toast.info("Marked for review as false positive (UI stub)"); }}
-                        style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, background: "transparent", border: "1px solid rgba(100,116,139,0.15)", color: "rgba(100,116,139,0.5)", cursor: "pointer", ...monoStyle }}
-                      >
-                        False Positive
-                      </button>
-                      <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", ...monoStyle }}>
-                        {ticketByFinding[finding.id] ? `Ticket: ${ticketByFinding[finding.id]} · ` : ""}First seen: {new Date(Date.now() - (idx + 1) * 3600000).toLocaleString()}
-                      </span>
-                    </div>
-                    <div style={{ padding: "0 16px 0 32px" }}>
-                      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 0 }}>
-                        {[
-                          { id: "runbook", label: "Runbook", icon: <GitBranch size={12} /> },
-                          { id: "overview", label: "Overview", icon: <Eye size={12} /> },
-                          { id: "timeline", label: "Timeline", icon: <Activity size={12} /> },
-                          { id: "agents", label: "Agent Actions", icon: <Bot size={12} /> },
-                        ].map(t => (
-                          <button
-                            key={t.id}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setActiveTab(prev => ({ ...prev, [finding.id]: t.id }));
-                            }}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "transparent", border: "none", borderBottom: `2px solid ${(activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "transparent"}`, color: (activeTab[finding.id] ?? "runbook") === t.id ? "#06b6d4" : "rgba(100,116,139,0.65)", fontSize: 12, fontWeight: (activeTab[finding.id] ?? "runbook") === t.id ? 600 : 400, cursor: "pointer", marginBottom: -1 }}
-                          >
-                            {t.icon}{t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ padding: "12px 16px 16px 32px" }} onClick={e => e.stopPropagation()}>
-                      {(activeTab[finding.id] ?? "runbook") === "runbook" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                          {[
-                            { n: 1, title: "Identify", desc: `Confirm ${finding.resource_type} scope and blast radius for ${finding.resource_name}.`, cmd: `aws ec2 describe-${finding.resource_type.toLowerCase()}s --region ${finding.region}` },
-                            { n: 2, title: "Contain", desc: "Apply immediate containment controls to reduce exposure.", cmd: "aws ec2 authorize-security-group-ingress/revoke-security-group-ingress ..."},
-                            { n: 3, title: "Remediate", desc: finding.recommendation, cmd: "terraform plan && terraform apply (after peer review)" },
-                            { n: 4, title: "Verify", desc: "Re-scan and validate compliance controls after fix.", cmd: "aws configservice get-compliance-details-by-config-rule ..." },
-                          ].map(step => (
-                            <div key={step.n} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: 12 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#06b6d4", ...monoStyle }}>{step.n}</span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{step.title}</span>
-                              </div>
-                              <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>{step.desc}</p>
-                              <code style={{ display: "block", fontSize: 10, color: "#7dd3fc", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 6, padding: "8px 8px", ...monoStyle }}>{step.cmd}</code>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {(activeTab[finding.id] ?? "runbook") === "overview" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
-                      <div>
-                        <p style={{ ...labelStyle, margin: "0 0 8px" }}>Description</p>
-                        <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.6, margin: 0 }}>{finding.description}</p>
-                        <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
-                          <p style={{ ...labelStyle, color: "rgba(255,176,0,0.8)", margin: "0 0 8px" }}>Recommendation</p>
-                          <p style={{ fontSize: 12, color: "#fcd34d", lineHeight: 1.6, margin: 0 }}>{finding.recommendation}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <p style={{ ...labelStyle, margin: "0 0 8px" }}>Resource Details</p>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11, ...monoStyle }}>
-                          {[
-                            ["VPC ID", finding.vpc_id],
-                            ["Region", finding.region],
-                            ["Resource ID", finding.resource_id],
-                            ["Type", finding.resource_type],
-                            ...(finding.affected_instances !== undefined ? [["Affected Instances", String(finding.affected_instances)]] : []),
-                            ["Flow Logs", finding.flow_logs_enabled ? "Enabled" : "Disabled"],
-                          ].map(([k, v]) => (
-                            <div key={k}>
-                              <span style={{ color: "rgba(100,116,139,0.6)" }}>{k}: </span>
-                              <span style={{ color: v === "Disabled" ? "#ff6b35" : v === "Enabled" ? "#00ff88" : "#94a3b8" }}>{v}</span>
-                            </div>
-                          ))}
-                        </div>
-                        {finding.compliance_frameworks.length > 0 && (
-                          <div style={{ marginTop: 10 }}>
-                            <p style={{ ...labelStyle, margin: "0 0 8px" }}>Compliance Frameworks</p>
-                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                              {finding.compliance_frameworks.map(fw => (
-                                <span key={fw} style={{ padding: "4px 8px", borderRadius: 4, background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)", color: "#06b6d4", fontSize: 11, ...monoStyle }}>{fw}</span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {finding.is_public && (
-                          <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "rgba(255,0,64,0.07)", border: "1px solid rgba(255,0,64,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
-                            <Shield size={14} color="#ff0040" />
-                            <span style={{ fontSize: 11, color: "#ff0040" }}>Internet-exposed resource — prioritize immediately</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                      )}
-
-                      {(activeTab[finding.id] ?? "runbook") === "timeline" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                          {[
-                            { who: "system", action: `Detected ${finding.finding_type}`, note: "Auto-ingested from scanner", ts: "2h ago" },
-                            { who: "analyst", action: "Triaged and validated", note: "Marked true positive", ts: "1h ago" },
-                            { who: "engineer", action: "Remediation plan drafted", note: "Awaiting approval window", ts: "20m ago" },
-                          ].map((e, i) => (
-                            <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                                <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{e.action}</span>
-                                <span style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{e.ts}</span>
-                              </div>
-                              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{e.note}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {(activeTab[finding.id] ?? "runbook") === "agents" && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                          {[
-                            { icon: <Zap size={13} />, title: "AI Triage", endpoint: "/api/agents/triage" },
-                            { icon: <Ticket size={13} />, title: "Create Ticket", endpoint: "/api/agents/ticket" },
-                            { icon: <ExternalLink size={13} />, title: "Threat Enrichment", endpoint: "/api/agents/enrich" },
-                          ].map(a => (
-                            <div key={a.title} style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#06b6d4", marginBottom: 6 }}>{a.icon}<span style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{a.title}</span></div>
-                              <code style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", ...monoStyle }}>{a.endpoint}</code>
-                              <button onClick={() => toast.info(`${a.title} stub`, { description: `${a.endpoint} for ${finding.resource_id}` })} style={{ marginTop: 8, width: "100%", padding: "8px 0", borderRadius: 6, background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", color: "#06b6d4", fontSize: 11, cursor: "pointer" }}>Run Agent</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <FindingDetailPanel
+                    finding={{
+                      id: finding.id,
+                      title: finding.finding_type ?? finding.id,
+                      resource_name: finding.resource_name ?? finding.id,
+                      resource_arn: (finding as any).resource_arn,
+                      severity: finding.severity,
+                      description: finding.description,
+                      recommendation: finding.recommendation,
+                      risk_score: finding.risk_score,
+                      compliance_frameworks: finding.compliance_frameworks,
+                      last_seen: (finding as any).last_seen ?? (finding as any).last_analyzed,
+                      first_seen: (finding as any).created_date ?? (finding as any).first_seen,
+                      region: finding.region,
+                      metadata: {
+                        "VPC ID": finding.vpc_id,
+                        "Resource ID": finding.resource_id,
+                        "Resource Type": finding.resource_type,
+                        "Flow Logs": finding.flow_logs_enabled ? "Enabled" : "Disabled",
+                        ...(finding.affected_instances !== undefined ? { "Affected Instances": String(finding.affected_instances) } : {}),
+                      },
+                    }}
+                    workflow={workflows[finding.id]}
+                    onAdvanceStatus={advanceStatus}
+                    onAssign={assignFinding}
+                    onMarkFalsePositive={markFalsePositive}
+                    onCreateTicket={(id) => { toast.success(`Ticket created for ${id}`); }}
+                    onClose={() => toggleRow(finding.id)}
+                    isLast={isLast}
+                  />
                 )}
               </div>
             );

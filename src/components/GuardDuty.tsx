@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import {
   Shield,
   AlertTriangle,
@@ -226,6 +227,51 @@ export function GuardDuty() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+
+  // Initialize workflow stubs when findings load
+  useEffect(() => {
+    if (!findings.length) return;
+    setWorkflows(prev => {
+      const next = { ...prev };
+      findings.forEach(f => {
+        if (!next[f.id]) {
+          next[f.id] = {
+            status: "NEW",
+            first_seen: f.first_seen ?? new Date().toISOString(),
+            sla_hours_remaining: f.severity === "CRITICAL" || (typeof f.severity === "number" && f.severity >= 9) ? 4 : f.severity === "HIGH" || (typeof f.severity === "number" && f.severity >= 7) ? 24 : 168,
+            sla_breached: false,
+            timeline: [{ id: `${f.id}-init`, timestamp: new Date().toISOString(), actor: "Scanner", actor_type: "system" as const, action: "Finding detected", note: `${f.title ?? f.type ?? f.id}` }],
+          };
+        }
+      });
+      return next;
+    });
+  }, [findings]);
+
+  const advanceStatus = (id: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      const order: WorkflowData["status"][] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
+      const idx = order.indexOf(prev[id].status as WorkflowData["status"]);
+      const next = idx < order.length - 1 ? order[idx + 1] : prev[id].status as WorkflowData["status"];
+      return { ...prev, [id]: { ...prev[id], status: next, timeline: [...prev[id].timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: `Status advanced to ${next}`, note: "" }] } };
+    });
+  };
+
+  const assignFinding = (id: string, assignee: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      return { ...prev, [id]: { ...prev[id], assignee, status: "ASSIGNED", timeline: [...prev[id].timeline, { id: `${id}-assign-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}`, note: "" }] } };
+    });
+  };
+
+  const markFalsePositive = (id: string) => {
+    setWorkflows(prev => {
+      if (!prev[id]) return prev;
+      return { ...prev, [id]: { ...prev[id], status: "FALSE_POSITIVE", timeline: [...prev[id].timeline, { id: `${id}-fp-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Analyst", actor_type: "analyst" as const, action: "Marked as false positive", note: "" }] } };
+    });
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -697,93 +743,33 @@ export function GuardDuty() {
 
               {/* Expanded detail panel */}
               {isExpanded && (
-                <div
-                  style={{
-                    background: "rgba(15,23,42,0.95)",
-                    borderBottom: `1px solid ${sevColor}44`,
-                    padding: "16px 20px",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "12px 24px",
+                <FindingDetailPanel
+                  finding={{
+                    id: finding.id,
+                    title: finding.title ?? finding.type,
+                    resource_name: finding.resource_id,
+                    resource_arn: undefined,
+                    severity: finding.severity,
+                    description: finding.description,
+                    recommendation: undefined,
+                    risk_score: Math.round(finding.severity),
+                    compliance_frameworks: undefined,
+                    last_seen: finding.last_seen,
+                    first_seen: finding.first_seen,
+                    region: finding.region,
+                    metadata: {
+                      finding_type: finding.type,
+                      resource_type: finding.resource_type,
+                      account_id: finding.account_id,
+                    },
                   }}
-                >
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 4px",
-                        fontSize: 10,
-                        color: C.muted,
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Full Description
-                    </p>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: 12,
-                        color: C.text,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {finding.description}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 4px",
-                        fontSize: 10,
-                        color: C.muted,
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Resource Details
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        Type: {finding.resource_type}
-                      </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        ID: {finding.resource_id}
-                      </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        Region: {finding.region}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 4px",
-                        fontSize: 10,
-                        color: C.muted,
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Account & Timing
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        Account: {finding.account_id}
-                      </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        First: {new Date(finding.first_seen).toLocaleString()}
-                      </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        Last: {new Date(finding.last_seen).toLocaleString()}
-                      </span>
-                      <span style={{ fontFamily: C.mono, fontSize: 11, color: "#94a3b8" }}>
-                        Occurrences: {finding.count}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  workflow={workflows[finding.id]}
+                  onAdvanceStatus={advanceStatus}
+                  onAssign={assignFinding}
+                  onMarkFalsePositive={markFalsePositive}
+                  onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
+                  onClose={() => setExpandedRow(null)}
+                />
               )}
             </div>
           );
