@@ -411,6 +411,19 @@ sidebar width:     0.25s cubic-bezier(0.4, 0, 0.2, 1)
 
 ---
 
+## Anti-patterns
+
+- No white or light backgrounds
+- No drop shadows on containers — `.cyber-glow` is the only permitted shadow
+- No border-radius > 10px on cards
+- No font sizes > 20px except display stat values (28px)
+- No colored fills on buttons — tinted borders + ghost fills only
+- No sans-serif for numeric/technical values — JetBrains Mono mandatory
+- No opacity < 0.03 for backgrounds (invisible noise)
+- No spring/bounce animations — transitions only, 0.1–0.15s
+
+---
+
 ## Decisions made — do not revisit
 
 - **`borderLeft` severity cards are gone.** All cards use the 2px top accent gradient bar. Consistent with StatCard.
