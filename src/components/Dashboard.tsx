@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
-import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ComposedChart, Line } from 'recharts';
 import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, ChevronRight, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
@@ -45,6 +45,71 @@ function irGetOrCreate(prev: Record<string, WorkflowData>, id: string): Workflow
     timeline: [irMakeEvent("System", "Finding detected and added to IR queue")],
   };
 }
+
+// ── Availability Zone topology — mirrors account 123456789012 fixture ────────
+const AZ_TOPOLOGY = [
+  {
+    region: "us-east-1", label: "N. Virginia",
+    azs: [
+      { name: "us-east-1a", instances: 12, findings: 2, guardduty: true,  config: true  },
+      { name: "us-east-1b", instances: 8,  findings: 0, guardduty: true,  config: true  },
+      { name: "us-east-1c", instances: 9,  findings: 1, guardduty: true,  config: true  },
+      { name: "us-east-1d", instances: 3,  findings: 0, guardduty: true,  config: true  },
+      { name: "us-east-1e", instances: 2,  findings: 0, guardduty: true,  config: false },
+      { name: "us-east-1f", instances: 1,  findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "us-west-2", label: "Oregon",
+    azs: [
+      { name: "us-west-2a", instances: 5, findings: 0, guardduty: true,  config: true  },
+      { name: "us-west-2b", instances: 4, findings: 0, guardduty: true,  config: true  },
+      { name: "us-west-2c", instances: 3, findings: 0, guardduty: false, config: true  },
+      { name: "us-west-2d", instances: 1, findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "eu-west-1", label: "Ireland",
+    azs: [
+      { name: "eu-west-1a", instances: 3, findings: 0, guardduty: true,  config: true  },
+      { name: "eu-west-1b", instances: 2, findings: 0, guardduty: true,  config: true  },
+      { name: "eu-west-1c", instances: 1, findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "eu-central-1", label: "Frankfurt",
+    azs: [
+      { name: "eu-central-1a", instances: 2, findings: 0, guardduty: true,  config: true  },
+      { name: "eu-central-1b", instances: 1, findings: 0, guardduty: true,  config: true  },
+      { name: "eu-central-1c", instances: 0, findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "ap-southeast-1", label: "Singapore",
+    azs: [
+      { name: "ap-southeast-1a", instances: 2, findings: 0, guardduty: false, config: false },
+      { name: "ap-southeast-1b", instances: 1, findings: 0, guardduty: false, config: false },
+      { name: "ap-southeast-1c", instances: 0, findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "ap-northeast-1", label: "Tokyo",
+    azs: [
+      { name: "ap-northeast-1a", instances: 1, findings: 0, guardduty: false, config: false },
+      { name: "ap-northeast-1b", instances: 0, findings: 0, guardduty: false, config: false },
+      { name: "ap-northeast-1c", instances: 0, findings: 0, guardduty: false, config: false },
+      { name: "ap-northeast-1d", instances: 0, findings: 0, guardduty: false, config: false },
+    ],
+  },
+  {
+    region: "ap-south-1", label: "Mumbai",
+    azs: [
+      { name: "ap-south-1a", instances: 0, findings: 0, guardduty: false, config: false },
+      { name: "ap-south-1b", instances: 0, findings: 0, guardduty: false, config: false },
+      { name: "ap-south-1c", instances: 0, findings: 0, guardduty: false, config: false },
+    ],
+  },
+] as const;
 
 // ── Shared triage helpers (mirrors CloudSecurityAlerts) ──────────────────────
 const TRIAGE_ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Dev Patel", "Priya Singh", "Infra Team", "Platform Eng", "SOC L2"];
@@ -252,12 +317,14 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                              (summary.policies || 0) + 
                              (summary.groups || 0);
       
-      // Calculate compliance score (100 - (critical*10 + high*5 + medium*2 + low*1) / max_score)
+      // Use pre-computed score from scan if available, otherwise calculate from findings counts
       const maxScore = 100;
-      const scoreDeduction = Math.min(maxScore, 
+      const scoreDeduction = Math.min(maxScore,
         (criticalFindings * 10) + (highFindings * 5) + (mediumFindings * 2) + (lowFindings * 1)
       );
-      const complianceScore = Math.max(0, Math.round(maxScore - scoreDeduction));
+      const complianceScore = summary.compliance_score !== undefined
+        ? Math.max(0, Math.min(100, Math.round(summary.compliance_score)))
+        : Math.max(0, Math.round(maxScore - scoreDeduction));
       
       // Update stats with ONLY the most recent scan's results
       setStats(prev => ({
@@ -675,19 +742,36 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     return Object.entries(counts).map(([name, value]) => ({ name, value })).slice(0, 5);
   }, [allFindings]);
 
-  const frameworkData = useMemo(() => [
-    { name: "SOC 2", score: stats.compliance_score, color: "#00ff88" },
-    { name: "CIS", score: Math.max(0, stats.compliance_score - 8), color: "#ffb000" },
-    { name: "NIST", score: Math.max(0, stats.compliance_score - 4), color: "#0ea5e9" },
-    { name: "PCI", score: Math.max(0, stats.compliance_score - 12), color: "#a855f7" },
-  ], [stats.compliance_score]);
+  const frameworkData = useMemo(() => {
+    const fw = (dashboardData as any)?.compliance?.frameworks;
+    if (fw) {
+      return [
+        { name: "SOC 2", score: fw.SOC2?.score  ?? stats.compliance_score, color: "#00ff88" },
+        { name: "CIS",   score: fw.CIS?.score   ?? Math.max(0, stats.compliance_score - 8), color: "#ffb000" },
+        { name: "NIST",  score: fw.NIST?.score  ?? Math.max(0, stats.compliance_score - 4), color: "#0ea5e9" },
+        { name: "PCI",   score: (fw.PCI_DSS?.score ?? fw.PCI?.score) ?? Math.max(0, stats.compliance_score - 12), color: "#a855f7" },
+      ];
+    }
+    return [
+      { name: "SOC 2", score: stats.compliance_score, color: "#00ff88" },
+      { name: "CIS",   score: Math.max(0, stats.compliance_score - 8), color: "#ffb000" },
+      { name: "NIST",  score: Math.max(0, stats.compliance_score - 4), color: "#0ea5e9" },
+      { name: "PCI",   score: Math.max(0, stats.compliance_score - 12), color: "#a855f7" },
+    ];
+  }, [stats.compliance_score, dashboardData]);
 
   const complianceTrend = useMemo(() => {
-    const base = stats.compliance_score;
+    const base = stats.compliance_score || 71;
+    const total = allFindings.length || 25;
+    // Deterministic week pattern — no Math.random()
+    const SCORE_DELTAS = [-4, -2, -1, 0, 1, 3, 2];
+    const NEW_FINDING_MULT = [0.14, 0.10, 0.12, 0.08, 0.10, 0.06, 0.09];
     return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => ({
-      day, score: Math.max(60, Math.min(100, base + (i - 3) * 2 + (Math.random() - 0.5) * 4))
+      day,
+      score: Math.max(60, Math.min(99, base + SCORE_DELTAS[i])),
+      new_findings: Math.round(total * NEW_FINDING_MULT[i]),
     }));
-  }, [stats.compliance_score]);
+  }, [stats.compliance_score, allFindings.length]);
 
   const findingVelocity = useMemo(() => {
     const total = allFindings.length;
@@ -960,8 +1044,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         </div>
       )}
 
-      {/* ── POSTURE STRIP (mode-aware) ─────────────────────────── */}
-      {mode === "ir" ? (
+      {/* ── Attack Surface Distribution (IR mode only) ────────── */}
+      {mode === "ir" && (
         <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "16px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -986,43 +1070,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
             </>
           ) : <div style={{ height: 4, borderRadius: 4, background: "rgba(0,255,136,0.4)" }} />}
-        </div>
-      ) : (
-        /* Audit mode: compliance posture distribution across frameworks */
-        <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "16px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Shield style={{ width: 14, height: 14, color: "#64748b" }} />
-              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Compliance Posture — All Frameworks</span>
-            </div>
-            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.5)" }}>avg {Math.round(frameworkData.reduce((a, f) => a + f.score, 0) / frameworkData.length)}% compliant</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-            {(() => {
-              const totals: Record<string, number> = { "SOC 2": 96, "CIS": 84, "NIST": 108, "PCI": 112 };
-              return frameworkData.map(({ name, score, color }) => {
-                const rounded = Math.round(score);
-                const total = totals[name] || 96;
-                const passing = Math.round((rounded / 100) * total);
-                const failing = total - passing;
-                return (
-                  <div key={name} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color }}>{name}</span>
-                      <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)" }}>{rounded}%</span>
-                    </div>
-                    <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${rounded}%`, background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(0,255,136,0.7)" }}>{passing} pass</span>
-                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: failing > 5 ? "rgba(255,0,64,0.7)" : "rgba(100,116,139,0.5)" }}>{failing} fail</span>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
         </div>
       )}
 
@@ -1061,7 +1108,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     <div style={{ display: "flex", alignItems: "center", gap: 16, paddingTop: 8, paddingBottom: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ff0040", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px rgba(255,0,64,0.9)" }} />
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{triageFindings.filter((f: any) => f.severity === "Critical").length} CRITICAL</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{triageFindings.filter((f: any) => (f.severity ?? "").toUpperCase() === "CRITICAL").length} CRITICAL</span>
                       </div>
                       {unassignedCritical > 0 && (
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -1495,16 +1542,19 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
               <div style={{ padding: "8px 0" }}>
                 {AWS_REGION_MARKERS.map((r, i) => {
-                  // Derive a pseudo-health from compliance score per region index
-                  const base = Math.max(0, stats.compliance_score - (i * 3));
-                  const regionScore = Math.min(100, Math.round(base + (i % 3) * 2));
-                  const scoreColor = regionScore >= 85 ? "#00ff88" : regionScore >= 70 ? "#ffb000" : "#ff6b35";
-                  const findingsForRegion = Math.max(0, Math.round((stats.security_findings / AWS_REGION_MARKERS.length) * (1 + (i % 3) * 0.4)));
+                  // Derive health from AZ_TOPOLOGY data — consistent with AZ Topology section
+                  const azReg = AZ_TOPOLOGY.find(az => az.region === r.region);
+                  const totalFindings  = azReg ? azReg.azs.reduce((s, az) => s + az.findings, 0) : 0;
+                  const totalInstances = azReg ? azReg.azs.reduce((s, az) => s + az.instances, 0) : 0;
+                  const gdAzs          = azReg ? azReg.azs.filter(az => az.guardduty).length : 0;
+                  const totalAzs       = azReg ? azReg.azs.length : 0;
+                  const gdPct          = totalAzs > 0 ? Math.round((gdAzs / totalAzs) * 100) : 0;
+                  const scoreColor     = totalFindings > 0 ? "#ff6b35" : gdPct < 100 ? "#ffb000" : "#00ff88";
+                  const regionScore    = totalFindings > 0 ? Math.max(30, 85 - totalFindings * 12) : gdPct >= 100 ? 95 : Math.max(60, gdPct);
                   return (
                     <div
                       key={r.id}
-                      className="data-row"
-                      style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 12, padding: "8px 20px", borderBottom: i < AWS_REGION_MARKERS.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.1s" }}
+                      style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 12, padding: "8px 20px", borderBottom: i < AWS_REGION_MARKERS.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.1s", cursor: "default" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
@@ -1512,17 +1562,17 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: scoreColor, flexShrink: 0, boxShadow: `0 0 5px ${scoreColor}88` }} />
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>{r.label}</div>
-                          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>{r.region}</div>
+                          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>{r.region} · {totalInstances}i · {totalAzs}az</div>
                         </div>
                       </div>
                       <div style={{ textAlign: "right" as const }}>
-                        {findingsForRegion > 0 ? (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,107,53,0.8)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, padding: "2px 7px" }}>
-                            {findingsForRegion} findings
+                        {totalFindings > 0 ? (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,107,53,0.9)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, padding: "2px 7px" }}>
+                            {totalFindings} findings
                           </span>
                         ) : (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(0,255,136,0.7)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", borderRadius: 999, padding: "2px 7px" }}>
-                            clean
+                          <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor === "#ffb000" ? "#ffb000" : "rgba(0,255,136,0.7)", fontFamily: "'JetBrains Mono', monospace", background: scoreColor === "#ffb000" ? "rgba(255,176,0,0.07)" : "rgba(0,255,136,0.06)", border: `1px solid ${scoreColor === "#ffb000" ? "rgba(255,176,0,0.2)" : "rgba(0,255,136,0.18)"}`, borderRadius: 999, padding: "2px 7px" }}>
+                            {scoreColor === "#ffb000" ? "no gd" : "clean"}
                           </span>
                         )}
                       </div>
@@ -1536,6 +1586,98 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* ── Availability Zone Topology ──────────────────────────── */}
+          <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
+            <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Availability Zone Topology</span>
+                <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>
+                  {AZ_TOPOLOGY.length} regions · {AZ_TOPOLOGY.reduce((s, r) => s + r.azs.length, 0)} AZs
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                {[
+                  { dot: "#00ff88", label: "Healthy" },
+                  { dot: "#ffb000", label: "No detection" },
+                  { dot: "#ff6b35", label: "Has findings" },
+                ].map(({ dot, label }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, display: "inline-block", flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              {AZ_TOPOLOGY.map((reg) => {
+                const totalInstances = reg.azs.reduce((s, az) => s + az.instances, 0);
+                const totalFindings  = reg.azs.reduce((s, az) => s + az.findings,  0);
+                const maxInstances   = Math.max(...reg.azs.map(az => az.instances), 1);
+                const gdCoverage     = reg.azs.filter(az => az.guardduty).length;
+                const cfgCoverage    = reg.azs.filter(az => az.config).length;
+                const regionHasFindings = totalFindings > 0;
+                const regionBorderColor = regionHasFindings ? "rgba(255,107,53,0.22)" : "rgba(255,255,255,0.07)";
+                return (
+                  <div key={reg.region} style={{ background: "rgba(6,9,18,0.6)", border: `1px solid ${regionBorderColor}`, borderRadius: 8, overflow: "hidden" }}>
+                    {/* Region header */}
+                    <div style={{ padding: "10px 12px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.02em" }}>{reg.region}</div>
+                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", fontFamily: "'DM Sans', sans-serif", marginTop: 2 }}>{reg.label}</div>
+                    </div>
+                    {/* AZ rows */}
+                    <div style={{ padding: "6px 0" }}>
+                      {reg.azs.map((az) => {
+                        const dotColor = az.findings > 0 ? "#ff6b35" : !az.guardduty ? "#ffb000" : "#00ff88";
+                        const barWidth = maxInstances > 0 ? Math.round((az.instances / maxInstances) * 100) : 0;
+                        return (
+                          <div key={az.name} style={{ display: "grid", gridTemplateColumns: "6px 1fr auto", alignItems: "center", gap: 8, padding: "4px 12px" }}>
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: dotColor, display: "inline-block", flexShrink: 0, boxShadow: `0 0 4px ${dotColor}88` }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(148,163,184,0.85)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.01em", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {az.name.split("-").slice(-1)[0].toUpperCase()}
+                              </div>
+                              <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1, marginTop: 3, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${barWidth}%`, background: dotColor, borderRadius: 1, opacity: 0.6, transition: "width 0.5s ease" }} />
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right" as const, minWidth: 28 }}>
+                              <span style={{ fontSize: 9.5, fontWeight: 700, color: az.instances > 0 ? "rgba(148,163,184,0.7)" : "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>
+                                {az.instances > 0 ? az.instances : "—"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Region footer */}
+                    <div style={{ padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+                        {totalInstances} instances
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {/* GuardDuty coverage chip */}
+                        <span title={`GuardDuty: ${gdCoverage}/${reg.azs.length} AZs`} style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "1px 5px", borderRadius: 999, background: gdCoverage === reg.azs.length ? "rgba(0,255,136,0.08)" : "rgba(255,176,0,0.08)", border: `1px solid ${gdCoverage === reg.azs.length ? "rgba(0,255,136,0.2)" : "rgba(255,176,0,0.2)"}`, color: gdCoverage === reg.azs.length ? "#00ff88" : "#ffb000" }}>
+                          GD {gdCoverage}/{reg.azs.length}
+                        </span>
+                        {/* Findings badge */}
+                        {totalFindings > 0 ? (
+                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "1px 5px", borderRadius: 999, background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.25)", color: "#ff6b35" }}>
+                            {totalFindings}F
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "1px 5px", borderRadius: 999, background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", color: "rgba(0,255,136,0.6)" }}>
+                            CLEAN
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -1562,7 +1704,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
               <div style={{ padding: "16px 20px" }}>
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={complianceTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <ComposedChart data={complianceTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="auditScoreGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
@@ -1571,10 +1713,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     </defs>
                     <CartesianGrid strokeDasharray="2 4" stroke="rgba(100,116,139,0.07)" vertical={false} />
                     <XAxis dataKey="day" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} domain={[60, 100]} />
+                    <YAxis yAxisId="score" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} domain={[60, 100]} />
+                    <YAxis yAxisId="findings" orientation="right" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: 'rgba(15,23,41,0.99)', border: '1px solid rgba(14,165,233,0.18)', borderRadius: 8, color: '#e2e8f0', fontSize: 11 }} />
-                    <Area type="monotone" dataKey="score" name="Score %" stroke="#0ea5e9" strokeWidth={2} fill="url(#auditScoreGrad)" dot={false} />
-                  </AreaChart>
+                    <Area yAxisId="score" type="monotone" dataKey="score" name="Score %" stroke="#0ea5e9" strokeWidth={2} fill="url(#auditScoreGrad)" dot={false} />
+                    <Line yAxisId="findings" type="monotone" dataKey="new_findings" name="New findings" stroke="#ff6b35" strokeWidth={1.5} strokeDasharray="3 2" dot={false} />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -1703,12 +1847,15 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   );
                 }
                 return filtered.map((ctrl) => {
-                  const sevColor = ctrl.severity === "Critical" ? "#ff0040" : ctrl.severity === "High" ? "#ff6b35" : ctrl.severity === "Medium" ? "#ffb000" : "#00ff88";
-                  const sevBg    = ctrl.severity === "Critical" ? "rgba(255,0,64,0.08)" : ctrl.severity === "High" ? "rgba(255,107,53,0.08)" : ctrl.severity === "Medium" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
-                  const sevBdr   = ctrl.severity === "Critical" ? "rgba(255,0,64,0.28)" : ctrl.severity === "High" ? "rgba(255,107,53,0.28)" : ctrl.severity === "Medium" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
-                  const stColor  = ctrl.status === "open" ? "#ff6b35" : ctrl.status === "investigating" ? "#ffb000" : "#00ff88";
-                  const stBg     = ctrl.status === "open" ? "rgba(255,107,53,0.08)" : ctrl.status === "investigating" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
-                  const stBdr    = ctrl.status === "open" ? "rgba(255,107,53,0.28)" : ctrl.status === "investigating" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
+                  const sev = (ctrl.severity ?? "").toUpperCase();
+                  const sevColor = sev === "CRITICAL" ? "#ff0040" : sev === "HIGH" ? "#ff6b35" : sev === "MEDIUM" ? "#ffb000" : "#00ff88";
+                  const sevBg    = sev === "CRITICAL" ? "rgba(255,0,64,0.08)" : sev === "HIGH" ? "rgba(255,107,53,0.08)" : sev === "MEDIUM" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
+                  const sevBdr   = sev === "CRITICAL" ? "rgba(255,0,64,0.28)" : sev === "HIGH" ? "rgba(255,107,53,0.28)" : sev === "MEDIUM" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
+                  // Map WorkflowStatus → design-system workflow palette
+                  const st = ctrl.status as WorkflowStatus;
+                  const stColor  = st === "REMEDIATED" ? "#00ff88" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "#ffb000" : st === "ASSIGNED" ? "#38bdf8" : st === "TRIAGED" ? "#a78bfa" : "#60a5fa";
+                  const stBg     = st === "REMEDIATED" ? "rgba(0,255,136,0.06)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.08)" : st === "ASSIGNED" ? "rgba(56,189,248,0.08)" : st === "TRIAGED" ? "rgba(167,139,250,0.08)" : "rgba(96,165,250,0.08)";
+                  const stBdr    = st === "REMEDIATED" ? "rgba(0,255,136,0.22)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.28)" : st === "ASSIGNED" ? "rgba(56,189,248,0.28)" : st === "TRIAGED" ? "rgba(167,139,250,0.28)" : "rgba(96,165,250,0.22)";
                   const fwColor  = ctrl.framework === "SOC 2" ? "#00ff88" : ctrl.framework === "CIS" ? "#ffb000" : ctrl.framework === "NIST 800-53" ? "#0ea5e9" : "#a855f7";
                   const ageDays  = parseInt(ctrl.age, 10) || 0;
                   const ageColor = ageDays >= 30 ? "#ff0040" : ageDays >= 14 ? "#ffb000" : "rgba(100,116,139,0.6)";
@@ -1746,7 +1893,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             {/* Footer: audit actions */}
             <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.01)" }}>
               <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
-                {controlFailures.filter(c => parseInt(c.age, 10) >= 30).length} overdue · {controlFailures.filter(c => c.severity === "Critical").length} critical
+                {controlFailures.filter(c => parseInt(c.age, 10) >= 30).length} overdue · {controlFailures.filter(c => (c.severity ?? "").toUpperCase() === "CRITICAL").length} critical
               </span>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
@@ -1768,14 +1915,27 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       )}
 
       {/* ── Quick Nav ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('iam-security')}><Users className="h-3 w-3 mr-1.5" />IAM</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('access-analyzer')}><Shield className="h-3 w-3 mr-1.5" />Access Analyzer</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('ec2-security')}><Cloud className="h-3 w-3 mr-1.5" />EC2</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('s3-security')}><HardDrive className="h-3 w-3 mr-1.5" />S3</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('vpc-security')}><Network className="h-3 w-3 mr-1.5" />VPC</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('dynamodb-security')}><Database className="h-3 w-3 mr-1.5" />DynamoDB</Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('reports')}><CheckCircle className="h-3 w-3 mr-1.5" />Generate Report</Button>
+      <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
+        {([
+          { label: "IAM",             Icon: Users,        nav: "iam-security"     },
+          { label: "Access Analyzer", Icon: Shield,       nav: "access-analyzer"  },
+          { label: "EC2",             Icon: Cloud,        nav: "ec2-security"     },
+          { label: "S3",              Icon: HardDrive,    nav: "s3-security"      },
+          { label: "VPC",             Icon: Network,      nav: "vpc-security"     },
+          { label: "DynamoDB",        Icon: Database,     nav: "dynamodb-security"},
+          { label: "Generate Report", Icon: CheckCircle,  nav: "reports"          },
+        ] as const).map(({ label, Icon, nav }) => (
+          <button
+            key={nav}
+            onClick={() => onNavigate?.(nav)}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 500, color: "rgba(100,116,139,0.7)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s", lineHeight: 1.4 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.14)"; e.currentTarget.style.color = "#cbd5e1"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
+          >
+            <Icon size={11} />
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   );

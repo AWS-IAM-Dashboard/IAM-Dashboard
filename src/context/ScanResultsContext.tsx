@@ -44,6 +44,8 @@ interface ScanResultsContextType {
 const ScanResultsContext = createContext<ScanResultsContextType | undefined>(undefined);
 
 function loadFromStorage(): Map<string, StoredScanResult> {
+  // In mock mode always start clean — stale session data has wrong scan_summaries
+  if (DATA_MODE === 'mock') return new Map();
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return new Map();
@@ -55,6 +57,8 @@ function loadFromStorage(): Map<string, StoredScanResult> {
 }
 
 function saveToStorage(map: Map<string, StoredScanResult>) {
+  // Don't persist in mock mode — data is always regenerated from fixtures
+  if (DATA_MODE === 'mock') return;
   try {
     const entries = Array.from(map.entries());
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
@@ -71,10 +75,9 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
     saveToStorage(scanResults);
   }, [scanResults]);
 
-  // Auto-seed full scan in mock mode so Dashboard IR mode has findings on first load
+  // Auto-seed full scan in mock mode so Dashboard IR/Audit tabs are populated on first load
   useEffect(() => {
     if (DATA_MODE !== 'mock') return;
-    if (scanResults.size > 0) return; // already seeded (e.g. from sessionStorage)
     const mock = getMockResponse('/scan/full') as ScanResponse | undefined;
     if (mock) addScanResult(mock);
   // eslint-disable-next-line react-hooks/exhaustive-deps

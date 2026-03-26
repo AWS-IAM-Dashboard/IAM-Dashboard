@@ -955,6 +955,7 @@ function fullScanResponse(region: string): ScanResponse {
         low_findings: 18,
         compliant_resources: 201,
         non_compliant_resources: 63,
+        compliance_score: 71,
         scan_duration_seconds: 47,
         services_scanned: ["IAM", "EC2", "S3", "Security Hub", "Config", "CloudTrail"],
       },
