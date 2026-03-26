@@ -6,7 +6,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
 import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, ChevronRight, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -17,6 +17,8 @@ import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFil
 import { FindingsTableToolbar } from "./FindingsTableToolbar";
 import { FindingsTablePagination } from "./FindingsTablePagination";
 import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
+import { GlobePulse, AWS_REGION_MARKERS } from "./ui/cobe-globe-pulse";
+import { SeverityBadge } from "./ui/SeverityBadge";
 
 // ── Workflow constants — module-level so they aren't recreated every render ──
 const IR_PIPELINE: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
@@ -42,6 +44,24 @@ function irGetOrCreate(prev: Record<string, WorkflowData>, id: string): Workflow
     first_seen: new Date().toISOString(),
     timeline: [irMakeEvent("System", "Finding detected and added to IR queue")],
   };
+}
+
+// ── Shared triage helpers (mirrors CloudSecurityAlerts) ──────────────────────
+const TRIAGE_ASSIGNEES = ["Sarah Chen", "Marcus Webb", "Dev Patel", "Priya Singh", "Infra Team", "Platform Eng", "SOC L2"];
+
+function triageAge(ts?: string): string {
+  if (!ts) return "—";
+  const d = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(d / 60000);
+  if (m < 1) return "<1m";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function triageInitials(name: string): string {
+  return name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
 }
 
 interface DashboardProps {
@@ -877,7 +897,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
       {/* ── Post-scan Delta Banner ────────────────────────────── */}
       {scanDelta && (
-        <div style={{ padding: "10px 16px", background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.12)", borderRadius: 10, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" as const }}>
+        <div style={{ padding: "12px 16px", background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.12)", borderRadius: 10, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" as const }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>SCAN DELTA</span>
           {[
             { label: "Critical", val: scanDelta.critical, lower: true, suffix: "" },
@@ -901,7 +921,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
       {/* ── Threat Level Banner (IR mode, shown before posture strip) ── */}
       {mode === "ir" && stats.security_findings > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", background: threatLevel.bg, border: `1px solid ${threatLevel.border}`, borderRadius: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: threatLevel.bg, border: `1px solid ${threatLevel.border}`, borderRadius: 10 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, color: "rgba(100,116,139,0.65)", letterSpacing: "0.14em" }}>THREAT LEVEL</span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: threatLevel.color, letterSpacing: "0.04em" }}>{threatLevel.label}</span>
           <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
@@ -987,169 +1007,220 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       {mode === "ir" && (
         <>
           {/* Main 63/37 grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 16, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 16, alignItems: "stretch" }}>
 
             {/* ── TRIAGE QUEUE ─── */}
             <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+
               {/* Header */}
-              <div style={{ padding: "14px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #ff004088, transparent)" }} />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Triage Queue</span>
-                    {triageFindings.length > 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.22)", padding: "2px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {triageFindings.length}
-                      </span>
-                    )}
+              <div style={{ position: "relative", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(255,0,64,0.9), rgba(255,0,64,0.04))" }} />
+                <div style={{ padding: "16px 20px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Triage Queue</span>
+                      {triageFindings.length > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.25)", padding: "2px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
+                          {triageFindings.length} active
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onNavigate?.("alerts")}
+                      style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.45)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em", padding: 0, transition: "color 0.1s" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.45)")}
+                    >VIEW ALL →</button>
                   </div>
-                  <button
-                    onClick={() => onNavigate?.("alerts")}
-                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: 0, transition: "color 0.1s" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.5)")}
-                  >VIEW ALL →</button>
-                </div>
-                {/* Pipeline stage summary strip */}
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {workflowPipeline.map((stage, idx) => {
-                    const isLast = idx === workflowPipeline.length - 1;
-                    return (
-                      <div key={stage.key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <div style={{
-                          display: "flex", alignItems: "center", gap: 5, padding: "3px 8px",
-                          background: stage.count > 0 ? `${stage.color}12` : "rgba(255,255,255,0.02)",
-                          border: `1px solid ${stage.count > 0 ? `${stage.color}28` : "rgba(255,255,255,0.05)"}`,
-                          borderRadius: 999,
-                        }}>
-                          <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? stage.color : "rgba(100,116,139,0.3)", letterSpacing: "0.04em" }}>{stage.label}</span>
-                          <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? stage.color : "rgba(100,116,139,0.25)" }}>{stage.count}</span>
-                        </div>
-                        {!isLast && <span style={{ fontSize: 8, color: "rgba(100,116,139,0.2)" }}>›</span>}
+                  {/* Ops situational strip */}
+                  {triageFindings.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, paddingTop: 8, paddingBottom: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ff0040", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px rgba(255,0,64,0.9)" }} />
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{triageFindings.filter((f: any) => f.severity === "Critical").length} CRITICAL</span>
                       </div>
-                    );
-                  })}
+                      {unassignedCritical > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ffb000", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px rgba(255,176,0,0.9)" }} />
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#ffb000", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{unassignedCritical} UNASSIGNED</span>
+                        </div>
+                      )}
+                      {slaBreachedCount > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ff6b35", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px rgba(255,107,53,0.9)" }} />
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#ff6b35", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{slaBreachedCount} SLA BREACH</span>
+                        </div>
+                      )}
+                      {workflowPipeline.some(s => s.count > 0) && (
+                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+                          {workflowPipeline.filter(s => s.count > 0).map(stage => (
+                            <div key={stage.key} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                              <span style={{ width: 4, height: 4, borderRadius: "50%", background: stage.color, display: "inline-block", boxShadow: `0 0 5px ${stage.color}` }} />
+                              <span style={{ fontSize: 9, fontWeight: 700, color: stage.color, fontFamily: "'JetBrains Mono', monospace" }}>{stage.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Column headers */}
+              {/* Column headers — EC2-identical */}
               {triageFindings.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "44px 52px 1fr 128px 90px 40px 20px", alignItems: "center", gap: 10, padding: "6px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  {["SCORE", "SEV", "RESOURCE / FINDING", "STAGE", "OWNER", "ADV", ""].map((h, idx) => (
-                    <span key={idx} style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>{h}</span>
-                  ))}
+                <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 120px 92px 110px 72px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+                  <div />
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingLeft: 12 }}>Alert / Resource</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Severity</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Status</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>SLA</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Assignee</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Risk /10</span>
                 </div>
               )}
 
               {/* Rows */}
               {triageFindings.length === 0 ? (
-                <div style={{ padding: "40px 20px", textAlign: "center" as const }}>
-                  <CheckCircle style={{ width: 24, height: 24, color: "#00ff88", margin: "0 auto 10px", display: "block", opacity: 0.5 }} />
-                  <p style={{ fontSize: 13, color: "rgba(100,116,139,0.65)", margin: 0 }}>No critical or high findings</p>
-                  <p style={{ fontSize: 10, color: "rgba(100,116,139,0.3)", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>environment is clean</p>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
+                  <Shield style={{ width: 40, height: 40, color: "rgba(0,255,136,0.2)", marginBottom: 16 }} />
+                  <p style={{ fontSize: 13, fontWeight: 500, color: "rgba(148,163,184,0.5)", margin: 0 }}>Queue is clear</p>
+                  <p style={{ fontSize: 11, color: "rgba(100,116,139,0.35)", margin: "6px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Run a security scan to populate the queue.</p>
                 </div>
-              ) : triageFindings.map((finding: any, i: number) => {
+              ) : triageFindings.map((finding: any, idx: number) => {
                 const score = calcPriority(finding);
-                const sColor = finding.severity === "Critical" ? "#ff0040" : "#ff6b35";
-                const rowId = finding.id || finding.resource_arn || `ir-${i}`;
+                const sev = finding.severity ?? "Medium";
+                const sevUpper = sev.toUpperCase();
+                const sevColor = sevUpper === "CRITICAL" ? "#ff0040" : sevUpper === "HIGH" ? "#ff6b35" : sevUpper === "MEDIUM" ? "#ffb000" : "#00ff88";
+                const rowId = finding.id || finding.resource_arn || `ir-${idx}`;
+                const SLA_HOURS: Record<string, number> = { CRITICAL: 4, HIGH: 24, MEDIUM: 168, LOW: 720 };
+                const slaHours = SLA_HOURS[sevUpper] ?? 24;
+                const elapsedHours = finding.timestamp ? (Date.now() - new Date(finding.timestamp).getTime()) / 3600000 : 0;
+                const slaRemaining = slaHours - elapsedHours;
+                const slaBreached = slaRemaining < 0;
                 const wf: WorkflowData = workflows[rowId] ?? {
                   status: "NEW",
                   assignee: "",
                   first_seen: finding.timestamp ?? new Date().toISOString(),
                   timeline: [],
                 };
+                const wfWithSla: WorkflowData = { ...wf, sla_hours_remaining: slaRemaining, sla_breached: slaBreached };
                 const isExpanded = expandedRow === rowId;
-                const isRemediated = wf.status === "REMEDIATED";
-                const stColor = IR_WF_COLOR[wf.status as WorkflowStatus] ?? "#60a5fa";
-                // Normalized finding shape for FindingDetailPanel
-                const normalizedFinding: FindingData = {
-                  id: rowId,
-                  title: finding.finding_type || finding.type || finding.title || "Security Finding",
-                  resource_name: finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown",
-                  resource_arn: finding.resource_arn,
-                  severity: finding.severity ?? "Medium",
-                  description: finding.description || finding.recommendation || "Security misconfiguration detected.",
-                  recommendation: finding.recommendation,
-                  risk_score: finding.risk_score,
-                  region: finding.region,
-                  first_seen: finding.timestamp,
-                  last_seen: finding.timestamp,
-                  compliance_frameworks: finding.compliance_frameworks,
-                  metadata: {
-                    ...(finding.account_id ? { "Account ID": finding.account_id } : {}),
-                    ...(finding.region ? { "Region": finding.region } : {}),
-                    ...(finding.service ? { "Service": finding.service } : {}),
-                  },
-                };
-                const rowBg = isExpanded
-                  ? (finding.severity === "Critical" ? "rgba(255,0,64,0.07)" : "rgba(255,107,53,0.05)")
-                  : isRemediated ? "rgba(0,255,136,0.025)"
-                  : (finding.severity === "Critical" ? "rgba(255,0,64,0.02)" : "transparent");
+                const isLast = idx === triageFindings.length - 1;
+
                 return (
-                  <div key={rowId} style={{ borderBottom: i < triageFindings.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", opacity: isRemediated ? 0.55 : 1, transition: "opacity 0.3s" }}>
+                  <div key={rowId}>
+                    {/* Row — EC2-identical structure */}
                     <div
                       onClick={() => setExpandedRow(isExpanded ? null : rowId)}
-                      style={{ display: "grid", gridTemplateColumns: "44px 52px 1fr 128px 90px 40px 20px", alignItems: "center", gap: 10, padding: "10px 20px", cursor: "pointer", background: rowBg, transition: "background 0.1s" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = isRemediated ? "rgba(0,255,136,0.04)" : finding.severity === "Critical" ? "rgba(255,0,64,0.05)" : "rgba(255,255,255,0.02)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = rowBg)}
+                      style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 120px 92px 110px 72px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || isExpanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                      onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
+                      onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                     >
-                      {/* Priority score */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: isRemediated ? "#00ff88" : sColor, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{score.toFixed(1)}</span>
-                        <div style={{ width: 32, height: 2, background: "rgba(255,255,255,0.08)", borderRadius: 1, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${(score / 9.9) * 100}%`, background: isRemediated ? "#00ff88" : sColor, borderRadius: 1 }} />
+                      {/* Left severity bar — EC2-identical */}
+                      <div style={{ position: "relative", height: "100%" }}>
+                        <div style={{ position: "absolute", left: 0, width: 4, top: -12, bottom: -12, background: wf.status === "REMEDIATED" ? "#00ff88" : sevColor, borderRadius: "0 2px 2px 0", opacity: 0.85 }} />
+                      </div>
+
+                      {/* Finding: chevron + resource name + id + finding type */}
+                      <div style={{ paddingLeft: 12, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <div style={{ flexShrink: 0 }}>{isExpanded ? <ChevronDown size={14} color="#64748b" /> : <ChevronRight size={14} color="#64748b" />}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown"}
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {finding.resource_arn?.split(":").pop() || finding.resource_arn || "—"}
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", marginTop: 2, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {finding.finding_type || finding.type || finding.title || "Security Finding"}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Severity badge */}
-                      <span style={{ fontSize: 9, fontWeight: 700, color: sColor, background: `${sColor}14`, border: `1px solid ${sColor}28`, padding: "2px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" as const }}>
-                        {finding.severity?.toUpperCase().slice(0, 4)}
-                      </span>
+                      {/* Severity */}
+                      <div><SeverityBadge severity={sev} size="sm" /></div>
 
-                      {/* Resource + type */}
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: isRemediated ? "rgba(148,163,184,0.5)" : "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, textDecoration: isRemediated ? "line-through" : "none" }}>
-                          {finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown"}
-                        </div>
-                        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, marginTop: 2 }}>
-                          {finding.finding_type || finding.type || finding.description || "—"}
-                        </div>
+                      {/* Status + SLA breach indicator */}
+                      <div>
+                        <SeverityBadge severity={wf.status} size="sm" />
+                        {slaBreached && wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE" && wf.status !== "RISK_ACCEPTED" && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+                            <AlertTriangle size={9} color="#ff0040" />
+                            <span style={{ fontSize: 9, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace" }}>SLA BREACH</span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Stage chip — full pipeline label */}
-                      <span style={{ fontSize: 9, fontWeight: 700, color: stColor, background: `${stColor}12`, border: `1px solid ${stColor}26`, padding: "3px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" as const, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", display: "block", maxWidth: 128 }}>
-                        {(wf.status as string).replace(/_/g, " ")}
-                      </span>
+                      {/* SLA remaining */}
+                      <div>
+                        {wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE" && wf.status !== "RISK_ACCEPTED" ? (
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: slaBreached ? "#ff0040" : slaRemaining < 4 ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                              {slaBreached ? `${Math.abs(Math.round(slaRemaining))}h overdue` : slaRemaining < 24 ? `${Math.round(slaRemaining)}h left` : `${Math.round(slaRemaining / 24)}d left`}
+                            </span>
+                            <div style={{ fontSize: 9, color: "rgba(100,116,139,0.5)", marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}>
+                              {sevUpper === "CRITICAL" ? "4h SLA" : sevUpper === "HIGH" ? "24h SLA" : sevUpper === "MEDIUM" ? "7d SLA" : "30d SLA"}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>—</span>
+                        )}
+                      </div>
 
                       {/* Assignee */}
-                      <span style={{ fontSize: 10, color: wf.assignee ? "#94a3b8" : "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-                        {wf.assignee || "—"}
-                      </span>
+                      <div>
+                        {wf.assignee ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#818cf8", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace" }}>
+                              {triageInitials(wf.assignee)}
+                            </div>
+                            <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>{wf.assignee}</span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>Unassigned</span>
+                        )}
+                      </div>
 
-                      {/* Advance button — disabled when remediated */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); if (!isRemediated) advanceStatus(rowId); }}
-                        title={isRemediated ? "Remediated" : "Advance to next stage"}
-                        disabled={isRemediated}
-                        style={{ fontSize: 9, fontWeight: 700, padding: "4px 0", borderRadius: 5, border: isRemediated ? "1px solid rgba(0,255,136,0.12)" : "1px solid rgba(0,255,136,0.18)", background: isRemediated ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.05)", color: isRemediated ? "rgba(0,255,136,0.3)" : "rgba(0,255,136,0.6)", cursor: isRemediated ? "default" : "pointer", transition: "all 0.1s", whiteSpace: "nowrap" as const, fontFamily: "'JetBrains Mono', monospace", width: 28, textAlign: "center" as const }}
-                        onMouseEnter={(e) => { if (!isRemediated) { e.currentTarget.style.background = "rgba(0,255,136,0.12)"; e.currentTarget.style.color = "#00ff88"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.35)"; }}}
-                        onMouseLeave={(e) => { if (!isRemediated) { e.currentTarget.style.background = "rgba(0,255,136,0.05)"; e.currentTarget.style.color = "rgba(0,255,136,0.6)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.18)"; }}}
-                      >{isRemediated ? "✓" : "▶"}</button>
-
-                      <ChevronDown size={13} style={{ color: "rgba(100,116,139,0.45)", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }} />
+                      {/* Risk /10 */}
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: score >= 9 ? "#ff0040" : score >= 7 ? "#ff6b35" : score >= 5 ? "#ffb000" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                          {score.toFixed(0)}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>/10</span>
+                        </span>
+                      </div>
                     </div>
 
+                    {/* Expanded — FindingDetailPanel identical to EC2 */}
                     {isExpanded && (
-                      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <FindingDetailPanel
-                          finding={normalizedFinding}
-                          workflow={wf}
-                          onAdvanceStatus={() => advanceStatus(rowId)}
-                          onAssign={(name: string) => assignFinding(rowId, name)}
-                          onMarkFalsePositive={() => markFalsePositive(rowId)}
-                          onClose={() => setExpandedRow(null)}
-                        />
-                      </div>
+                      <FindingDetailPanel
+                        finding={{
+                          id: rowId,
+                          title: finding.finding_type || finding.type || finding.title || "Security Finding",
+                          resource_name: finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown",
+                          resource_arn: finding.resource_arn,
+                          severity: sev,
+                          description: finding.description || finding.recommendation || "Security misconfiguration detected.",
+                          recommendation: finding.recommendation,
+                          risk_score: finding.risk_score ?? score,
+                          compliance_frameworks: finding.compliance_frameworks,
+                          last_seen: finding.timestamp,
+                          first_seen: finding.timestamp,
+                          region: finding.region,
+                          metadata: {
+                            ...(finding.account_id ? { "Account ID": finding.account_id } : {}),
+                            ...(finding.region ? { "Region": finding.region } : {}),
+                            ...(finding.service ? { "Service": finding.service } : {}),
+                            ...(finding.resource_type ? { "Resource Type": finding.resource_type } : {}),
+                          },
+                        }}
+                        workflow={wfWithSla}
+                        assignees={TRIAGE_ASSIGNEES}
+                        onAdvanceStatus={(id) => advanceStatus(id)}
+                        onAssign={(id, assignee) => assignFinding(id, assignee)}
+                        onMarkFalsePositive={(id) => markFalsePositive(id)}
+                        onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
+                        onClose={() => setExpandedRow(null)}
+                        isLast={isLast}
+                      />
                     )}
                   </div>
                 );
@@ -1157,12 +1228,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             </div>
 
             {/* ── OPERATIONS RAIL ─── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
 
               {/* Workflow Pipeline — unique info, not a KPI duplicate */}
               <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #a78bfa88, transparent)" }} />
-                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Workflow Pipeline</span>
                     <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.4)" }}>{Object.keys(workflows).length} tracked</span>
@@ -1196,7 +1267,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   })}
                 </div>
                 {/* Progress summary */}
-                <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ margin: "0 16px", padding: "12px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>remediation progress</span>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
@@ -1245,6 +1316,50 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Responder Board */}
+              <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative", flex: 1, display: "flex", flexDirection: "column" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(129,140,248,0.7), transparent)" }} />
+                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Responder Board</span>
+                  <span style={{ fontSize: 9, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    {TRIAGE_ASSIGNEES.filter(n => Object.values(workflows).some(wf => wf.assignee === n)).length} active
+                  </span>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto" }}>
+                  {TRIAGE_ASSIGNEES.map((name, ni) => {
+                    const wfVals = Object.values(workflows);
+                    const assigned = wfVals.filter(wf => wf.assignee === name && wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE").length;
+                    const resolved = wfVals.filter(wf => wf.assignee === name && wf.status === "REMEDIATED").length;
+                    const maxLoad = Math.max(1, ...TRIAGE_ASSIGNEES.map(n2 =>
+                      wfVals.filter(wf => wf.assignee === n2 && wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE").length
+                    ));
+                    const loadPct = assigned > 0 ? Math.min(100, (assigned / maxLoad) * 100) : 0;
+                    const loadColor = assigned >= 4 ? "#ff0040" : assigned >= 2 ? "#ffb000" : "#00ff88";
+                    const isLastRow = ni === TRIAGE_ASSIGNEES.length - 1;
+                    return (
+                      <div key={name} style={{ padding: "9px 16px", borderBottom: isLastRow ? "none" : "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: assigned > 0 ? 6 : 0 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: "50%", background: assigned > 0 ? "rgba(129,140,248,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${assigned > 0 ? "rgba(129,140,248,0.3)" : "rgba(255,255,255,0.08)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, color: assigned > 0 ? "#818cf8" : "rgba(100,116,139,0.4)", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {triageInitials(name)}
+                          </div>
+                          <span style={{ fontSize: 11, color: assigned > 0 ? "#94a3b8" : "rgba(100,116,139,0.4)", flex: 1, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                            {assigned > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: loadColor, fontFamily: "'JetBrains Mono', monospace" }}>{assigned}</span>}
+                            {resolved > 0 && <span style={{ fontSize: 9, fontWeight: 600, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>✓{resolved}</span>}
+                            {assigned === 0 && resolved === 0 && <span style={{ fontSize: 9, color: "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>idle</span>}
+                          </div>
+                        </div>
+                        {assigned > 0 && (
+                          <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1, marginLeft: 28, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${loadPct}%`, background: loadColor, borderRadius: 1, transition: "width 0.5s ease" }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -1326,11 +1441,85 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             })()}
           </div>
 
+          {/* ── Global Infrastructure Coverage ───────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {/* Globe panel */}
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
+              <div style={{ padding: "16px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Global Infrastructure</span>
+                  <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>AWS regions active</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00ff88", display: "inline-block", boxShadow: "0 0 6px rgba(0,255,136,0.6)", animation: "pulse-slow 2s ease-in-out infinite" }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>{AWS_REGION_MARKERS.length} ONLINE</span>
+                </div>
+              </div>
+              <GlobePulse
+                markers={AWS_REGION_MARKERS}
+                speed={0.0025}
+                className="px-6 pb-4 pt-2"
+              />
+            </div>
+
+            {/* Region coverage table */}
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
+              <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Region Coverage</span>
+              </div>
+              <div style={{ padding: "8px 0" }}>
+                {AWS_REGION_MARKERS.map((r, i) => {
+                  // Derive a pseudo-health from compliance score per region index
+                  const base = Math.max(0, stats.compliance_score - (i * 3));
+                  const regionScore = Math.min(100, Math.round(base + (i % 3) * 2));
+                  const scoreColor = regionScore >= 85 ? "#00ff88" : regionScore >= 70 ? "#ffb000" : "#ff6b35";
+                  const findingsForRegion = Math.max(0, Math.round((stats.security_findings / AWS_REGION_MARKERS.length) * (1 + (i % 3) * 0.4)));
+                  return (
+                    <div
+                      key={r.id}
+                      className="data-row"
+                      style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 12, padding: "8px 20px", borderBottom: i < AWS_REGION_MARKERS.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.1s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: scoreColor, flexShrink: 0, boxShadow: `0 0 5px ${scoreColor}88` }} />
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>{r.label}</div>
+                          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>{r.region}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" as const }}>
+                        {findingsForRegion > 0 ? (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,107,53,0.8)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, padding: "2px 7px" }}>
+                            {findingsForRegion} findings
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(0,255,136,0.7)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", borderRadius: 999, padding: "2px 7px" }}>
+                            clean
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 48, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${regionScore}%`, background: scoreColor, borderRadius: 2, transition: "width 0.5s ease" }} />
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: "right" as const }}>{regionScore}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Charts row: Compliance Trend (2/3) + Control Status (1/3) */}
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
             {/* Compliance Trend — AreaChart */}
             <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #0ea5e988, transparent)" }} />
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Compliance Trend</span>
@@ -1368,7 +1557,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
             {/* Control Status breakdown */}
             <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #a855f788, transparent)" }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Control Status</span>
               </div>
@@ -1415,7 +1604,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           {/* Control Failures table — the primary work surface */}
           <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
             {/* Header */}
-            <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #ff004088, transparent)" }} />
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1427,7 +1616,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <button
                     onClick={() => onNavigate?.("reports")}
-                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
                   >
@@ -1436,7 +1625,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   </button>
                   <button
                     onClick={() => onNavigate?.("alerts")}
-                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "5px 0", transition: "color 0.1s" }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "4px 0", transition: "color 0.1s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
                     onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.5)")}
                   >VIEW ALL →</button>
@@ -1538,13 +1727,13 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   onClick={() => onNavigate?.("compliance")}
-                  style={{ fontSize: 11, fontWeight: 500, color: "rgba(100,116,139,0.7)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                  style={{ fontSize: 11, fontWeight: 500, color: "rgba(100,116,139,0.7)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#cbd5e1"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
                 >Full Compliance View</button>
                 <button
                   onClick={() => onNavigate?.("reports")}
-                  style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "5px 14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                  style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 16px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
                 >Generate Audit Report →</button>

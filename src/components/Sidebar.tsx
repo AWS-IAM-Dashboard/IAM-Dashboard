@@ -128,7 +128,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <span
                   className="text-[9.5px] font-semibold uppercase"
                   style={{
-                    color: "rgba(100,116,139,0.55)",
+                    color: "rgba(100,116,139,0.65)",
                     letterSpacing: "0.15em",
                     fontFamily: "'JetBrains Mono', monospace",
                   }}

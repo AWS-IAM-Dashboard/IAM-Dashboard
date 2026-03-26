@@ -154,7 +154,7 @@
     background: rgba(15, 23, 42, 0.8);
     backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 12px;
+    border-radius: 10px;
   }
 }
 
@@ -298,7 +298,7 @@ html {
 .section-label {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(100, 116, 139, 0.6);
+  color: rgba(100, 116, 139, 0.65);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-family: 'JetBrains Mono', monospace;

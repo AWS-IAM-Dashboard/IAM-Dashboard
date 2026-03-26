@@ -46,10 +46,10 @@ type WorkflowStage = "NEW" | "TRIAGED" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_V
 const WORKFLOW_PIPELINE: WorkflowStage[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
 const WORKFLOW_META: Record<WorkflowStage, { label: string; color: string; bg: string }> = {
   NEW: { label: "NEW", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
-  TRIAGED: { label: "TRIAGED", color: "#818cf8", bg: "rgba(129,140,248,0.12)" },
-  ASSIGNED: { label: "ASSIGNED", color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  TRIAGED: { label: "TRIAGED", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  ASSIGNED: { label: "ASSIGNED", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
   IN_PROGRESS: { label: "IN PROGRESS", color: "#ffb000", bg: "rgba(255,176,0,0.12)" },
-  PENDING_VERIFY: { label: "PENDING VERIFY", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  PENDING_VERIFY: { label: "PENDING VERIFY", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
   REMEDIATED: { label: "REMEDIATED", color: "#00ff88", bg: "rgba(0,255,136,0.12)" },
   FALSE_POSITIVE: { label: "FALSE POSITIVE", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
 };
@@ -69,7 +69,7 @@ const SEV: Record<string, { bar: string; text: string; bg: string; border: strin
 };
 
 const STA: Record<string, { text: string; bg: string; border: string }> = {
-  Active:       { text: "#ff4060", bg: "rgba(255,64,96,0.1)",   border: "rgba(255,64,96,0.22)"   },
+  Active:       { text: "#ff0040", bg: "rgba(255,0,64,0.1)",    border: "rgba(255,0,64,0.28)"    },
   Acknowledged: { text: "#ffb000", bg: "rgba(255,176,0,0.1)",   border: "rgba(255,176,0,0.22)"   },
   Resolved:     { text: "#00ff88", bg: "rgba(0,255,136,0.08)",  border: "rgba(0,255,136,0.22)"   },
 };
@@ -380,8 +380,8 @@ export function CloudSecurityAlerts() {
           type="button"
           onClick={() => setView((v) => v === "queue" ? "rules" : "queue")}
           style={view === "rules"
-            ? { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 7, background: "rgba(255,64,96,0.12)", border: "1px solid rgba(255,64,96,0.35)", color: "#ff4060", fontSize: 12, fontWeight: 600, cursor: "pointer" }
-            : { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" }
+            ? { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 6, background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.3)", color: "#ff0040", fontSize: 12, fontWeight: 600, cursor: "pointer" }
+            : { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", fontSize: 12, fontWeight: 600, cursor: "pointer" }
           }
         >
           <Settings size={13} />
@@ -394,7 +394,7 @@ export function CloudSecurityAlerts() {
         <StatCard label="Total Alerts"  value={stats.total}    accent="#94a3b8" />
         <StatCard label="Critical"      value={stats.critical} accent="#ff0040" />
         <StatCard label="High"          value={stats.high}     accent="#ff6b35" />
-        <StatCard label="Active"        value={stats.active}   accent="#ff4060" />
+        <StatCard label="Active"        value={stats.active}   accent="#ff0040" />
         <StatCard label="In Review"     value={stats.inReview} accent="#ffb000" />
         <StatCard label="Resolved"      value={stats.resolved} accent="#00ff88" />
       </div>
@@ -719,7 +719,7 @@ export function CloudSecurityAlerts() {
                           {NEXT_STATUS[workflow] && (
                             <button
                               onClick={() => advanceWorkflow(alert.id, workflow)}
-                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, fontWeight: 600, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: "rgba(129,140,248,0.15)", border: "1px solid rgba(129,140,248,0.3)", color: "#818cf8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                             >
                               <Activity size={11} />
                               Advance → {WORKFLOW_META[NEXT_STATUS[workflow]!].label}
@@ -734,18 +734,18 @@ export function CloudSecurityAlerts() {
                             {ALERT_ASSIGNEES.map((a) => <option key={a} value={a}>{a}</option>)}
                           </select>
                           {ticketByAlert[alert.id] ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#00ff88", background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 5, padding: "4px 12px", fontFamily: "'JetBrains Mono', monospace" }}><Ticket size={11} />{ticketByAlert[alert.id]}</span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#00ff88", background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 6, padding: "4px 12px", fontFamily: "'JetBrains Mono', monospace" }}><Ticket size={11} />{ticketByAlert[alert.id]}</span>
                           ) : (
                             <button
                               onClick={() => setTicketByAlert((p) => ({ ...p, [alert.id]: `SEC-${5400 + idx}` }))}
-                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 6, fontSize: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                             >
                               <Ticket size={11} /> Create Ticket
                             </button>
                           )}
                           <button
                             onClick={() => { setWorkflowByAlert((p) => ({ ...p, [alert.id]: "FALSE_POSITIVE" })); toast.success("Marked as false positive"); }}
-                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 5, fontSize: 11, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
+                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 12px", borderRadius: 6, fontSize: 11, background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.2)", color: "#64748b", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace" }}
                           >
                             <AlertTriangle size={11} />
                             False Positive
@@ -844,7 +844,7 @@ export function CloudSecurityAlerts() {
                             <div>
                               <p className="section-label">Description</p>
                               <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.7, margin: 0 }}>{alert.description}</p>
-                              <div style={{ marginTop: 12, padding: 12, borderRadius: 7, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
+                              <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: "rgba(255,176,0,0.07)", border: "1px solid rgba(255,176,0,0.2)" }}>
                                 <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,176,0,0.8)", margin: "0 0 6px", fontFamily: "'JetBrains Mono', monospace" }}>Recommendation</p>
                                 <p style={{ fontSize: 12, color: "#fcd34d", lineHeight: 1.7, margin: 0 }}>{steps[0] ?? "Follow runbook actions to remediate and verify closure."}</p>
                               </div>
