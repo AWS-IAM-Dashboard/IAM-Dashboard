@@ -411,11 +411,26 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   }, [mode]);
 
   useEffect(() => {
-    const initial: Record<string, { status: string; assignee: string }> = {};
-    allFindings.forEach((f: any) => {
-      initial[f.id || f.resource_arn || Math.random().toString()] = { status: "open", assignee: "" };
+    if (allFindings.length === 0) return;
+    // Cycling distributions for a realistic pipeline spread across assignees
+    const IR_INIT_STATUSES: WorkflowStatus[] = [
+      "NEW", "NEW", "NEW", "TRIAGED", "TRIAGED", "ASSIGNED",
+      "IN_PROGRESS", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED",
+    ];
+    setWorkflows(prev => {
+      const next = { ...prev };
+      allFindings.forEach((f: any, i: number) => {
+        const id = f.id || f.resource_arn;
+        if (!id || next[id]) return; // skip missing IDs and already-tracked findings
+        next[id] = {
+          status: IR_INIT_STATUSES[i % IR_INIT_STATUSES.length],
+          assignee: TRIAGE_ASSIGNEES[i % TRIAGE_ASSIGNEES.length],
+          first_seen: f.created_at || f.timestamp || new Date(Date.now() - i * 3_600_000).toISOString(),
+          timeline: [irMakeEvent("System", "Finding detected and added to IR queue")],
+        };
+      });
+      return next;
     });
-    setWorkflows(initial);
   }, [allFindings]);
 
   const handleQuickScan = async () => {
@@ -632,16 +647,24 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
   const triageFindings = useMemo(() => {
     return [...allFindings]
-      .filter((f: any) => f.severity === "Critical" || f.severity === "High")
+      .filter((f: any) => {
+        const sev = (f.severity ?? "").toUpperCase();
+        return sev === "CRITICAL" || sev === "HIGH";
+      })
       .sort((a: any, b: any) => {
-        const order: Record<string, number> = { Critical: 0, High: 1 };
-        return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+        const order: Record<string, number> = { CRITICAL: 0, HIGH: 1 };
+        return (order[(a.severity ?? "").toUpperCase()] ?? 9) - (order[(b.severity ?? "").toUpperCase()] ?? 9);
       })
       .slice(0, 10);
   }, [allFindings]);
 
-  const slaBreachedCount = useMemo(() => allFindings.filter((f: any) => (f.risk_score ?? 0) > 80).length, [allFindings]);
-  const unassignedCritical = useMemo(() => allFindings.filter((f: any) => f.severity === "Critical" && !workflows[f.id || f.resource_arn]?.assignee).length, [allFindings, workflows]);
+  const slaBreachedCount = useMemo(() => allFindings.filter((f: any) => {
+    const sev = (f.severity ?? "").toUpperCase();
+    const slaHours = sev === "CRITICAL" ? 4 : sev === "HIGH" ? 24 : 72;
+    const ageHours = (Date.now() - new Date(f.created_at || f.timestamp || 0).getTime()) / 3_600_000;
+    return ageHours > slaHours;
+  }).length, [allFindings]);
+  const unassignedCritical = useMemo(() => allFindings.filter((f: any) => (f.severity ?? "").toUpperCase() === "CRITICAL" && !workflows[f.id || f.resource_arn]?.assignee).length, [allFindings, workflows]);
 
   const blastRadiusData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -683,8 +706,9 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   }, [stats.critical_alerts, stats.high_findings, stats.security_findings]);
 
   const calcPriority = useCallback((f: any): number => {
-    const base = f.severity === "Critical" ? 8.8 : f.severity === "High" ? 6.2 : f.severity === "Medium" ? 3.8 : 1.5;
-    return Math.min(9.9, base + Math.min(1.0, ((f.risk_score || 50) / 100)));
+    const sev = (f.severity ?? "").toUpperCase();
+    const base = sev === "CRITICAL" ? 8.8 : sev === "HIGH" ? 6.2 : sev === "MEDIUM" ? 3.8 : 1.5;
+    return Math.min(9.9, base + Math.min(1.0, ((f.risk_score || 5) / 10)));
   }, []);
 
   const activeInvestigations = useMemo(() =>

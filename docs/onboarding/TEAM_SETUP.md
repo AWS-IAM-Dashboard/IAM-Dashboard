@@ -22,6 +22,23 @@ docker-compose up -d
 
 **URLs:** Dashboard http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
 
+### Frontend data mode (dev-only)
+
+The frontend supports two dev modes:
+
+- **live** (default): calls the backend API at `http://localhost:5001/api/v1`
+- **mock**: uses local mock fixtures (for UI/UX work; backend not required)
+
+Switch modes by setting `VITE_DATA_MODE` and restarting the `frontend` service:
+
+```bash
+# Mock mode
+VITE_DATA_MODE=mock docker-compose up -d frontend
+
+# Live mode (default)
+VITE_DATA_MODE=live docker-compose up -d frontend
+```
+
 **Pull latest:** `git checkout main && git pull origin main`
 
 **Wrong remote?** Point `origin` at the org:  

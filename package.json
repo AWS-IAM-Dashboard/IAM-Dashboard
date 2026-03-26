@@ -61,6 +61,8 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
+    "dev:live": "vite --mode live",
     "build": "vite build"
   }
 }

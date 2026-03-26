@@ -5,6 +5,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { ScanResponse } from '../services/api';
+import { getMockResponse } from '../mock/apiMock';
+
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
 
 const STORAGE_KEY = 'iam-dashboard-scan-results';
 
@@ -67,6 +70,15 @@ export function ScanResultsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveToStorage(scanResults);
   }, [scanResults]);
+
+  // Auto-seed full scan in mock mode so Dashboard IR mode has findings on first load
+  useEffect(() => {
+    if (DATA_MODE !== 'mock') return;
+    if (scanResults.size > 0) return; // already seeded (e.g. from sessionStorage)
+    const mock = getMockResponse('/scan/full') as ScanResponse | undefined;
+    if (mock) addScanResult(mock);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addScanResult = useCallback((result: ScanResponse) => {
     // Extract scan summary - try multiple locations
@@ -143,17 +155,26 @@ export function useScanResults() {
 function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
   if (!results) return undefined;
 
-  // For full scan, extract summary from IAM only
+  // For full scan, use aggregate_summary block if present, otherwise sum sub-scanner summaries
   if (results.scan_type === 'full' || results.iam) {
+    if (results.aggregate_summary) {
+      return {
+        ...results.aggregate_summary,
+        users: results.iam?.users?.total || 0,
+        roles: results.iam?.roles?.total || 0,
+        policies: results.iam?.policies?.total || 0,
+        groups: results.iam?.groups?.total || 0,
+      };
+    }
     return {
-      critical_findings: results.iam?.scan_summary?.critical_findings || 0,
-      high_findings: results.iam?.scan_summary?.high_findings || 0,
-      medium_findings: results.iam?.scan_summary?.medium_findings || 0,
-      low_findings: results.iam?.scan_summary?.low_findings || 0,
+      critical_findings: (results.iam?.scan_summary?.critical_findings || 0) + (results.ec2?.scan_summary?.critical_findings || 0) + (results.s3?.scan_summary?.critical_findings || 0),
+      high_findings: (results.iam?.scan_summary?.high_findings || 0) + (results.ec2?.scan_summary?.high_findings || 0) + (results.s3?.scan_summary?.high_findings || 0),
+      medium_findings: (results.iam?.scan_summary?.medium_findings || 0) + (results.ec2?.scan_summary?.medium_findings || 0) + (results.s3?.scan_summary?.medium_findings || 0),
+      low_findings: (results.iam?.scan_summary?.low_findings || 0) + (results.ec2?.scan_summary?.low_findings || 0) + (results.s3?.scan_summary?.low_findings || 0),
       users: results.iam?.users?.total || 0,
       roles: results.iam?.roles?.total || 0,
       policies: results.iam?.policies?.total || 0,
-      groups: results.iam?.groups?.total || 0
+      groups: results.iam?.groups?.total || 0,
     };
   }
 
@@ -223,13 +244,13 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
 function extractFindings(results: any): any[] {
   if (!results) return [];
   
-  // For full scan, extract findings from IAM only
+  // For full scan, aggregate findings from all sub-scanners
   if (results.scan_type === 'full' || results.iam) {
     const allFindings: any[] = [];
-    
-    // Extract findings from IAM only
-    if (results.iam?.findings) allFindings.push(...results.iam.findings);
-    
+    if (Array.isArray(results.iam?.findings)) allFindings.push(...results.iam.findings);
+    if (Array.isArray(results.ec2?.findings)) allFindings.push(...results.ec2.findings);
+    if (Array.isArray(results.s3?.findings)) allFindings.push(...results.s3.findings);
+    if (Array.isArray(results.security_hub?.findings)) allFindings.push(...results.security_hub.findings);
     if (allFindings.length > 0) {
       return allFindings;
     }

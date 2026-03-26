@@ -52,6 +52,12 @@ The SPA is configured via Vite env vars (see `.env` and `src/env.example`):
 
 ```bash
 VITE_API_GATEWAY_URL=https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1
+VITE_API_URL=http://localhost:5001/api/v1
+
+# Dev-only: frontend data mode
+# - live (default): calls backend API
+# - mock: uses local fixtures for UI/UX development
+VITE_DATA_MODE=live
 
 VITE_COGNITO_AUTHORITY=https://cognito-idp.us-east-1.amazonaws.com/us-east-1_H7e0Irb5V
 VITE_COGNITO_CLIENT_ID=3593qhqul52rgr79mi033f9v1l

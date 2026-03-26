@@ -43,6 +43,23 @@ docker-compose down
 
 The **frontend** runs the Vite dev server in a container at http://localhost:3001 with hot reload; edit `src/` and the browser updates automatically.
 
+### Frontend data mode (dev-only)
+
+The frontend supports two dev modes:
+
+- **live** (default): calls the backend API at `http://localhost:5001/api/v1`
+- **mock**: uses local mock fixtures (no backend required for UI work)
+
+Switch modes by setting `VITE_DATA_MODE` before starting the frontend container:
+
+```bash
+# Mock mode (UI/UX work)
+VITE_DATA_MODE=mock docker-compose up -d frontend
+
+# Live mode (real backend)
+VITE_DATA_MODE=live docker-compose up -d frontend
+```
+
 ## 🌐 Access Points
 
 - **Frontend (Vite dev server, hot reload)**: http://localhost:3001 — runs in Docker; no Node.js/npm needed on host
