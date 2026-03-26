@@ -304,4 +304,9 @@ html {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ── Scanner Fleet row hover ─────────────────────────────────────────────────── */
+.scanner-fleet-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 

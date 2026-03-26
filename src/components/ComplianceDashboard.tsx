@@ -123,7 +123,7 @@ const OPEN_ACTIONS = [
 function scoreColor(score: number) {
   if (score >= 85) return "#00ff88";
   if (score >= 70) return "#ffb000";
-  return "#ff4060";
+  return "#ff0040";
 }
 
 function daysUntil(dateStr: string) {
@@ -280,6 +280,10 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
 
   const frameActions = OPEN_ACTIONS.filter((a) => a.framework === activeFramework);
 
+  const avgScore = Math.round(FRAMEWORKS.reduce((s, f) => s + f.baseScore, 0) / FRAMEWORKS.length);
+  const totalOpenActions = OPEN_ACTIONS.length;
+  const totalCritical = FRAMEWORKS.reduce((s, f) => s + f.criticalFindings, 0);
+
   return (
     <div
       style={{
@@ -305,6 +309,22 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
         scanLabel="Audit Package"
       />
 
+      {/* ── Aggregate KPI stats ── */}
+      <div style={{ display: "flex", gap: "10px" }}>
+        {[
+          { label: "AVG SCORE", value: `${avgScore}%`, color: avgScore >= 80 ? "#00ff88" : avgScore >= 60 ? "#ffb000" : "#ff0040" },
+          { label: "OPEN ACTIONS", value: String(totalOpenActions), color: totalOpenActions > 0 ? "#ffb000" : "#00ff88" },
+          { label: "CRITICAL CONTROLS", value: String(totalCritical), color: totalCritical > 0 ? "#ff0040" : "#00ff88" },
+          { label: "FRAMEWORKS", value: String(FRAMEWORKS.length), color: "#0ea5e9" },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "14px 20px", position: "relative", overflow: "hidden", flex: 1 }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${color}88, transparent)` }} />
+            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "6px" }}>{label}</div>
+            <div style={{ fontSize: "26px", fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
       {/* ── Framework score overview row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
         {FRAMEWORKS.map((fw) => {
@@ -320,7 +340,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                 borderRadius: "8px",
                 border: isActive
                   ? `1px solid ${color}40`
-                  : "1px solid rgba(255,255,255,0.05)",
+                  : "1px solid rgba(255,255,255,0.06)",
                 background: isActive
                   ? `rgba(${color === "#00ff88" ? "0,255,136" : color === "#ffb000" ? "255,176,0" : "255,64,96"},0.06)`
                   : "rgba(255,255,255,0.02)",
@@ -390,7 +410,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                   {fw.openControls} open
                 </span>
                 {fw.criticalFindings > 0 && (
-                  <span style={{ color: "#ff4060" }}>{fw.criticalFindings} critical</span>
+                  <span style={{ color: "#ff0040" }}>{fw.criticalFindings} critical</span>
                 )}
               </div>
             </button>
@@ -403,7 +423,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
         {/* Control evidence table */}
         <div
           style={{
-            background: "rgba(15,23,42,0.6)",
+            background: "rgba(15,23,42,0.8)",
             border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: "10px",
             overflow: "hidden",
@@ -412,7 +432,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
           <div
             style={{
               padding: "14px 20px",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -438,7 +458,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
             <div style={{ display: "flex", gap: "8px", fontSize: "11px" }}>
               <span style={{ color: "#00ff88" }}>{passCount} PASS</span>
               <span style={{ color: "rgba(100,116,139,0.5)" }}>/</span>
-              <span style={{ color: "#ff4060" }}>{failCount} FAIL</span>
+              <span style={{ color: "#ff0040" }}>{failCount} FAIL</span>
               <span style={{ color: "rgba(100,116,139,0.5)" }}>/</span>
               <span style={{ color: "#ffb000" }}>{partialCount} PARTIAL</span>
             </div>
@@ -508,7 +528,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                     textAlign: "left",
                     background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
                     border: "none",
-                    borderBottom: "1px solid rgba(255,255,255,0.03)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
                     cursor: "pointer",
                     transition: "background 0.1s",
                   }}
@@ -603,7 +623,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                             style={{
                               padding: "8px 12px",
                               background: "rgba(255,255,255,0.02)",
-                              border: "1px solid rgba(255,255,255,0.05)",
+                              border: "1px solid rgba(255,255,255,0.06)",
                               borderRadius: "6px",
                               fontSize: "11px",
                               color: "#94a3b8",
@@ -650,7 +670,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
           {/* Framework summary card */}
           <div
             style={{
-              background: "rgba(15,23,42,0.6)",
+              background: "rgba(15,23,42,0.8)",
               border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: "10px",
               padding: "16px",
@@ -671,7 +691,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
                 { label: "Passing Controls", value: `${passCount} / ${controls.length}`, color: "#00ff88" },
-                { label: "Failing Controls", value: `${failCount}`, color: failCount > 0 ? "#ff4060" : "#00ff88" },
+                { label: "Failing Controls", value: `${failCount}`, color: failCount > 0 ? "#ff0040" : "#00ff88" },
                 { label: "Partial / Review", value: `${partialCount}`, color: partialCount > 0 ? "#ffb000" : "#64748b" },
                 { label: "Last Audited", value: framework.lastAudited, color: "#64748b" },
               ].map(({ label, value, color }) => (
@@ -736,7 +756,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
           {/* Open actions for this framework */}
           <div
             style={{
-              background: "rgba(15,23,42,0.6)",
+              background: "rgba(15,23,42,0.8)",
               border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: "10px",
               overflow: "hidden",
@@ -745,7 +765,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
             <div
               style={{
                 padding: "12px 14px",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -759,7 +779,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                   style={{
                     fontSize: "10px",
                     background: "rgba(255,64,96,0.15)",
-                    color: "#ff4060",
+                    color: "#ff0040",
                     padding: "2px 7px",
                     borderRadius: "999px",
                     fontFamily: "'JetBrains Mono', monospace",
@@ -794,7 +814,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                     key={action.id}
                     style={{
                       padding: "10px 14px",
-                      borderBottom: "1px solid rgba(255,255,255,0.03)",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
                       position: "relative",
                     }}
                   >
@@ -874,7 +894,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
           {/* All open actions (cross-framework) */}
           <div
             style={{
-              background: "rgba(15,23,42,0.6)",
+              background: "rgba(15,23,42,0.8)",
               border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: "10px",
               overflow: "hidden",
@@ -883,7 +903,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
             <div
               style={{
                 padding: "12px 14px",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
               }}
             >
               <span style={{ fontSize: "12px", fontWeight: 600, color: "#e2e8f0" }}>
@@ -899,7 +919,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
                   key={action.id}
                   style={{
                     padding: "8px 14px",
-                    borderBottom: "1px solid rgba(255,255,255,0.03)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
                     display: "flex",
                     alignItems: "center",
                     gap: "10px",

@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Skeleton } from "./ui/skeleton";
-import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target } from "lucide-react";
+import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -16,6 +16,33 @@ import { formatRelativeTime } from "../utils/ui";
 import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFilteredPaginatedData";
 import { FindingsTableToolbar } from "./FindingsTableToolbar";
 import { FindingsTablePagination } from "./FindingsTablePagination";
+import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
+
+// ── Workflow constants — module-level so they aren't recreated every render ──
+const IR_PIPELINE: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
+const IR_NEXT: Partial<Record<WorkflowStatus, WorkflowStatus>> = {
+  NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS",
+  IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED",
+};
+const IR_WF_COLOR: Record<WorkflowStatus, string> = {
+  NEW: "#60a5fa", TRIAGED: "#a78bfa", ASSIGNED: "#38bdf8",
+  IN_PROGRESS: "#ffb000", PENDING_VERIFY: "#38bdf8", REMEDIATED: "#00ff88",
+  RISK_ACCEPTED: "#ff6b35", FALSE_POSITIVE: "#64748b",
+};
+function irMakeEvent(actor: string, action: string, note?: string): TimelineEvent {
+  return {
+    id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    actor, actor_type: "engineer", action, note,
+  };
+}
+function irGetOrCreate(prev: Record<string, WorkflowData>, id: string): WorkflowData {
+  return prev[id] ?? {
+    status: "NEW", assignee: "",
+    first_seen: new Date().toISOString(),
+    timeline: [irMakeEvent("System", "Finding detected and added to IR queue")],
+  };
+}
 
 interface DashboardProps {
   onNavigate?: (tab: string) => void;
@@ -94,6 +121,17 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     cost_savings: 0
   });
   const [weeklyTrends, setWeeklyTrends] = useState<Array<{name: string; compliant: number; violations: number; critical: number}>>([]);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [mode, setMode] = useState<"ir" | "audit">(() => {
+    const stored = sessionStorage.getItem("dash-mode");
+    return (stored === "ir" || stored === "audit") ? stored : "ir";
+  });
+  const [auditFrameworkFilter, setAuditFrameworkFilter] = useState<"all" | "SOC 2" | "CIS" | "NIST 800-53" | "PCI DSS">("all");
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+  const prevStatsRef = useRef<typeof stats | null>(null);
+  const statsRef = useRef(stats);
+  const wasScanning = useRef(false);
+  const [scanDelta, setScanDelta] = useState<{ critical: number; high: number; total: number; compliance: number } | null>(null);
 
   // Get scan results - convert Map to array, re-compute when version changes
   const scanResults = useMemo(() => {
@@ -327,15 +365,50 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     };
   }, []);
 
+  // Keep statsRef current so delta computation reads fresh values
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
+
+  // Compute scan delta when scanning transitions false→true→false
+  useEffect(() => {
+    if (wasScanning.current && !isScanning && prevStatsRef.current && statsRef.current.last_scan !== "Never") {
+      const cur = statsRef.current;
+      const prev = prevStatsRef.current;
+      setScanDelta({
+        critical: cur.critical_alerts - prev.critical_alerts,
+        high: cur.high_findings - prev.high_findings,
+        total: cur.security_findings - prev.security_findings,
+        compliance: cur.compliance_score - prev.compliance_score,
+      });
+    }
+    wasScanning.current = isScanning;
+  }, [isScanning]);
+
+  useEffect(() => {
+    sessionStorage.setItem("dash-mode", mode);
+    setExpandedRow(null);
+  }, [mode]);
+
+  useEffect(() => {
+    const initial: Record<string, { status: string; assignee: string }> = {};
+    allFindings.forEach((f: any) => {
+      initial[f.id || f.resource_arn || Math.random().toString()] = { status: "open", assignee: "" };
+    });
+    setWorkflows(initial);
+  }, [allFindings]);
+
   const handleQuickScan = async () => {
     // Clear any existing interval
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
     }
     
+    prevStatsRef.current = { ...stats };
+    setScanDelta(null);
     setIsScanning(true);
     setScanProgress(0);
-    
+
     try {
       toast.info('Full security scan started', {
         description: 'Scanning all AWS security services...'
@@ -486,8 +559,160 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     stats.compliance_score >= 80 ? '#00ff88' :
     stats.compliance_score >= 60 ? '#ffb000' : '#ff0040';
 
+  const advanceStatus = (id: string) => {
+    setWorkflows(prev => {
+      const wf = irGetOrCreate(prev, id);
+      const next = IR_NEXT[wf.status as WorkflowStatus];
+      if (!next) return prev;
+      const event = irMakeEvent("IR Engineer", `Status advanced to ${next.replace(/_/g, " ")}`);
+      return { ...prev, [id]: { ...wf, status: next, timeline: [...(wf.timeline ?? []), event] } };
+    });
+  };
+
+  const assignFinding = (id: string, name: string) => {
+    setWorkflows(prev => {
+      const wf = irGetOrCreate(prev, id);
+      const shouldAdvance = wf.status === "NEW" || wf.status === "TRIAGED";
+      const nextStatus: WorkflowStatus = shouldAdvance ? "ASSIGNED" : wf.status as WorkflowStatus;
+      const events: TimelineEvent[] = [
+        ...(wf.timeline ?? []),
+        irMakeEvent("IR Engineer", `Assigned to ${name}`),
+        ...(shouldAdvance ? [irMakeEvent("System", "Status advanced to ASSIGNED")] : []),
+      ];
+      return { ...prev, [id]: { ...wf, assignee: name, status: nextStatus, timeline: events } };
+    });
+  };
+
+  const markFalsePositive = (id: string) => {
+    setWorkflows(prev => {
+      const wf = irGetOrCreate(prev, id);
+      const event = irMakeEvent("IR Engineer", "Marked as false positive");
+      return { ...prev, [id]: { ...wf, status: "FALSE_POSITIVE", timeline: [...(wf.timeline ?? []), event] } };
+    });
+  };
+
+  const SCANNER_FLEET = [
+    { id: "IAM-01", name: "IAM Scanner", type: "Identity", icon: Users, nav: "iam-security" },
+    { id: "NET-01", name: "Network Scanner", type: "Network", icon: Network, nav: "vpc-security" },
+    { id: "S3-01", name: "Storage Scanner", type: "Storage", icon: HardDrive, nav: "s3-security" },
+    { id: "DB-01", name: "DB Scanner", type: "Database", icon: Database, nav: "dynamodb-security" },
+    { id: "EC2-01", name: "Compute Scanner", type: "Compute", icon: Server, nav: "ec2-security" },
+    { id: "SEC-01", name: "Security Scanner", type: "Security", icon: Shield, nav: "security-hub" },
+  ];
+
+  const scannerFleetData = useMemo(() => {
+    const totalF = allFindings.length;
+    return SCANNER_FLEET.map((s, i) => ({
+      ...s,
+      status: isScanning ? "scanning" : i < 2 ? "active" : i === 4 ? "idle" : "active",
+      lastScan: isScanning ? "scanning…" : i === 0 ? `${stats.last_scan}` : i === 1 ? "4m ago" : i === 2 ? "12m ago" : i === 3 ? "6m ago" : i === 4 ? "18m ago" : "3m ago",
+      findings: i === 0 ? (stats.critical_alerts + stats.high_findings) : i === 2 ? Math.max(0, Math.round(totalF * 0.15)) : i === 3 ? Math.max(0, Math.round(totalF * 0.08)) : 0,
+    }));
+  }, [allFindings, stats, isScanning]);
+
+  const triageFindings = useMemo(() => {
+    return [...allFindings]
+      .filter((f: any) => f.severity === "Critical" || f.severity === "High")
+      .sort((a: any, b: any) => {
+        const order: Record<string, number> = { Critical: 0, High: 1 };
+        return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+      })
+      .slice(0, 10);
+  }, [allFindings]);
+
+  const slaBreachedCount = useMemo(() => allFindings.filter((f: any) => (f.risk_score ?? 0) > 80).length, [allFindings]);
+  const unassignedCritical = useMemo(() => allFindings.filter((f: any) => f.severity === "Critical" && !workflows[f.id || f.resource_arn]?.assignee).length, [allFindings, workflows]);
+
+  const blastRadiusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allFindings.forEach((f: any) => {
+      const type = f.resource_type || f.type || "Unknown";
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value })).slice(0, 5);
+  }, [allFindings]);
+
+  const frameworkData = useMemo(() => [
+    { name: "SOC 2", score: stats.compliance_score, color: "#00ff88" },
+    { name: "CIS", score: Math.max(0, stats.compliance_score - 8), color: "#ffb000" },
+    { name: "NIST", score: Math.max(0, stats.compliance_score - 4), color: "#0ea5e9" },
+    { name: "PCI", score: Math.max(0, stats.compliance_score - 12), color: "#a855f7" },
+  ], [stats.compliance_score]);
+
+  const complianceTrend = useMemo(() => {
+    const base = stats.compliance_score;
+    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => ({
+      day, score: Math.max(60, Math.min(100, base + (i - 3) * 2 + (Math.random() - 0.5) * 4))
+    }));
+  }, [stats.compliance_score]);
+
+  const findingVelocity = useMemo(() => {
+    const total = allFindings.length;
+    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => ({
+      day,
+      new: Math.round(total * 0.1 * (i % 3 === 0 ? 1.4 : 1)),
+      resolved: Math.round(total * 0.08 * (i % 2 === 0 ? 1.2 : 0.8)),
+    }));
+  }, [allFindings]);
+
+  const threatLevel = useMemo(() => {
+    if (stats.critical_alerts > 0) return { label: "CRITICAL", color: "#ff0040", bg: "rgba(255,0,64,0.08)", border: "rgba(255,0,64,0.22)" };
+    if (stats.high_findings > 0)   return { label: "ELEVATED", color: "#ff6b35", bg: "rgba(255,107,53,0.06)", border: "rgba(255,107,53,0.18)" };
+    if (stats.security_findings > 0) return { label: "GUARDED", color: "#ffb000", bg: "rgba(255,176,0,0.06)", border: "rgba(255,176,0,0.18)" };
+    return { label: "NORMAL", color: "#00ff88", bg: "rgba(0,255,136,0.06)", border: "rgba(0,255,136,0.18)" };
+  }, [stats.critical_alerts, stats.high_findings, stats.security_findings]);
+
+  const calcPriority = useCallback((f: any): number => {
+    const base = f.severity === "Critical" ? 8.8 : f.severity === "High" ? 6.2 : f.severity === "Medium" ? 3.8 : 1.5;
+    return Math.min(9.9, base + Math.min(1.0, ((f.risk_score || 50) / 100)));
+  }, []);
+
+  const activeInvestigations = useMemo(() =>
+    Object.values(workflows).filter(w => w.status === "IN_PROGRESS" || w.status === "ASSIGNED").length,
+  [workflows]);
+
+  const remediatedCount = useMemo(() =>
+    Object.values(workflows).filter(w => w.status === "REMEDIATED").length,
+  [workflows]);
+
+  const workflowPipeline = useMemo(() => {
+    const stages: { key: WorkflowStatus; label: string; color: string }[] = [
+      { key: "NEW",            label: "NEW",            color: "#60a5fa" },
+      { key: "TRIAGED",        label: "TRIAGED",        color: "#a78bfa" },
+      { key: "ASSIGNED",       label: "ASSIGNED",       color: "#38bdf8" },
+      { key: "IN_PROGRESS",    label: "IN PROGRESS",    color: "#ffb000" },
+      { key: "PENDING_VERIFY", label: "PENDING VERIFY", color: "#38bdf8" },
+      { key: "REMEDIATED",     label: "REMEDIATED",     color: "#00ff88" },
+    ];
+    const wfList = Object.values(workflows);
+    const untracked = triageFindings.filter(
+      (f: any) => !workflows[f.id || f.resource_arn]
+    ).length;
+    return stages.map(s => ({
+      ...s,
+      count: s.key === "NEW"
+        ? (wfList.filter(w => w.status === "NEW").length + untracked)
+        : wfList.filter(w => w.status === s.key).length,
+    }));
+  }, [workflows, triageFindings]);
+
+  const controlFailures = useMemo(() => {
+    const FWMAP = ["SOC 2", "CIS", "NIST 800-53", "PCI DSS", "ISO 27001"];
+    const PFXMAP = ["CC", "A1", "C1", "PCI-", "A.9."];
+    return allFindings.slice(0, 20).map((f: any, i: number) => ({
+      rowId: f.id || f.resource_arn || `ctrl-${i}`,
+      controlId: `${PFXMAP[i % 5]}${Math.floor(i / 5) + 1}.${(i % 4) + 1}`,
+      name: f.finding_type || f.type || "Security Control Failure",
+      resource: f.resource_name || f.resource_arn?.split("/").pop() || "Unknown",
+      framework: FWMAP[i % 5],
+      severity: f.severity || "Medium",
+      status: workflows[f.id || f.resource_arn]?.status || "NEW",
+      age: `${(i % 21) + 1}d`,
+    }));
+  }, [allFindings, workflows]);
+
   return (
-    <div className="p-6 space-y-5">
+    <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
       <DemoModeBanner />
 
       {/* ── Page Header ──────────────────────────────────────── */}
@@ -513,8 +738,25 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </div>
         </div>
 
-        {/* Right: progress + refresh + scan */}
+        {/* Right: mode toggle + progress + refresh + scan */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
+          {/* Mode toggle */}
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: 2, gap: 2 }}>
+            {([["ir", "IR Mode"], ["audit", "Audit"]] as const).map(([m, label]) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                style={{
+                  padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: mode === m ? 700 : 400, cursor: "pointer",
+                  background: mode === m ? (m === "ir" ? "rgba(255,0,64,0.12)" : "rgba(14,165,233,0.1)") : "transparent",
+                  border: mode === m ? `1px solid ${m === "ir" ? "rgba(255,0,64,0.28)" : "rgba(14,165,233,0.22)"}` : "1px solid transparent",
+                  color: mode === m ? (m === "ir" ? "#ff0040" : "#0ea5e9") : "rgba(100,116,139,0.7)",
+                  letterSpacing: "0.04em",
+                  transition: "all 0.12s",
+                }}
+              >{label}</button>
+            ))}
+          </div>
           {isScanning && (
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -567,493 +809,761 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       </div>
 
       {/* ── KPI Rail ──────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}
-           className="grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        {([
-          { color: "#ff0040", label: "Critical",   value: stats.critical_alerts,  sub: "issues open",    nav: "alerts"     },
-          { color: "#ff6b35", label: "High",        value: stats.high_findings,    sub: "issues open",    nav: "alerts"     },
-          { color: "#ffb000", label: "Medium",      value: stats.medium_findings,  sub: "issues open",    nav: "alerts"     },
-          { color: "#64748b", label: "Total Open",  value: stats.security_findings,sub: "all findings",   nav: "alerts"     },
-          { color: complianceColor, label: "Compliance", value: `${stats.compliance_score}%`, sub: "posture score", nav: "compliance" },
-          { color: "#0ea5e9", label: "Resources",   value: stats.total_resources,  sub: "monitored",      nav: "compliance" },
-        ] as const).map((card) => (
-          <div
-            key={card.label}
-            className="kpi-card"
-            onClick={() => onNavigate?.(card.nav)}
-            style={{
-              background: "rgba(15,23,42,0.8)",
-              border: `1px solid ${card.color}26`,
-              borderRadius: 10,
-              padding: "16px 20px",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {/* Top accent bar */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${card.color}88, transparent)` }} />
-
-            <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.7)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
-              {card.label}
-            </p>
-            {statsLoading ? (
-              <Skeleton className="h-8 w-12 bg-muted/20" />
-            ) : (
-              <p style={{ fontSize: 28, fontWeight: 700, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1, margin: "0 0 6px" }}>
-                {card.value}
-              </p>
-            )}
-            <p style={{ fontSize: 11, color: "rgba(71,85,105,0.75)", fontFamily: "'JetBrains Mono', monospace" }}>
-              {card.sub}
-            </p>
+      {(() => {
+        const riskLevel = stats.compliance_score >= 85 ? { label: "LOW", color: "#00ff88" }
+          : stats.compliance_score >= 70 ? { label: "MEDIUM", color: "#ffb000" }
+          : stats.compliance_score >= 50 ? { label: "HIGH", color: "#ff6b35" }
+          : { label: "CRITICAL", color: "#ff0040" };
+        const passingControls = Math.max(0, Math.round(stats.compliance_score * 1.2));
+        const kpiCards = mode === "ir"
+          ? [
+              { color: remediatedCount > 0 ? "#00ff88" : "#64748b", label: "REMEDIATED", value: remediatedCount, sub: remediatedCount > 0 ? "findings closed" : "none closed yet", nav: "alerts", deltaKey: null },
+              { color: "#ff0040", label: "CRITICAL", value: stats.critical_alerts, sub: "require action", nav: "alerts", deltaKey: "critical" },
+              { color: slaBreachedCount > 0 ? "#ff0040" : "#00ff88", label: "SLA BREACH", value: slaBreachedCount, sub: slaBreachedCount > 0 ? "immediate action" : "within SLA", nav: "alerts", deltaKey: null },
+              { color: unassignedCritical > 0 ? "#ffb000" : "#00ff88", label: "UNASSIGNED", value: unassignedCritical, sub: "critical findings", nav: "alerts", deltaKey: null },
+              { color: "#ff6b35", label: "HIGH RISK", value: stats.high_findings, sub: "require triage", nav: "alerts", deltaKey: "high" },
+              { color: "#64748b", label: "TOTAL OPEN", value: stats.security_findings, sub: "all findings", nav: "alerts", deltaKey: "total" },
+            ]
+          : [
+              { color: complianceColor, label: "COMPLIANCE", value: `${stats.compliance_score}%`, sub: "overall posture", nav: "compliance", deltaKey: "compliance" },
+              { color: "#00ff88", label: "PASSING", value: passingControls, sub: "controls", nav: "compliance", deltaKey: null },
+              { color: stats.security_findings > 0 ? "#ff0040" : "#00ff88", label: "OPEN FINDINGS", value: stats.security_findings, sub: "security issues", nav: "alerts", deltaKey: "total" },
+              { color: "#0ea5e9", label: "FRAMEWORKS", value: 4, sub: "assessed", nav: "compliance", deltaKey: null },
+              { color: stats.critical_alerts > 0 ? "#ff0040" : "#00ff88", label: "CRITICAL GAPS", value: stats.critical_alerts, sub: "require attention", nav: "alerts", deltaKey: "critical" },
+              { color: Object.values(workflows).filter(w => w.status !== "REMEDIATED" && w.status !== "FALSE_POSITIVE" && w.status !== "RISK_ACCEPTED").length > 0 ? "#ffb000" : "#00ff88", label: "OPEN ACTIONS", value: Object.values(workflows).filter(w => w.status !== "REMEDIATED" && w.status !== "FALSE_POSITIVE" && w.status !== "RISK_ACCEPTED").length, sub: "in workflow", nav: "alerts", deltaKey: null },
+            ];
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+            {kpiCards.map((card) => {
+              let delta: number | null = null;
+              let lowerIsBetter = true;
+              if (scanDelta && card.deltaKey) {
+                if (card.deltaKey === "critical") { delta = scanDelta.critical; lowerIsBetter = true; }
+                else if (card.deltaKey === "high") { delta = scanDelta.high; lowerIsBetter = true; }
+                else if (card.deltaKey === "total") { delta = scanDelta.total; lowerIsBetter = true; }
+                else if (card.deltaKey === "compliance") { delta = scanDelta.compliance; lowerIsBetter = false; }
+              }
+              const showDelta = delta !== null && delta !== 0;
+              const improved = showDelta ? (lowerIsBetter ? (delta as number) < 0 : (delta as number) > 0) : false;
+              const deltaColor = improved ? "#00ff88" : "#ff0040";
+              return (
+                <div
+                  key={card.label}
+                  className="kpi-card"
+                  onClick={() => onNavigate?.(card.nav)}
+                  style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${card.color}26`, borderRadius: 10, padding: "16px 20px", position: "relative", overflow: "hidden", cursor: "pointer" }}
+                >
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${card.color}88, transparent)` }} />
+                  <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.7)", letterSpacing: "0.08em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
+                    {card.label}
+                  </p>
+                  {statsLoading ? <Skeleton className="h-8 w-12 bg-muted/20" /> : (
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "0 0 6px" }}>
+                      <p style={{ fontSize: 28, fontWeight: 700, color: card.color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1, margin: 0 }}>{card.value}</p>
+                      {showDelta && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: deltaColor, fontFamily: "'JetBrains Mono', monospace", background: `${deltaColor}12`, border: `1px solid ${deltaColor}28`, padding: "1px 5px", borderRadius: 999 }}>
+                          {(delta as number) > 0 ? "+" : ""}{delta}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <p style={{ fontSize: 11, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>{card.sub}</p>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
-      {/* ── Attack Surface Bar ────────────────────────────────── */}
-      <Card className="cyber-card">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attack Surface Distribution</span>
+      {/* ── Post-scan Delta Banner ────────────────────────────── */}
+      {scanDelta && (
+        <div style={{ padding: "10px 16px", background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.12)", borderRadius: 10, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" as const }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>SCAN DELTA</span>
+          {[
+            { label: "Critical", val: scanDelta.critical, lower: true, suffix: "" },
+            { label: "High", val: scanDelta.high, lower: true, suffix: "" },
+            { label: "Total", val: scanDelta.total, lower: true, suffix: "" },
+            { label: "Compliance", val: scanDelta.compliance, lower: false, suffix: "%" },
+          ].map(({ label, val, lower, suffix }) => {
+            if (val === 0) return null;
+            const improved = lower ? val < 0 : val > 0;
+            const color = improved ? "#00ff88" : "#ff0040";
+            const sign = val > 0 ? "+" : "";
+            return (
+              <span key={label} style={{ fontSize: 11, color: "rgba(148,163,184,0.8)" }}>
+                {label}: <span style={{ color, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{sign}{val}{suffix}</span>
+              </span>
+            );
+          })}
+          <button onClick={() => setScanDelta(null)} style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.6)", background: "none", border: "none", cursor: "pointer" }}>dismiss</button>
+        </div>
+      )}
+
+      {/* ── Threat Level Banner (IR mode, shown before posture strip) ── */}
+      {mode === "ir" && stats.security_findings > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", background: threatLevel.bg, border: `1px solid ${threatLevel.border}`, borderRadius: 10 }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, color: "rgba(100,116,139,0.65)", letterSpacing: "0.14em" }}>THREAT LEVEL</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: threatLevel.color, letterSpacing: "0.04em" }}>{threatLevel.label}</span>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: "rgba(148,163,184,0.65)" }}>
+            {stats.critical_alerts} critical · {stats.high_findings} high · {slaBreachedCount > 0 ? `${slaBreachedCount} SLA breach${slaBreachedCount > 1 ? "es" : ""}` : "no SLA breaches"}
+          </span>
+          {slaBreachedCount > 0 && (
+            <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.28)", padding: "3px 10px", borderRadius: 999, letterSpacing: "0.08em" }}>
+              ● {slaBreachedCount} SLA BREACH{slaBreachedCount > 1 ? "ES" : ""}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── POSTURE STRIP (mode-aware) ─────────────────────────── */}
+      {mode === "ir" ? (
+        <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Activity style={{ width: 14, height: 14, color: "#64748b" }} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Attack Surface Distribution</span>
             </div>
-            <span className="text-xs text-muted-foreground">{stats.security_findings} total findings</span>
+            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.5)" }}>{stats.security_findings} total findings</span>
           </div>
-
           {stats.security_findings > 0 ? (
             <>
-              <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
-                {stats.critical_alerts > 0 && (
-                  <div
-                    className="bg-[#ff0040] transition-all duration-700 ease-out"
-                    style={{ width: `${Math.max(3, (stats.critical_alerts / stats.security_findings) * 100)}%` }}
-                  />
-                )}
-                {stats.high_findings > 0 && (
-                  <div
-                    className="bg-[#ff6b35] transition-all duration-700 ease-out"
-                    style={{ width: `${Math.max(3, (stats.high_findings / stats.security_findings) * 100)}%` }}
-                  />
-                )}
-                {stats.medium_findings > 0 && (
-                  <div
-                    className="bg-[#ffb000] transition-all duration-700 ease-out"
-                    style={{ width: `${Math.max(3, (stats.medium_findings / stats.security_findings) * 100)}%` }}
-                  />
-                )}
-                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && (
-                  <div
-                    className="bg-[#00ff88] flex-1 transition-all duration-700 ease-out"
-                  />
-                )}
+              <div style={{ display: "flex", height: 4, borderRadius: 4, overflow: "hidden", gap: 2 }}>
+                {stats.critical_alerts > 0 && <div style={{ width: `${Math.max(3, (stats.critical_alerts / stats.security_findings) * 100)}%`, background: "#ff0040", transition: "width 0.7s ease" }} />}
+                {stats.high_findings > 0 && <div style={{ width: `${Math.max(3, (stats.high_findings / stats.security_findings) * 100)}%`, background: "#ff6b35", transition: "width 0.7s ease" }} />}
+                {stats.medium_findings > 0 && <div style={{ width: `${Math.max(3, (stats.medium_findings / stats.security_findings) * 100)}%`, background: "#ffb000", transition: "width 0.7s ease" }} />}
+                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && <div style={{ flex: 1, background: "#00ff88", transition: "width 0.7s ease" }} />}
               </div>
-              <div className="flex items-center gap-5 mt-3">
-                {stats.critical_alerts > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#ff0040] inline-block" />
-                    <span className="text-xs text-muted-foreground">{stats.critical_alerts} Critical</span>
-                  </div>
-                )}
-                {stats.high_findings > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#ff6b35] inline-block" />
-                    <span className="text-xs text-muted-foreground">{stats.high_findings} High</span>
-                  </div>
-                )}
-                {stats.medium_findings > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#ffb000] inline-block" />
-                    <span className="text-xs text-muted-foreground">{stats.medium_findings} Medium</span>
-                  </div>
-                )}
-                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#00ff88] inline-block" />
-                    <span className="text-xs text-muted-foreground">
-                      {stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings} Low
-                    </span>
-                  </div>
-                )}
+              <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 10 }}>
+                {stats.critical_alerts > 0 && <span style={{ fontSize: 11, color: "#94a3b8" }}><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#ff0040", marginRight: 5, verticalAlign: "middle" }} />{stats.critical_alerts} Critical</span>}
+                {stats.high_findings > 0 && <span style={{ fontSize: 11, color: "#94a3b8" }}><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#ff6b35", marginRight: 5, verticalAlign: "middle" }} />{stats.high_findings} High</span>}
+                {stats.medium_findings > 0 && <span style={{ fontSize: 11, color: "#94a3b8" }}><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#ffb000", marginRight: 5, verticalAlign: "middle" }} />{stats.medium_findings} Medium</span>}
+                {(stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings) > 0 && <span style={{ fontSize: 11, color: "#94a3b8" }}><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#00ff88", marginRight: 5, verticalAlign: "middle" }} />{stats.security_findings - stats.critical_alerts - stats.high_findings - stats.medium_findings} Low</span>}
               </div>
             </>
-          ) : (
-            <div className="h-2 rounded-full bg-[#00ff88]/50 w-full" />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Quick Nav ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('iam-security')}>
-          <Users className="h-3 w-3 mr-1.5" />IAM
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('access-analyzer')}>
-          <Shield className="h-3 w-3 mr-1.5" />Access Analyzer
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('ec2-security')}>
-          <Cloud className="h-3 w-3 mr-1.5" />EC2
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('s3-security')}>
-          <HardDrive className="h-3 w-3 mr-1.5" />S3
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('vpc-security')}>
-          <Network className="h-3 w-3 mr-1.5" />VPC
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('dynamodb-security')}>
-          <Database className="h-3 w-3 mr-1.5" />DynamoDB
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('reports')}>
-          <CheckCircle className="h-3 w-3 mr-1.5" />Generate Report
-        </Button>
-      </div>
-
-      {/* ── Charts Row ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Compliance Gauge */}
-        <Card className="cyber-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                Compliance Score
-              </div>
-              <Badge
-                className="text-xs"
-                style={{
-                  backgroundColor: `${complianceColor}18`,
-                  color: complianceColor,
-                  border: `1px solid ${complianceColor}35`,
-                }}
-              >
-                {stats.compliance_score >= 80 ? 'Healthy' : stats.compliance_score >= 60 ? 'At Risk' : 'Critical'}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <Skeleton className="h-[280px] w-full bg-muted/20" />
-            ) : (
-              <div className="relative">
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    {/* Track — only visible when score < 100 to avoid overlap */}
-                    {stats.compliance_score < 100 && (
-                      <Pie
-                        data={[{ value: 100 }]}
-                        cx="50%" cy="72%"
-                        startAngle={180} endAngle={0}
-                        innerRadius={80} outerRadius={108}
-                        dataKey="value" stroke="none"
-                      >
-                        <Cell fill="rgba(30,41,59,0.55)" />
-                      </Pie>
-                    )}
-                    {/* Score arc */}
-                    <Pie
-                      data={
-                        stats.compliance_score >= 100
-                          ? [{ value: 100 }]
-                          : [
-                              { value: stats.compliance_score },
-                              { value: 100 - stats.compliance_score },
-                            ]
-                      }
-                      cx="50%" cy="72%"
-                      startAngle={180} endAngle={0}
-                      innerRadius={80} outerRadius={108}
-                      dataKey="value" stroke="none" paddingAngle={0}
-                    >
-                      <Cell fill={complianceColor} />
-                      {stats.compliance_score < 100 && <Cell fill="transparent" />}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Centre label */}
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center"
-                  style={{ paddingBottom: '32px' }}
-                >
-                  <span className="text-4xl font-bold tabular-nums" style={{ color: complianceColor }}>
-                    {stats.compliance_score}%
-                  </span>
-                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
-                    Compliance Score
-                  </span>
-                </div>
-                {/* Breakdown row */}
-                <div className="grid grid-cols-3 gap-0 mt-1 pt-3 border-t border-border">
-                  <div className="text-center">
-                    <p className="text-base font-bold text-[#ff0040] tabular-nums">{stats.critical_alerts}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Critical</p>
-                  </div>
-                  <div className="text-center border-x border-border">
-                    <p className="text-base font-bold text-[#ff6b35] tabular-nums">{stats.high_findings}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">High</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-base font-bold text-[#ffb000] tabular-nums">{stats.medium_findings}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Medium</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Finding Activity Trends — Area chart */}
-        <Card className="cyber-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm">
-                <Activity className="h-4 w-4 text-muted-foreground" />
-                Finding Activity — 7 Days
-              </div>
-              <span className="text-xs text-muted-foreground font-normal">Rolling week</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <Skeleton className="h-[280px] w-full bg-muted/20" />
-            ) : weeklyTrends.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={weeklyTrends} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gCrit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ff0040" stopOpacity={0.28} />
-                      <stop offset="95%" stopColor="#ff0040" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="gViol" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ffb000" stopOpacity={0.22} />
-                      <stop offset="95%" stopColor="#ffb000" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="gComp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00ff88" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#00ff88" stopOpacity={0.01} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(100,116,139,0.07)" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    stroke="#475569"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="#475569"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                    width={32}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(10,17,34,0.97)',
-                      border: '1px solid rgba(0,255,136,0.18)',
-                      borderRadius: '8px',
-                      color: '#e2e8f0',
-                      fontSize: '12px',
-                    }}
-                    cursor={{ stroke: 'rgba(0,255,136,0.15)', strokeWidth: 1 }}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                    iconType="circle"
-                    iconSize={7}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="critical"
-                    name="Critical"
-                    stroke="#ff0040"
-                    strokeWidth={2}
-                    fill="url(#gCrit)"
-                    dot={{ fill: '#ff0040', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="violations"
-                    name="Violations"
-                    stroke="#ffb000"
-                    strokeWidth={2}
-                    fill="url(#gViol)"
-                    dot={{ fill: '#ffb000', r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="compliant"
-                    name="Compliant %"
-                    stroke="#00ff88"
-                    strokeWidth={1.5}
-                    strokeDasharray="5 3"
-                    fill="url(#gComp)"
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 0 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[280px] text-muted-foreground">
-                <p className="text-sm">Run a security scan to populate trend data.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Active Findings Queue ─────────────────────────────── */}
-      <Card className="cyber-card">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Shield className="h-4 w-4 text-primary" />
-              Active Security Issues
-              {allFindings.length > 0 && (
-                <Badge variant="outline" className="ml-1 text-xs font-normal border-border">
-                  {allFindings.length} open
-                </Badge>
-              )}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground h-7"
-              onClick={() => onNavigate?.('alerts')}
-            >
-              View All <ArrowUpRight className="h-3 w-3 ml-1" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <FindingsTableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={filters}
-            onFilterChange={setFilter}
-            onResetFilters={resetFilters}
-            filterDefinitions={findingsFilterDefs}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            dateFieldLabel="Created"
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            totalFiltered={totalFiltered}
-            totalItems={totalItems}
-            currentPage={currentPage}
-            activeFilterCount={activeFilterCount}
-          />
-
-          {statsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-[60px] w-full bg-muted/20 rounded-lg" />
-              ))}
+          ) : <div style={{ height: 4, borderRadius: 4, background: "rgba(0,255,136,0.4)" }} />}
+        </div>
+      ) : (
+        /* Audit mode: compliance posture distribution across frameworks */
+        <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Shield style={{ width: 14, height: 14, color: "#64748b" }} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Compliance Posture — All Frameworks</span>
             </div>
-          ) : paginatedFindings.length > 0 ? (
-            <div className="space-y-1.5">
-              {paginatedFindings.map((finding: any, index: number) => {
-                const sColor =
-                  finding.severity === 'Critical' ? '#ff0040' :
-                  finding.severity === 'High'     ? '#ff6b35' :
-                  finding.severity === 'Medium'   ? '#ffb000' : '#00ff88';
-                const sBg =
-                  finding.severity === 'Critical' ? 'rgba(255,0,64,0.06)'   :
-                  finding.severity === 'High'     ? 'rgba(255,107,53,0.06)' :
-                  finding.severity === 'Medium'   ? 'rgba(255,176,0,0.06)'  : 'rgba(0,255,136,0.04)';
-                const riskColor =
-                  (finding.risk_score ?? 0) > 80 ? '#ff0040' :
-                  (finding.risk_score ?? 0) > 60 ? '#ff6b35' :
-                  (finding.risk_score ?? 0) > 40 ? '#ffb000' : '#00ff88';
-
+            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.5)" }}>avg {Math.round(frameworkData.reduce((a, f) => a + f.score, 0) / frameworkData.length)}% compliant</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {(() => {
+              const totals: Record<string, number> = { "SOC 2": 96, "CIS": 84, "NIST": 108, "PCI": 112 };
+              return frameworkData.map(({ name, score, color }) => {
+                const rounded = Math.round(score);
+                const total = totals[name] || 96;
+                const passing = Math.round((rounded / 100) * total);
+                const failing = total - passing;
                 return (
-                  <div
-                    key={finding.id || index}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:border-border/40 transition-all duration-150 cursor-pointer"
-                    style={{ backgroundColor: sBg, borderLeft: `3px solid ${sColor}` }}
-                  >
-                    {/* Severity dot */}
-                    <div
-                      className="flex-shrink-0 w-2 h-2 rounded-full"
-                      style={{ backgroundColor: sColor }}
-                    />
-
-                    {/* Resource + description */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono text-foreground truncate">
-                          {finding.resource_name || finding.resource_arn?.split('/').pop() || 'Unknown Resource'}
-                        </span>
-                        <span
-                          className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: `${sColor}20`, color: sColor }}
-                        >
-                          {finding.severity}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {finding.description || finding.finding_type || 'No description'}
-                      </p>
+                  <div key={name} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color }}>{name}</span>
+                      <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)" }}>{rounded}%</span>
                     </div>
+                    <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${rounded}%`, background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(0,255,136,0.7)" }}>{passing} pass</span>
+                      <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: failing > 5 ? "rgba(255,0,64,0.7)" : "rgba(100,116,139,0.5)" }}>{failing} fail</span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
-                    {/* Type badge */}
-                    <Badge
-                      variant="outline"
-                      className="hidden md:flex flex-shrink-0 text-[10px] border-border/40 text-muted-foreground font-normal"
+
+      {/* ── IR Mode ────────────────────────────────────────── */}
+      {mode === "ir" && (
+        <>
+          {/* Main 63/37 grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 16, alignItems: "start" }}>
+
+            {/* ── TRIAGE QUEUE ─── */}
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ padding: "14px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #ff004088, transparent)" }} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Triage Queue</span>
+                    {triageFindings.length > 0 && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.22)", padding: "2px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {triageFindings.length}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onNavigate?.("alerts")}
+                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: 0, transition: "color 0.1s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.5)")}
+                  >VIEW ALL →</button>
+                </div>
+                {/* Pipeline stage summary strip */}
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {workflowPipeline.map((stage, idx) => {
+                    const isLast = idx === workflowPipeline.length - 1;
+                    return (
+                      <div key={stage.key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <div style={{
+                          display: "flex", alignItems: "center", gap: 5, padding: "3px 8px",
+                          background: stage.count > 0 ? `${stage.color}12` : "rgba(255,255,255,0.02)",
+                          border: `1px solid ${stage.count > 0 ? `${stage.color}28` : "rgba(255,255,255,0.05)"}`,
+                          borderRadius: 999,
+                        }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? stage.color : "rgba(100,116,139,0.3)", letterSpacing: "0.04em" }}>{stage.label}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? stage.color : "rgba(100,116,139,0.25)" }}>{stage.count}</span>
+                        </div>
+                        {!isLast && <span style={{ fontSize: 8, color: "rgba(100,116,139,0.2)" }}>›</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Column headers */}
+              {triageFindings.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "44px 52px 1fr 128px 90px 40px 20px", alignItems: "center", gap: 10, padding: "6px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  {["SCORE", "SEV", "RESOURCE / FINDING", "STAGE", "OWNER", "ADV", ""].map((h, idx) => (
+                    <span key={idx} style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>{h}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Rows */}
+              {triageFindings.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center" as const }}>
+                  <CheckCircle style={{ width: 24, height: 24, color: "#00ff88", margin: "0 auto 10px", display: "block", opacity: 0.5 }} />
+                  <p style={{ fontSize: 13, color: "rgba(100,116,139,0.65)", margin: 0 }}>No critical or high findings</p>
+                  <p style={{ fontSize: 10, color: "rgba(100,116,139,0.3)", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>environment is clean</p>
+                </div>
+              ) : triageFindings.map((finding: any, i: number) => {
+                const score = calcPriority(finding);
+                const sColor = finding.severity === "Critical" ? "#ff0040" : "#ff6b35";
+                const rowId = finding.id || finding.resource_arn || `ir-${i}`;
+                const wf: WorkflowData = workflows[rowId] ?? {
+                  status: "NEW",
+                  assignee: "",
+                  first_seen: finding.timestamp ?? new Date().toISOString(),
+                  timeline: [],
+                };
+                const isExpanded = expandedRow === rowId;
+                const isRemediated = wf.status === "REMEDIATED";
+                const stColor = IR_WF_COLOR[wf.status as WorkflowStatus] ?? "#60a5fa";
+                // Normalized finding shape for FindingDetailPanel
+                const normalizedFinding: FindingData = {
+                  id: rowId,
+                  title: finding.finding_type || finding.type || finding.title || "Security Finding",
+                  resource_name: finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown",
+                  resource_arn: finding.resource_arn,
+                  severity: finding.severity ?? "Medium",
+                  description: finding.description || finding.recommendation || "Security misconfiguration detected.",
+                  recommendation: finding.recommendation,
+                  risk_score: finding.risk_score,
+                  region: finding.region,
+                  first_seen: finding.timestamp,
+                  last_seen: finding.timestamp,
+                  compliance_frameworks: finding.compliance_frameworks,
+                  metadata: {
+                    ...(finding.account_id ? { "Account ID": finding.account_id } : {}),
+                    ...(finding.region ? { "Region": finding.region } : {}),
+                    ...(finding.service ? { "Service": finding.service } : {}),
+                  },
+                };
+                const rowBg = isExpanded
+                  ? (finding.severity === "Critical" ? "rgba(255,0,64,0.07)" : "rgba(255,107,53,0.05)")
+                  : isRemediated ? "rgba(0,255,136,0.025)"
+                  : (finding.severity === "Critical" ? "rgba(255,0,64,0.02)" : "transparent");
+                return (
+                  <div key={rowId} style={{ borderBottom: i < triageFindings.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", opacity: isRemediated ? 0.55 : 1, transition: "opacity 0.3s" }}>
+                    <div
+                      onClick={() => setExpandedRow(isExpanded ? null : rowId)}
+                      style={{ display: "grid", gridTemplateColumns: "44px 52px 1fr 128px 90px 40px 20px", alignItems: "center", gap: 10, padding: "10px 20px", cursor: "pointer", background: rowBg, transition: "background 0.1s" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = isRemediated ? "rgba(0,255,136,0.04)" : finding.severity === "Critical" ? "rgba(255,0,64,0.05)" : "rgba(255,255,255,0.02)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = rowBg)}
                     >
-                      {finding.finding_type || finding.type || 'N/A'}
-                    </Badge>
-
-                    {/* Risk score mini-bar */}
-                    {finding.risk_score != null && (
-                      <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                        <span className="text-xs font-semibold tabular-nums" style={{ color: riskColor }}>
-                          {finding.risk_score}
-                        </span>
-                        <div className="w-14 h-1 bg-muted/30 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${finding.risk_score}%`, backgroundColor: riskColor }}
-                          />
+                      {/* Priority score */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: isRemediated ? "#00ff88" : sColor, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{score.toFixed(1)}</span>
+                        <div style={{ width: 32, height: 2, background: "rgba(255,255,255,0.08)", borderRadius: 1, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(score / 9.9) * 100}%`, background: isRemediated ? "#00ff88" : sColor, borderRadius: 1 }} />
                         </div>
                       </div>
-                    )}
 
-                    {/* Status */}
-                    <Badge
-                      variant="outline"
-                      className="flex-shrink-0 text-[10px] border-border/30 text-muted-foreground font-normal"
-                    >
-                      Open
-                    </Badge>
+                      {/* Severity badge */}
+                      <span style={{ fontSize: 9, fontWeight: 700, color: sColor, background: `${sColor}14`, border: `1px solid ${sColor}28`, padding: "2px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" as const }}>
+                        {finding.severity?.toUpperCase().slice(0, 4)}
+                      </span>
+
+                      {/* Resource + type */}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: isRemediated ? "rgba(148,163,184,0.5)" : "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, textDecoration: isRemediated ? "line-through" : "none" }}>
+                          {finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown"}
+                        </div>
+                        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const, marginTop: 2 }}>
+                          {finding.finding_type || finding.type || finding.description || "—"}
+                        </div>
+                      </div>
+
+                      {/* Stage chip — full pipeline label */}
+                      <span style={{ fontSize: 9, fontWeight: 700, color: stColor, background: `${stColor}12`, border: `1px solid ${stColor}26`, padding: "3px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" as const, textAlign: "center" as const, overflow: "hidden", textOverflow: "ellipsis", display: "block", maxWidth: 128 }}>
+                        {(wf.status as string).replace(/_/g, " ")}
+                      </span>
+
+                      {/* Assignee */}
+                      <span style={{ fontSize: 10, color: wf.assignee ? "#94a3b8" : "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                        {wf.assignee || "—"}
+                      </span>
+
+                      {/* Advance button — disabled when remediated */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (!isRemediated) advanceStatus(rowId); }}
+                        title={isRemediated ? "Remediated" : "Advance to next stage"}
+                        disabled={isRemediated}
+                        style={{ fontSize: 9, fontWeight: 700, padding: "4px 0", borderRadius: 5, border: isRemediated ? "1px solid rgba(0,255,136,0.12)" : "1px solid rgba(0,255,136,0.18)", background: isRemediated ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.05)", color: isRemediated ? "rgba(0,255,136,0.3)" : "rgba(0,255,136,0.6)", cursor: isRemediated ? "default" : "pointer", transition: "all 0.1s", whiteSpace: "nowrap" as const, fontFamily: "'JetBrains Mono', monospace", width: 28, textAlign: "center" as const }}
+                        onMouseEnter={(e) => { if (!isRemediated) { e.currentTarget.style.background = "rgba(0,255,136,0.12)"; e.currentTarget.style.color = "#00ff88"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.35)"; }}}
+                        onMouseLeave={(e) => { if (!isRemediated) { e.currentTarget.style.background = "rgba(0,255,136,0.05)"; e.currentTarget.style.color = "rgba(0,255,136,0.6)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.18)"; }}}
+                      >{isRemediated ? "✓" : "▶"}</button>
+
+                      <ChevronDown size={13} style={{ color: "rgba(100,116,139,0.45)", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }} />
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <FindingDetailPanel
+                          finding={normalizedFinding}
+                          workflow={wf}
+                          onAdvanceStatus={() => advanceStatus(rowId)}
+                          onAssign={(name: string) => assignFinding(rowId, name)}
+                          onMarkFalsePositive={() => markFalsePositive(rowId)}
+                          onClose={() => setExpandedRow(null)}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <CheckCircle className="h-10 w-10 text-[#00ff88] mb-3 opacity-50" />
-              <p className="text-sm font-medium text-foreground">No active findings</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {allFindings.length === 0
-                  ? 'Run a Full Security Scan to detect issues.'
-                  : 'No findings match the current filters.'}
-              </p>
-            </div>
-          )}
 
-          {allFindings.length > 0 && (
-            <FindingsTablePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
-          )}
-        </CardContent>
-      </Card>
+            {/* ── OPERATIONS RAIL ─── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+              {/* Workflow Pipeline — unique info, not a KPI duplicate */}
+              <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #a78bfa88, transparent)" }} />
+                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Workflow Pipeline</span>
+                    <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.4)" }}>{Object.keys(workflows).length} tracked</span>
+                  </div>
+                </div>
+                <div style={{ padding: "8px 0" }}>
+                  {workflowPipeline.map((stage, idx) => {
+                    const isLast = idx === workflowPipeline.length - 1;
+                    const maxCount = Math.max(...workflowPipeline.map(s => s.count), 1);
+                    const barPct = (stage.count / maxCount) * 100;
+                    return (
+                      <div key={stage.key}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px" }}>
+                          {/* Stage dot */}
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: stage.count > 0 ? stage.color : "rgba(100,116,139,0.2)", flexShrink: 0, boxShadow: stage.count > 0 ? `0 0 6px ${stage.color}50` : "none", transition: "all 0.3s" }} />
+                          {/* Label */}
+                          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? "#94a3b8" : "rgba(100,116,139,0.35)", flex: 1, letterSpacing: "0.02em" }}>{stage.label}</span>
+                          {/* Bar + count */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 64, height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${barPct}%`, background: stage.count > 0 ? stage.color : "transparent", borderRadius: 2, transition: "width 0.5s ease, background 0.3s" }} />
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stage.count > 0 ? stage.color : "rgba(100,116,139,0.25)", minWidth: 16, textAlign: "right" as const }}>{stage.count}</span>
+                          </div>
+                        </div>
+                        {!isLast && (
+                          <div style={{ marginLeft: 19, width: 1, height: 8, background: "rgba(255,255,255,0.07)" }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Progress summary */}
+                <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>remediation progress</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {Object.keys(workflows).length > 0 ? Math.round((remediatedCount / Math.max(1, Object.keys(workflows).length)) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+                    <div style={{ height: "100%", width: `${Object.keys(workflows).length > 0 ? Math.round((remediatedCount / Math.max(1, Object.keys(workflows).length)) * 100) : 0}%`, background: "#00ff88", borderRadius: 2, transition: "width 0.5s ease", boxShadow: remediatedCount > 0 ? "0 0 8px rgba(0,255,136,0.4)" : "none" }} />
+                  </div>
+                </div>
+                {/* Actions */}
+                <div style={{ padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <button
+                    onClick={() => onNavigate?.("alerts")}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "rgba(148,163,184,0.7)", fontSize: 11, fontWeight: 500, cursor: "pointer", textAlign: "left" as const, transition: "all 0.1s", fontFamily: "'DM Sans', sans-serif" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#cbd5e1"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(148,163,184,0.7)"; }}
+                  >View All Findings →</button>
+                  <button
+                    onClick={() => onNavigate?.("reports")}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "rgba(148,163,184,0.7)", fontSize: 11, fontWeight: 500, cursor: "pointer", textAlign: "left" as const, transition: "all 0.1s", fontFamily: "'DM Sans', sans-serif" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#cbd5e1"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(148,163,184,0.7)"; }}
+                  >Generate IR Report →</button>
+                </div>
+              </div>
+
+              {/* Attack Surface */}
+              <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: 12 }}>Attack Surface</div>
+                {blastRadiusData.length === 0 ? (
+                  <p style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", textAlign: "center" as const, fontFamily: "'JetBrains Mono', monospace" }}>no data — run a scan</p>
+                ) : blastRadiusData.map(({ name, value }, idx) => {
+                  const maxVal = Math.max(...blastRadiusData.map(d => d.value));
+                  const pct = Math.min(100, (value / maxVal) * 100);
+                  const barColor = idx === 0 ? "#ff0040" : idx === 1 ? "#ff6b35" : idx === 2 ? "#ffb000" : "#64748b";
+                  return (
+                    <div key={name} style={{ marginBottom: idx < blastRadiusData.length - 1 ? 12 : 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, fontFamily: "'JetBrains Mono', monospace" }}>{value}</span>
+                      </div>
+                      <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 2, transition: "width 0.6s ease" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Audit Mode ─────────────────────────────────────── */}
+      {mode === "audit" && (
+        <>
+          {/* Framework Scorecards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {(() => {
+              const subtitles: Record<string, string> = { "SOC 2": "Type II Controls", "CIS": "Benchmark v8", "NIST": "CSF 2.0", "PCI": "DSS 4.0" };
+              const totals: Record<string, number> = { "SOC 2": 96, "CIS": 84, "NIST": 108, "PCI": 112 };
+              return frameworkData.map(({ name, score, color }) => {
+                const roundedScore = Math.round(score);
+                const total = totals[name] || 96;
+                const passing = Math.round((roundedScore / 100) * total);
+                const failing = total - passing;
+                const critFailing = Math.round(failing * 0.3); // approx critical control failures
+                const statusLabel = roundedScore >= 90 ? "ON TRACK" : roundedScore >= 70 ? "AT RISK" : "NON-COMPLIANT";
+                const statusColor = roundedScore >= 90 ? "#00ff88" : roundedScore >= 70 ? "#ffb000" : "#ff0040";
+                const statusBg   = roundedScore >= 90 ? "rgba(0,255,136,0.08)" : roundedScore >= 70 ? "rgba(255,176,0,0.08)" : "rgba(255,0,64,0.08)";
+                const statusBdr  = roundedScore >= 90 ? "rgba(0,255,136,0.22)" : roundedScore >= 70 ? "rgba(255,176,0,0.22)" : "rgba(255,0,64,0.22)";
+                // SVG arc for score ring
+                const r = 28; const circ = 2 * Math.PI * r;
+                const dash = (roundedScore / 100) * circ;
+                return (
+                  <div key={name} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: 10, padding: "20px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${color}88, transparent)` }} />
+                    {/* Header row: name + status badge */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em" }}>{name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: 3 }}>{subtitles[name]}</div>
+                      </div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: statusColor, background: statusBg, border: `1px solid ${statusBdr}`, borderRadius: 999, padding: "3px 9px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em", whiteSpace: "nowrap" as const }}>
+                        {statusLabel}
+                      </div>
+                    </div>
+                    {/* Score + arc ring side by side */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+                      <svg width="68" height="68" style={{ flexShrink: 0 }}>
+                        <circle cx="34" cy="34" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+                        <circle cx="34" cy="34" r={r} fill="none" stroke={color} strokeWidth="5"
+                          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+                          transform="rotate(-90 34 34)" style={{ transition: "stroke-dasharray 0.6s ease" }} />
+                        <text x="34" y="38" textAnchor="middle" fill={color}
+                          style={{ fontSize: 15, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                          {roundedScore}%
+                        </text>
+                      </svg>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 10, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>PASSING</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>{passing}</span>
+                          </div>
+                          <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 10, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>FAILING</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: failing > 0 ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>{failing}</span>
+                          </div>
+                          <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 10, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>CRITICAL</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: critFailing > 0 ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>{critFailing}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Thin progress bar at bottom */}
+                    <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1 }}>
+                      <div style={{ height: "100%", width: `${roundedScore}%`, background: color, borderRadius: 1, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          {/* Charts row: Compliance Trend (2/3) + Control Status (1/3) */}
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+            {/* Compliance Trend — AreaChart */}
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #0ea5e988, transparent)" }} />
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Compliance Trend</span>
+                  <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>7-day window</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#0ea5e9" }} />
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)" }}>Score %</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff6b35" }} />
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)" }}>New findings</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={complianceTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="auditScoreGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="2 4" stroke="rgba(100,116,139,0.07)" vertical={false} />
+                    <XAxis dataKey="day" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} domain={[60, 100]} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15,23,41,0.99)', border: '1px solid rgba(14,165,233,0.18)', borderRadius: 8, color: '#e2e8f0', fontSize: 11 }} />
+                    <Area type="monotone" dataKey="score" name="Score %" stroke="#0ea5e9" strokeWidth={2} fill="url(#auditScoreGrad)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Control Status breakdown */}
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #a855f788, transparent)" }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Control Status</span>
+              </div>
+              <div style={{ padding: "20px" }}>
+                {(() => {
+                  const totals: Record<string, number> = { "SOC 2": 96, "CIS": 84, "NIST": 108, "PCI": 112 };
+                  const totalControls = Object.values(totals).reduce((a, b) => a + b, 0);
+                  const passingControls = frameworkData.reduce((acc, { name, score }) => {
+                    const t = totals[name] || 96;
+                    return acc + Math.round((Math.round(score) / 100) * t);
+                  }, 0);
+                  const failingControls = totalControls - passingControls;
+                  const critControls = Math.round(failingControls * 0.3);
+                  const rows = [
+                    { label: "PASSING", value: passingControls, color: "#00ff88", pct: (passingControls / totalControls) * 100 },
+                    { label: "AT RISK", value: failingControls - critControls, color: "#ffb000", pct: ((failingControls - critControls) / totalControls) * 100 },
+                    { label: "CRITICAL", value: critControls, color: "#ff0040", pct: (critControls / totalControls) * 100 },
+                  ];
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {/* Big total */}
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 32, fontWeight: 700, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{totalControls}</span>
+                        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace" }}>total controls</span>
+                      </div>
+                      {rows.map(({ label, value, color, pct }) => (
+                        <div key={label} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</span>
+                          </div>
+                          <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 2, transition: "width 0.5s ease" }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Control Failures table — the primary work surface */}
+          <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #ff004088, transparent)" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Control Failures</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 999, padding: "2px 8px" }}>
+                    {controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter).length}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => onNavigate?.("reports")}
+                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
+                  >
+                    <CheckCircle style={{ width: 12, height: 12 }} />
+                    Generate Report
+                  </button>
+                  <button
+                    onClick={() => onNavigate?.("alerts")}
+                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "5px 0", transition: "color 0.1s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.5)")}
+                  >VIEW ALL →</button>
+                </div>
+              </div>
+              {/* Framework filter pills */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {(["all", "SOC 2", "CIS", "NIST 800-53", "PCI DSS"] as const).map((fw) => {
+                  const active = auditFrameworkFilter === fw;
+                  const fwColor = fw === "SOC 2" ? "#00ff88" : fw === "CIS" ? "#ffb000" : fw === "NIST 800-53" ? "#0ea5e9" : fw === "PCI DSS" ? "#a855f7" : "#94a3b8";
+                  const count = fw === "all" ? controlFailures.length : controlFailures.filter(c => c.framework === fw).length;
+                  return (
+                    <button
+                      key={fw}
+                      onClick={() => setAuditFrameworkFilter(fw)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em",
+                        padding: "3px 10px", borderRadius: 999, cursor: "pointer", transition: "all 0.1s",
+                        color: active ? (fw === "all" ? "#e2e8f0" : fwColor) : "rgba(100,116,139,0.6)",
+                        background: active ? (fw === "all" ? "rgba(255,255,255,0.08)" : `${fwColor}14`) : "rgba(255,255,255,0.03)",
+                        border: active ? `1px solid ${fw === "all" ? "rgba(255,255,255,0.16)" : `${fwColor}30`}` : "1px solid rgba(255,255,255,0.06)",
+                      }}
+                      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}}
+                      onMouseLeave={e => { if (!active) { e.currentTarget.style.color = "rgba(100,116,139,0.6)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}}
+                    >
+                      {fw === "all" ? "ALL" : fw} <span style={{ opacity: 0.6 }}>({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Column headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div />
+              {["CONTROL ID", "FAILING CONTROL", "FRAMEWORK", "SEVERITY", "STATUS", "AGE"].map(h => (
+                <div key={h} style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingRight: 12 }}>{h}</div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div style={{ maxHeight: 400, overflowY: "auto" }}>
+              {(() => {
+                const filtered = controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter);
+                if (filtered.length === 0) {
+                  return (
+                    <div style={{ padding: "40px 20px", textAlign: "center" as const }}>
+                      <CheckCircle style={{ width: 24, height: 24, color: "#00ff88", margin: "0 auto 10px", display: "block", opacity: 0.5 }} />
+                      <p style={{ fontSize: 13, color: "rgba(100,116,139,0.65)", margin: 0 }}>No control failures for this framework</p>
+                    </div>
+                  );
+                }
+                return filtered.map((ctrl) => {
+                  const sevColor = ctrl.severity === "Critical" ? "#ff0040" : ctrl.severity === "High" ? "#ff6b35" : ctrl.severity === "Medium" ? "#ffb000" : "#00ff88";
+                  const sevBg    = ctrl.severity === "Critical" ? "rgba(255,0,64,0.08)" : ctrl.severity === "High" ? "rgba(255,107,53,0.08)" : ctrl.severity === "Medium" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
+                  const sevBdr   = ctrl.severity === "Critical" ? "rgba(255,0,64,0.28)" : ctrl.severity === "High" ? "rgba(255,107,53,0.28)" : ctrl.severity === "Medium" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
+                  const stColor  = ctrl.status === "open" ? "#ff6b35" : ctrl.status === "investigating" ? "#ffb000" : "#00ff88";
+                  const stBg     = ctrl.status === "open" ? "rgba(255,107,53,0.08)" : ctrl.status === "investigating" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
+                  const stBdr    = ctrl.status === "open" ? "rgba(255,107,53,0.28)" : ctrl.status === "investigating" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
+                  const fwColor  = ctrl.framework === "SOC 2" ? "#00ff88" : ctrl.framework === "CIS" ? "#ffb000" : ctrl.framework === "NIST 800-53" ? "#0ea5e9" : "#a855f7";
+                  const ageDays  = parseInt(ctrl.age, 10) || 0;
+                  const ageColor = ageDays >= 30 ? "#ff0040" : ageDays >= 14 ? "#ffb000" : "rgba(100,116,139,0.6)";
+                  return (
+                    <div
+                      key={ctrl.rowId}
+                      onClick={() => onNavigate?.("alerts")}
+                      style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "10px 20px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s", cursor: "pointer" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      {/* Left severity accent bar */}
+                      <div style={{ width: 3, height: 32, borderRadius: 2, background: sevColor, opacity: 0.7, flexShrink: 0 }} />
+                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "#60a5fa", paddingRight: 12 }}>{ctrl.controlId}</div>
+                      <div style={{ paddingRight: 16, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.name}</div>
+                        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.resource}</div>
+                      </div>
+                      <div style={{ paddingRight: 12 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: fwColor, background: `${fwColor}10`, border: `1px solid ${fwColor}28`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", whiteSpace: "nowrap" as const }}>{ctrl.framework}</span>
+                      </div>
+                      <div style={{ paddingRight: 12 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: sevColor, background: sevBg, border: `1px solid ${sevBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em" }}>{ctrl.severity.toUpperCase()}</span>
+                      </div>
+                      <div style={{ paddingRight: 12 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stColor, background: stBg, border: `1px solid ${stBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", textTransform: "uppercase" as const }}>{ctrl.status}</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: ageColor, fontWeight: ageDays >= 14 ? 700 : 400 }}>{ctrl.age}</div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Footer: audit actions */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.01)" }}>
+              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+                {controlFailures.filter(c => parseInt(c.age, 10) >= 30).length} overdue · {controlFailures.filter(c => c.severity === "Critical").length} critical
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => onNavigate?.("compliance")}
+                  style={{ fontSize: 11, fontWeight: 500, color: "rgba(100,116,139,0.7)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#cbd5e1"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
+                >Full Compliance View</button>
+                <button
+                  onClick={() => onNavigate?.("reports")}
+                  style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "5px 14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
+                >Generate Audit Report →</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Quick Nav ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('iam-security')}><Users className="h-3 w-3 mr-1.5" />IAM</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('access-analyzer')}><Shield className="h-3 w-3 mr-1.5" />Access Analyzer</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('ec2-security')}><Cloud className="h-3 w-3 mr-1.5" />EC2</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('s3-security')}><HardDrive className="h-3 w-3 mr-1.5" />S3</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('vpc-security')}><Network className="h-3 w-3 mr-1.5" />VPC</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('dynamodb-security')}><Database className="h-3 w-3 mr-1.5" />DynamoDB</Button>
+        <Button variant="outline" size="sm" className="border-border text-xs h-7" onClick={() => onNavigate?.('reports')}><CheckCircle className="h-3 w-3 mr-1.5" />Generate Report</Button>
+      </div>
     </div>
   );
 }

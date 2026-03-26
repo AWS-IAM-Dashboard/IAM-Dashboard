@@ -314,7 +314,6 @@ export function FindingDetailPanel({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const severity    = normaliseSeverity(finding.severity);
-  const accent      = sevColor(severity);
   const riskScore   = finding.risk_score ?? defaultRiskScore(severity);
   const steps       = playbook ?? defaultPlaybook(finding);
   const w           = workflow;
@@ -339,30 +338,18 @@ export function FindingDetailPanel({
   // ── shared style atoms ────────────────────────────────────────────────────
   const mono: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
   const ls: React.CSSProperties   = { ...mono, fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "rgba(100,116,139,0.55)" };
-  const divider                   = "1px solid rgba(255,255,255,0.05)";
+  const divider                   = "1px solid rgba(255,255,255,0.06)";
 
   return (
     <div
       style={{
-        background: "rgba(3,7,18,0.55)",
+        background: "rgba(255,255,255,0.01)",
         borderBottom: isLast ? "none" : divider,
         borderTop: divider,
         position: "relative",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Left severity bar */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 3,
-          background: accent,
-          opacity: 0.9,
-        }}
-      />
 
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div
@@ -371,7 +358,7 @@ export function FindingDetailPanel({
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: 16,
-          padding: "12px 20px 12px 28px",
+          padding: "12px 20px 12px 20px",
           borderBottom: divider,
         }}
       >
@@ -1040,7 +1027,7 @@ export function FindingDetailPanel({
                                 width: 1,
                                 flex: 1,
                                 minHeight: 8,
-                                background: "rgba(255,255,255,0.05)",
+                                background: "rgba(255,255,255,0.06)",
                                 marginTop: 4,
                               }}
                             />
@@ -1209,8 +1196,8 @@ export function FindingDetailPanel({
                       gap: 8,
                       padding: "8px 12px",
                       borderRadius: 6,
-                      background: "rgba(255,255,255,0.02)",
-                      border: "1px solid rgba(255,255,255,0.05)",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.06)",
                     }}
                   >
                     <UserCircle size={14} color="rgba(100,116,139,0.5)" />

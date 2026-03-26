@@ -45,7 +45,7 @@ const SERVICES = ["IAM & Access", "EC2 & Compute", "S3 & Storage", "VPC & Networ
 // ─── Shared sub-components ───────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>
+    <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>
       {children}
     </div>
   );
@@ -168,10 +168,11 @@ export function Settings() {
                 key={id}
                 onClick={() => setActiveSection(id)}
                 style={{
-                  display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "7px",
+                  display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", borderRadius: "6px",
                   background: active ? "rgba(0,255,136,0.07)" : "transparent",
                   border: active ? "1px solid rgba(0,255,136,0.12)" : "1px solid transparent",
-                  color: active ? "#00ff88" : "rgba(71,85,105,0.95)",
+                  borderLeft: active ? "3px solid #00ff88" : "3px solid transparent",
+                  color: active ? "#00ff88" : "rgba(100,116,139,0.8)",
                   fontSize: "12px", fontWeight: active ? 600 : 400, cursor: "pointer", textAlign: "left",
                   transition: "all 0.12s",
                 }}
@@ -195,7 +196,7 @@ export function Settings() {
               <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Configure how the dashboard connects to your AWS environment</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Account Configuration</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <Field label="Default Region">
@@ -209,7 +210,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Credential Method</SectionLabel>
               <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
                 {[["profile", "AWS Profile"], ["keys", "Access Keys"], ["role", "IAM Role"]] .map(([val, lbl]) => (
@@ -249,7 +250,7 @@ export function Settings() {
               )}
 
               {credentialMethod === "profile" && (
-                <div style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: "6px" }}>
+                <div style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", padding: "8px 12px", background: "rgba(255,255,255,0.04)", borderRadius: "6px" }}>
                   Uses credentials from <code style={{ fontFamily: "'JetBrains Mono', monospace", color: "#94a3b8" }}>~/.aws/credentials</code> — profile: <code style={{ fontFamily: "'JetBrains Mono', monospace", color: "#94a3b8" }}>{awsProfile || "default"}</code>
                 </div>
               )}
@@ -273,11 +274,11 @@ export function Settings() {
               <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Control scan scheduling, scope, and detection sensitivity</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Schedule</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "16px" }}>
                 {[["off", "Manual only"], ["daily", "Daily — 02:00 UTC"], ["weekly", "Weekly — Mon 02:00"]] .map(([val, lbl]) => (
-                  <button key={val} onClick={() => setScanSchedule(val)} style={{ padding: "12px", borderRadius: "7px", fontSize: "12px", cursor: "pointer", background: scanSchedule === val ? "rgba(0,255,136,0.08)" : "rgba(255,255,255,0.02)", border: scanSchedule === val ? "1px solid rgba(0,255,136,0.2)" : "1px solid rgba(255,255,255,0.06)", color: scanSchedule === val ? "#00ff88" : "rgba(100,116,139,0.7)", fontWeight: scanSchedule === val ? 600 : 400 }}>
+                  <button key={val} onClick={() => setScanSchedule(val)} style={{ padding: "12px", borderRadius: "8px", fontSize: "12px", cursor: "pointer", background: scanSchedule === val ? "rgba(0,255,136,0.08)" : "rgba(255,255,255,0.04)", border: scanSchedule === val ? "1px solid rgba(0,255,136,0.2)" : "1px solid rgba(255,255,255,0.06)", color: scanSchedule === val ? "#00ff88" : "rgba(100,116,139,0.7)", fontWeight: scanSchedule === val ? 600 : 400 }}>
                     <div style={{ marginBottom: "4px" }}>{val === "off" ? "Off" : val === "daily" ? "Daily" : "Weekly"}</div>
                     <div style={{ fontSize: "10px", opacity: 0.7 }}>{lbl}</div>
                   </button>
@@ -303,7 +304,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Services in Scope</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
                 {SERVICES.map((svc) => {
@@ -332,7 +333,7 @@ export function Settings() {
               <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Configure alert channels and severity thresholds</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Alert Thresholds</SectionLabel>
               <Row label="Critical findings" desc="Immediate alert on any critical severity finding">
                 <Switch checked={notifCritical} onCheckedChange={setNotifCritical} />
@@ -346,7 +347,7 @@ export function Settings() {
             </div>
 
             {/* Email */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Mail style={{ width: 14, height: 14, color: emailEnabled ? "#00ff88" : "#475569" }} />
@@ -371,7 +372,7 @@ export function Settings() {
             </div>
 
             {/* Slack */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <Slack style={{ width: 14, height: 14, color: slackEnabled ? "#00ff88" : "#475569" }} />
@@ -387,7 +388,7 @@ export function Settings() {
             </div>
 
             {/* PagerDuty */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <AlertTriangle style={{ width: 14, height: 14, color: pagerEnabled ? "#ff6b35" : "#475569" }} />
@@ -419,8 +420,8 @@ export function Settings() {
             </div>
 
             {/* Members table */}
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>Members</span>
                 <span style={{ fontSize: "11px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>{team.filter((m) => m.status === "Active").length} active</span>
               </div>
@@ -433,7 +434,7 @@ export function Settings() {
               {team.map((m) => {
                 const roleColor: Record<string, string> = { Admin: "#00ff88", Analyst: "#ffb000", Viewer: "#64748b" };
                 return (
-                  <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "12px", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
+                  <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px max-content 90px 110px 40px", columnGap: "12px", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: "12px", fontWeight: 500, color: "#cbd5e1" }}>{m.name}</div>
                       <div style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>{m.email}</div>
@@ -477,7 +478,7 @@ export function Settings() {
             {/* Role permissions */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
               {ROLE_PERMS.map(({ role, color, perms }) => (
-                <div key={role} style={{ background: "rgba(15,23,42,0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "10px", padding: "16px", position: "relative", overflow: "hidden" }}>
+                <div key={role} style={{ background: "rgba(15,23,42,0.4)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px", position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: color }} />
                   <div style={{ fontSize: "12px", fontWeight: 700, color, marginBottom: "8px", fontFamily: "'JetBrains Mono', monospace" }}>{role.toUpperCase()}</div>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -501,7 +502,7 @@ export function Settings() {
               <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Adjust how the dashboard presents information to you</p>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>Interface</SectionLabel>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <Field label="Table density">
@@ -536,10 +537,10 @@ export function Settings() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
+            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px" }}>
               <SectionLabel>About</SectionLabel>
               {[["Version", "v2.5.0"], ["Build", "20260324.0900"], ["Environment", "Production"], ["Last scan", "Today, 02:00 UTC"]].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <span style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)" }}>{k}</span>
                   <span style={{ fontSize: "12px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>{v}</span>
                 </div>
@@ -549,7 +550,7 @@ export function Settings() {
         )}
 
         {/* ── Save bar ── */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <button onClick={() => toast.info("Reset to defaults")} style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "rgba(100,116,139,0.7)", fontSize: "12px", cursor: "pointer" }}>
             Reset
           </button>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  Search, Bell, Settings, User, LogOut, Shield,
+  Search, Bell, Settings, User, LogOut,
   ChevronDown, MapPin,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -302,7 +302,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           <div
             className="absolute top-full mt-2 left-0 right-0 rounded-xl overflow-hidden z-50"
             style={{
-              background: "rgba(8,12,24,0.99)",
+              background: "rgba(15,23,41,0.99)",
               border: "1px solid rgba(255,255,255,0.09)",
               boxShadow: "0 0 0 1px rgba(0,255,136,0.04)",
             }}
@@ -413,23 +413,28 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             className="p-0 w-80 rounded-xl"
             align="end"
             style={{
-              background: "rgba(8,12,24,0.99)",
+              background: "rgba(15,23,41,0.99)",
               border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span className="text-sm font-semibold text-slate-200">Notifications</span>
-              <span
-                className="text-[10px] rounded-full px-2 py-0.5"
-                style={{
-                  color: "rgba(148,163,184,0.7)",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                {unreadCount} new
-              </span>
+            <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-semibold text-slate-200">Alerts</span>
+                {unreadCount > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.22)", padding: "2px 6px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#e2e8f0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(100,116,139,0.6)")}
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
             <div className="max-h-72 overflow-auto">
               {mockNotifications.map((n, i) => {
@@ -437,7 +442,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
                 return (
                   <div
                     key={n.id}
-                    className="px-4 py-3 cursor-pointer"
+                    className="px-4 py-2.5 cursor-pointer"
                     style={{
                       borderBottom: i < mockNotifications.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                       background: !n.read ? "rgba(255,255,255,0.015)" : "transparent",
@@ -446,61 +451,33 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = !n.read ? "rgba(255,255,255,0.015)" : "transparent")}
                   >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className="mt-0.5 text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded shrink-0"
-                        style={{
-                          color,
-                          background: `${color}18`,
-                          border: `1px solid ${color}28`,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                      >
-                        {n.type.toUpperCase()}
-                      </span>
+                    <div className="flex items-start gap-2.5">
+                      <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: color, marginTop: 4 }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-slate-200 mb-0.5">{n.title}</p>
-                        <p className="text-xs text-slate-600 truncate">{n.description}</p>
-                        <p className="text-[10px] mt-1" style={{ color: "rgba(71,85,105,0.7)" }}>{n.timestamp}</p>
+                        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                          <p className="text-xs font-medium text-slate-200 truncate">{n.title}</p>
+                          <span style={{ fontSize: 10, color: "rgba(71,85,105,0.7)", fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>{n.timestamp}</span>
+                        </div>
+                        <p style={{ fontSize: 11, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>{n.description}</p>
                       </div>
-                      {!n.read && (
-                        <span
-                          className="h-1.5 w-1.5 rounded-full mt-1 shrink-0"
-                          style={{ background: "#00ff88" }}
-                        />
-                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="px-4 py-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <button
                 onClick={() => onNavigate?.("alerts")}
-                className="w-full text-xs text-center transition-colors"
-                style={{ color: "rgba(100,116,139,0.8)" }}
+                className="w-full text-center transition-colors"
+                style={{ fontSize: 12, color: "rgba(100,116,139,0.7)", background: "none", border: "none", cursor: "pointer" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#e2e8f0")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(100,116,139,0.8)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(100,116,139,0.7)")}
               >
                 View all alerts →
               </button>
             </div>
           </PopoverContent>
         </Popover>
-
-        {/* Settings */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 rounded-lg"
-          style={{ color: "rgba(100,116,139,0.9)" }}
-          onClick={() => onNavigate?.("settings")}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-
-        {/* Divider */}
-        <div className="w-px h-5 mx-1" style={{ background: "rgba(255,255,255,0.07)" }} />
 
         {/* Profile */}
         <DropdownMenu>
@@ -525,36 +502,37 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className={cn("w-56 p-0 rounded-xl")}
+            className={cn("w-52 p-0 rounded-xl")}
             style={{
-              background: "rgba(8,12,24,0.99)",
+              background: "rgba(15,23,41,0.99)",
               border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
             <div className="px-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-sm font-semibold text-slate-200">Cloud Security Admin</p>
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-sm font-semibold text-slate-200">Cloud Security Admin</p>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", padding: "2px 6px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
+                  ADMIN
+                </span>
+              </div>
               <p className="text-xs mt-0.5" style={{ color: "rgba(100,116,139,0.8)" }}>admin@cloudsec.com</p>
             </div>
             <div className="p-1.5">
               <DropdownMenuItem className="rounded-lg cursor-pointer text-slate-400 hover:text-slate-200 text-sm gap-2.5">
                 <User className="h-4 w-4 text-slate-600" />
-                Profile Settings
+                Profile
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="rounded-lg cursor-pointer text-slate-400 hover:text-slate-200 text-sm gap-2.5"
                 onClick={() => onNavigate?.("settings")}
               >
                 <Settings className="h-4 w-4 text-slate-600" />
-                App Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-slate-400 hover:text-slate-200 text-sm gap-2.5">
-                <Shield className="h-4 w-4 text-slate-600" />
-                Security Options
+                Settings
               </DropdownMenuItem>
             </div>
             <DropdownMenuSeparator style={{ background: "rgba(255,255,255,0.06)" }} />
             <div className="p-1.5">
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm gap-2.5" style={{ color: "#ff4060" }}>
+              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm gap-2.5" style={{ color: "#ff0040" }}>
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

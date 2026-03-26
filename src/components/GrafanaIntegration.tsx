@@ -70,17 +70,17 @@ const SETUP_STEPS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const statusColor = (s: string) =>
-  s === "Connected" ? "#00ff88" : s === "Error" ? "#ff4060" : "#64748b";
+  s === "Connected" ? "#00ff88" : s === "Error" ? "#ff0040" : "#64748b";
 
 const btn = {
   base: {
-    display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px",
+    display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px",
     borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
     border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)",
     color: "rgba(100,116,139,0.8)", transition: "all 0.15s",
   } as React.CSSProperties,
   primary: {
-    display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px",
+    display: "flex", alignItems: "center", gap: "8px", padding: "7px 14px",
     borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer",
     border: "1px solid rgba(0,255,136,0.25)", background: "rgba(0,255,136,0.1)",
     color: "#00ff88",
@@ -169,7 +169,7 @@ export function GrafanaIntegration() {
       </ScanPageHeader>
 
       {/* ── Section tabs ── */}
-      <div style={{ display: "flex", gap: "2px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0" }}>
+      <div style={{ display: "flex", gap: "2px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "0" }}>
         {SECTIONS.map((s) => {
           const active = activeSection === s.id;
           return (
@@ -188,7 +188,7 @@ export function GrafanaIntegration() {
                 marginBottom: "-1px",
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
+                gap: "8px",
                 transition: "color 0.15s",
               }}
             >
@@ -205,12 +205,12 @@ export function GrafanaIntegration() {
 
       {/* ── Connections ── */}
       {activeSection === "connections" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {connections.map((conn) => {
             const sc = statusColor(conn.status);
             const isTesting = testingId === conn.id;
             return (
-              <div key={conn.id} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div key={conn.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: `${sc}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {conn.status === "Connected" ? <Wifi style={{ width: 16, height: 16, color: sc }} /> : <WifiOff style={{ width: 16, height: 16, color: sc }} />}
@@ -238,12 +238,12 @@ export function GrafanaIntegration() {
           })}
 
           {/* Add new connection */}
-          <div style={{ background: "rgba(15,23,42,0.4)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "10px", padding: "18px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ background: "rgba(15,23,42,0.4)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "10px", padding: "16px 20px" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
               <Plus style={{ width: 13, height: 13 }} />
               Add Grafana Instance
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
               {[
                 { placeholder: "Connection name (e.g. Production)", key: "name", value: newConn.name },
                 { placeholder: "Grafana URL (https://grafana.company.com)", key: "url", value: newConn.url },
@@ -288,9 +288,9 @@ export function GrafanaIntegration() {
           {endpoints.map((ep) => {
             const Icon = ep.icon;
             return (
-              <div key={ep.id} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "14px 18px" }}>
+              <div key={ep.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "14px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <Icon style={{ width: 14, height: 14, color: ep.enabled ? "#00ff88" : "#475569", flexShrink: 0 }} />
                     <div>
                       <div style={{ fontSize: "13px", fontWeight: 600, color: ep.enabled ? "#e2e8f0" : "#475569" }}>{ep.name}</div>
@@ -321,9 +321,9 @@ export function GrafanaIntegration() {
                   </div>
                 </div>
                 {/* Sample key pills */}
-                <div style={{ display: "flex", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
                   {ep.sampleKeys.map((k) => (
-                    <span key={k} style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                    <span key={k} style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", padding: "2px 7px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
                   ))}
                 </div>
               </div>
@@ -334,13 +334,13 @@ export function GrafanaIntegration() {
 
       {/* ── Dashboard Templates ── */}
       {activeSection === "dashboards" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {DASHBOARD_TEMPLATES.map((tmpl) => (
-            <div key={tmpl.id} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "18px", position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: "3px", background: tmpl.accent }} />
-              <div style={{ paddingLeft: "8px" }}>
+            <div key={tmpl.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${tmpl.accent}88, transparent)` }} />
+              <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "14px", fontWeight: 600, color: "#e2e8f0" }}>{tmpl.name}</span>
                     <span style={{ fontSize: "9px", fontWeight: 700, color: `${tmpl.accent}99`, background: `${tmpl.accent}15`, padding: "2px 7px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>{tmpl.tag}</span>
                   </div>
@@ -377,12 +377,12 @@ export function GrafanaIntegration() {
 
       {/* ── Setup Guide ── */}
       {activeSection === "setup" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: "8px", padding: "12px 16px", fontSize: "12px", color: "rgba(148,163,184,0.9)", lineHeight: 1.6 }}>
             This integration exposes AWS security metrics as a JSON API that Grafana polls. No data leaves your environment — Grafana queries this dashboard directly.
           </div>
           {SETUP_STEPS.map((step) => (
-            <div key={step.n} style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 18px" }}>
+            <div key={step.n} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                 <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,255,136,0.12)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace" }}>{step.n}</span>
                 <div style={{ flex: 1 }}>

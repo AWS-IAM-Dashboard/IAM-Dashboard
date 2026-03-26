@@ -39,7 +39,7 @@ const QUICK_REPORTS = [
     label: "Threat Intelligence",
     desc: "Critical & high findings, threat type clusters, attack vectors",
     icon: AlertTriangle,
-    accent: "#ff4060",
+    accent: "#ff0040",
     tag: "THREAT",
   },
   {
@@ -72,7 +72,7 @@ const QUICK_REPORTS = [
     label: "Compliance Status",
     desc: "CIS / SOC2 / PCI-DSS / HIPAA control pass/fail evidence",
     icon: FileText,
-    accent: "#34d399",
+    accent: "#00ff88",
     tag: "COMPLIANCE",
   },
 ] as const;
@@ -280,7 +280,7 @@ export function Reports({ reports }: ReportsProps) {
   const getStatusColor = (status: string) => {
     if (status === "Completed") return { bg: "rgba(0,255,136,0.12)", color: "#00ff88" };
     if (status === "In Progress") return { bg: "rgba(255,176,0,0.12)", color: "#ffb000" };
-    return { bg: "rgba(255,64,96,0.12)", color: "#ff4060" };
+    return { bg: "rgba(255,64,96,0.12)", color: "#ff0040" };
   };
 
   const filteredReports = reports.filter((r) =>
@@ -338,8 +338,8 @@ export function Reports({ reports }: ReportsProps) {
               <div
                 key={qr.id}
                 style={{
-                  background: "rgba(15,23,42,0.6)",
-                  border: `1px solid ${isBundle ? `${qr.accent}30` : "rgba(255,255,255,0.05)"}`,
+                  background: "rgba(15,23,42,0.8)",
+                  border: `1px solid ${isBundle ? `${qr.accent}30` : "rgba(255,255,255,0.06)"}`,
                   borderRadius: "10px",
                   padding: "16px",
                   position: "relative",
@@ -356,7 +356,7 @@ export function Reports({ reports }: ReportsProps) {
                     height: "2px",
                     background: isBundle
                       ? `linear-gradient(90deg, ${qr.accent}00, ${qr.accent}, ${qr.accent}00)`
-                      : `${qr.accent}00`,
+                      : `linear-gradient(90deg, ${qr.accent}30, ${qr.accent}10, transparent)`,
                     transition: "background 0.2s",
                   }}
                 />
@@ -455,7 +455,7 @@ export function Reports({ reports }: ReportsProps) {
       <div
         style={{
           background: "rgba(15,23,42,0.5)",
-          border: "1px solid rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: "10px",
           overflow: "hidden",
         }}
@@ -650,7 +650,7 @@ export function Reports({ reports }: ReportsProps) {
       {reports.length > 0 && (
         <div
           style={{
-            background: "rgba(15,23,42,0.6)",
+            background: "rgba(15,23,42,0.8)",
             border: "1px solid rgba(255,255,255,0.06)",
             borderRadius: "10px",
             overflow: "hidden",
@@ -659,7 +659,7 @@ export function Reports({ reports }: ReportsProps) {
           <div
             style={{
               padding: "16px 16px",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -674,7 +674,7 @@ export function Reports({ reports }: ReportsProps) {
                 alignItems: "center",
                 gap: "8px",
                 padding: "8px 12px",
-                background: "rgba(255,255,255,0.03)",
+                background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.06)",
                 borderRadius: "6px",
               }}
@@ -734,7 +734,7 @@ export function Reports({ reports }: ReportsProps) {
                   display: "grid",
                   gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
                   padding: "8px 16px",
-                  borderBottom: "1px solid rgba(255,255,255,0.03)",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
                   alignItems: "center",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
@@ -862,13 +862,13 @@ export function Reports({ reports }: ReportsProps) {
         }}
       >
         <div>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "#475569" }}>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "rgba(100,116,139,0.7)" }}>
             Scheduled Reports
           </span>
           <p
             style={{
               fontSize: "11px",
-              color: "rgba(71,85,105,0.6)",
+              color: "rgba(100,116,139,0.5)",
               margin: "4px 0 0",
             }}
           >

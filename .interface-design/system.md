@@ -296,7 +296,7 @@ Used for charts, content sections, larger containers. Not for KPI/metric cards.
 .section-label {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(100,116,139,0.55);   /* NOT rgba(51,65,85) — too dark */
+  color: rgba(100,116,139,0.65);   /* NOT rgba(51,65,85) — too dark */
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-family: 'JetBrains Mono', monospace;
@@ -346,7 +346,7 @@ margin-bottom: 24px;
 ### Sidebar
 - Background: `rgba(6,9,18,0.98)` — darker than card surfaces
 - Border-right: `1px solid rgba(255,255,255,0.06)`
-- Section labels: `rgba(100,116,139,0.55)` in JetBrains Mono 9.5px
+- Section labels: `rgba(100,116,139,0.65)` in JetBrains Mono 9.5px
 - Active item: `color: #00ff88`, `background: rgba(0,255,136,0.07)`, 3px left accent bar
 - Inactive item: `color: rgba(100,116,139,0.8)` — NOT rgba(71,85,105) which is too dark
 - Collapse toggle: transitions width `0.25s cubic-bezier(0.4, 0, 0.2, 1)`
@@ -414,7 +414,7 @@ sidebar width:     0.25s cubic-bezier(0.4, 0, 0.2, 1)
 ## Decisions made — do not revisit
 
 - **`borderLeft` severity cards are gone.** All cards use the 2px top accent gradient bar. Consistent with StatCard.
-- **Section labels use `rgba(100,116,139,0.55)`, not `rgba(51,65,85,0.9)`.** The dark value is black-on-black.
+- **Section labels use `rgba(100,116,139,0.65)`, not `rgba(51,65,85,0.9)`.** The dark value is black-on-black.
 - **Scan button padding is `8px 20px`**, ghost buttons `8px 12px`. The difference is intentional — scan is the primary action.
 - **JetBrains Mono is mandatory for all data.** ARNs, timestamps, metrics, region names, badge labels, section headers. DM Sans is for prose only.
 - **Ghost buttons require `.ghost-btn` class** (not inline transition) to get hover states.
