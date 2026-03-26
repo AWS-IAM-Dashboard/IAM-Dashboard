@@ -202,3 +202,4 @@ s3-2026-03-18T14_40_25.394352.json
 checkov-results.md
 terraform_output.txt
 scan-results
+infra\API_Gateway_Auth\CloudWatch.txt

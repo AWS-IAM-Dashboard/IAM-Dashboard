@@ -1,0 +1,63 @@
+START RequestId: e5e13f5b-072e-4987-9e3b-86e93c7d45f2 Version: $LATEST
+[ERROR]	2026-03-26T22:04:05.462Z	e5e13f5b-072e-4987-9e3b-86e93c7d45f2	Failed to replace session for username=testuser
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py", line 319, in replace_user_session
+    table.put_item(
+    ~~~~~~~~~~~~~~^
+        Item={
+        ^^^^^^
+    ...<4 lines>...
+        }
+        ^
+    )
+    ^
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/factory.py", line 581, in do_action
+    response = action(self, *args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/action.py", line 88, in __call__
+    response = getattr(parent.meta.client, operation_name)(*args, **params)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/lang/lib/python3.14/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.exceptions.ClientError: An error occurred (ValidationException) when calling the PutItem operation: One or more parameter values were invalid: Missing the key scan_id in the item
+[ERROR]	2026-03-26T22:04:05.465Z	e5e13f5b-072e-4987-9e3b-86e93c7d45f2	Session/backend failure on POST /auth/login
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py", line 319, in replace_user_session
+    table.put_item(
+    ~~~~~~~~~~~~~~^
+        Item={
+        ^^^^^^
+    ...<4 lines>...
+        }
+        ^
+    )
+    ^
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/factory.py", line 581, in do_action
+    response = action(self, *args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/action.py", line 88, in __call__
+    response = getattr(parent.meta.client, operation_name)(*args, **params)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/lang/lib/python3.14/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.exceptions.ClientError: An error occurred (ValidationException) when calling the PutItem operation: One or more parameter values were invalid: Missing the key scan_id in the item
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py", line 461, in lambda_handler
+    return handle_login(event, origin)
+  File "/var/task/lambda_function.py", line 386, in handle_login
+    session_id, _expires_at = replace_user_session(resolved_username, groups)
+                              ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/task/lambda_function.py", line 330, in replace_user_session
+    raise SessionStoreError("Unable to create session.") from exc
+lambda_function.SessionStoreError: Unable to create session.
+END RequestId: e5e13f5b-072e-4987-9e3b-86e93c7d45f2
+REPORT RequestId: e5e13f5b-072e-4987-9e3b-86e93c7d45f2	Duration: 723.57 ms	Billed Duration: 1414 ms	Memory Size: 512 MB	Max Memory Used: 96 MB	Init Duration: 689.56 ms	
