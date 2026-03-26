@@ -230,7 +230,7 @@ export function Settings() {
               {credentialMethod === "keys" && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <Field label="Access Key ID">
-                    <input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} placeholder="AKIAIOSFODNN7EXAMPLE" style={inputStyle} />
+                    <input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} placeholder="AKIA_REDACTED_FOR_DEMO" style={inputStyle} />
                   </Field>
                   <Field label="Secret Access Key">
                     <div style={{ position: "relative" }}>
