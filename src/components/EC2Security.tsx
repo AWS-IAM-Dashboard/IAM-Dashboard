@@ -27,7 +27,7 @@ import {
   HardDrive,
   Network
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanEC2, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -88,7 +88,7 @@ const mockEC2Findings: EC2SecurityFinding[] = [
     severity: 'Critical',
     finding_type: 'Unrestricted SSH Access',
     description: 'Security group allows SSH (port 22) access from 0.0.0.0/0',
-    recommendation: 'Restrict SSH access to specific IP ranges or use AWS Session Manager',
+    recommendation: 'Disable direct SSH where possible; use AWS Systems Manager Session Manager with least-privilege IAM and break-glass controls',
     compliance_frameworks: ['CIS', 'SOC2'],
     public_ip: '203.0.113.45',
     state: 'running',
@@ -107,7 +107,7 @@ const mockEC2Findings: EC2SecurityFinding[] = [
     severity: 'High',
     finding_type: 'Unencrypted EBS Volume',
     description: 'EC2 instance has unencrypted EBS volumes containing sensitive data',
-    recommendation: 'Enable EBS encryption for all volumes and use AWS KMS keys',
+    recommendation: 'Migrate to encrypted EBS snapshots/volumes with KMS CMKs and validate backup/restore before cutover',
     compliance_frameworks: ['CIS', 'PCI-DSS'],
     state: 'running',
     launch_time: '2024-08-20T14:30:00Z',
@@ -125,7 +125,7 @@ const mockEC2Findings: EC2SecurityFinding[] = [
     severity: 'High',
     finding_type: 'Outdated AMI',
     description: 'Instance running on AMI with known security vulnerabilities',
-    recommendation: 'Update to latest patched AMI and implement automated patching',
+    recommendation: 'Roll to a patched baseline AMI via staged deployment and rollback plan (avoid in-place ad hoc patching)',
     compliance_frameworks: ['CIS'],
     state: 'running',
     launch_time: '2024-06-10T09:15:00Z',
@@ -143,7 +143,7 @@ const mockEC2Findings: EC2SecurityFinding[] = [
     severity: 'Medium',
     finding_type: 'No Instance Monitoring',
     description: 'CloudWatch detailed monitoring is disabled for this instance',
-    recommendation: 'Enable detailed monitoring and configure CloudWatch alarms',
+    recommendation: 'Enable CloudWatch alarms for security and availability signals, routed to on-call with documented runbooks',
     compliance_frameworks: ['SOC2'],
     state: 'running',
     launch_time: '2024-09-25T16:45:00Z',
@@ -161,7 +161,7 @@ const mockEC2Findings: EC2SecurityFinding[] = [
     severity: 'Low',
     finding_type: 'No Instance Tags',
     description: 'Instance lacks proper resource tagging for cost allocation and management',
-    recommendation: 'Implement comprehensive tagging strategy for resource management',
+    recommendation: 'Apply mandatory ownership/environment/data-classification tags to support incident response and access reviews',
     compliance_frameworks: [],
     state: 'stopped',
     launch_time: '2024-07-05T11:20:00Z',

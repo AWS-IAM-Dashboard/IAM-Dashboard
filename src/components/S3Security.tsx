@@ -27,7 +27,7 @@ import {
   FileText,
   Database
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanS3, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -86,7 +86,7 @@ const mockS3Findings: S3SecurityFinding[] = [
     severity: 'Critical',
     finding_type: 'Public Read Access',
     description: 'S3 bucket allows public read access with potential sensitive data exposure',
-    recommendation: 'Remove public read permissions and implement proper access controls',
+    recommendation: 'Block public access at account and bucket levels, then allow only explicit principals through least-privilege bucket policies',
     compliance_frameworks: ['CIS', 'SOC2', 'PCI-DSS'],
     public_read: true,
     public_write: false,
@@ -106,7 +106,7 @@ const mockS3Findings: S3SecurityFinding[] = [
     severity: 'High',
     finding_type: 'No Encryption at Rest',
     description: 'S3 bucket does not have server-side encryption enabled',
-    recommendation: 'Enable S3 server-side encryption with AWS KMS or AES-256',
+    recommendation: 'Enforce default encryption and deny unencrypted object uploads via bucket policy (prefer SSE-KMS for sensitive data)',
     compliance_frameworks: ['CIS', 'HIPAA'],
     public_read: false,
     public_write: false,
@@ -126,7 +126,7 @@ const mockS3Findings: S3SecurityFinding[] = [
     severity: 'High',
     finding_type: 'No Access Logging',
     description: 'S3 bucket access logging is disabled, limiting audit capabilities',
-    recommendation: 'Enable S3 access logging to track all bucket access requests',
+    recommendation: 'Enable CloudTrail data events (and server access logs where needed) to preserve auditable object-level access history',
     compliance_frameworks: ['SOC2', 'PCI-DSS'],
     public_read: false,
     public_write: false,
@@ -146,7 +146,7 @@ const mockS3Findings: S3SecurityFinding[] = [
     severity: 'Medium',
     finding_type: 'No Versioning',
     description: 'S3 bucket versioning is disabled, risk of accidental data loss',
-    recommendation: 'Enable versioning to protect against accidental deletions',
+    recommendation: 'Enable versioning and validate lifecycle/MFA-delete strategy for recovery objectives before production rollout',
     compliance_frameworks: ['CIS'],
     public_read: true,
     public_write: false,
@@ -166,7 +166,7 @@ const mockS3Findings: S3SecurityFinding[] = [
     severity: 'Low',
     finding_type: 'No MFA Delete',
     description: 'MFA Delete is not enabled for additional protection against deletions',
-    recommendation: 'Enable MFA Delete for critical buckets containing important data',
+    recommendation: 'For high-impact buckets, enforce deletion controls with versioning, Object Lock where required, and tightly scoped delete permissions',
     compliance_frameworks: [],
     public_read: false,
     public_write: false,
@@ -671,12 +671,12 @@ export function S3Security() {
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <FileText className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_objects.toLocaleString()}</p>
+                    <p className="text-2xl font-medium">{(scanResult.scan_summary.total_objects ?? 0).toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Total Objects</p>
                   </div>
                   <div className="cyber-glass p-4 rounded-lg text-center">
                     <HardDrive className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb} GB</p>
+                    <p className="text-2xl font-medium">{scanResult.scan_summary.total_size_gb ?? 0} GB</p>
                     <p className="text-sm text-muted-foreground">Total Size</p>
                   </div>
                 </div>

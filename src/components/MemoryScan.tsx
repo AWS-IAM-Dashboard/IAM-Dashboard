@@ -10,7 +10,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Play, Square, Settings2, FileUp, Scan, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
 import { useMemoryScan, useProcesses } from "../hooks/useForensics";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 
 export function MemoryScan() {

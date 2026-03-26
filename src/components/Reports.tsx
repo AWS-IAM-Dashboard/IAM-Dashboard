@@ -9,7 +9,7 @@ import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { FileText, Download, Calendar, Filter, Search, Eye, Plus } from "lucide-react";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { useScanResults } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
 
@@ -466,7 +466,7 @@ export function Reports({ reports }: ReportsProps) {
               resource_name: 'admin-user',
               resource_arn: 'arn:aws:iam::123456789012:user/admin-user',
               description: 'User has active access keys with administrator privileges',
-              recommendation: 'Enable MFA and rotate access keys'
+              recommendation: 'Enforce MFA and migrate long-lived user keys to temporary role-based credentials where possible'
             }
           ]
         };

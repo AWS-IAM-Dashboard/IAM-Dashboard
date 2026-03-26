@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
@@ -29,7 +29,7 @@ import {
   Database,
   Globe
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanIAM, type ScanResponse } from "../services/api";
 import { useScanResults } from "../context/ScanResultsContext";
@@ -47,6 +47,7 @@ interface AWSIAMFinding {
   last_accessed?: string;
   created_date?: string;
   risk_score?: number;
+  status?: 'Open' | 'In Progress' | 'Resolved';
   impact?: 'Critical' | 'High' | 'Medium' | 'Low';
   likelihood?: 'Critical' | 'High' | 'Medium' | 'Low';
 }
@@ -180,13 +181,22 @@ const mockScanResult: AWSScanResult = {
 };
 
 export function AWSIAMScan() {
+  type FindingStatus = 'Open' | 'In Progress' | 'Resolved';
   const [scanResult, setScanResult] = useState<AWSScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState('us-east-1');
   const [awsProfile, setAwsProfile] = useState('default');
   const [loading, setLoading] = useState(false);
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [findingSearchTerm, setFindingSearchTerm] = useState("");
+  const [findingSeverityFilter, setFindingSeverityFilter] = useState<string>("all");
+  const [findingTypeFilter, setFindingTypeFilter] = useState<string>("all");
+  const [findingStatusFilter, setFindingStatusFilter] = useState<string>("all");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [findingStatuses, setFindingStatuses] = useState<Record<string, FindingStatus>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { addScanResult } = useScanResults();
 
   // Toast notifications for scan events
@@ -305,6 +315,121 @@ export function AWSIAMScan() {
       case 'group': return <Users className="h-4 w-4" />;
       default: return <Shield className="h-4 w-4" />;
     }
+  };
+
+  const getFindingStatus = (finding: AWSIAMFinding): FindingStatus => {
+    return findingStatuses[finding.id] ?? finding.status ?? "Open";
+  };
+
+  const updateFindingStatus = (findingId: string, status: FindingStatus) => {
+    setFindingStatuses((prev) => ({
+      ...prev,
+      [findingId]: status
+    }));
+  };
+
+  const statusColorMap: Record<FindingStatus, string> = {
+    Open: "bg-[#ff0040] text-white",
+    "In Progress": "bg-[#ffb000] text-black",
+    Resolved: "bg-[#00ff88] text-black",
+  };
+
+  const filteredFindings = useMemo(() => {
+    if (!scanResult?.findings?.length) {
+      return [];
+    }
+
+    const normalizedSearch = findingSearchTerm.trim().toLowerCase();
+    const hasDateFilter = startDateFilter || endDateFilter;
+    const start = startDateFilter ? new Date(`${startDateFilter}T00:00:00`) : null;
+    const end = endDateFilter ? new Date(`${endDateFilter}T23:59:59`) : null;
+
+    return scanResult.findings.filter((finding) => {
+      if (findingSeverityFilter !== "all" && finding.severity !== findingSeverityFilter) {
+        return false;
+      }
+
+      if (findingTypeFilter !== "all" && finding.type !== findingTypeFilter) {
+        return false;
+      }
+
+      const status = getFindingStatus(finding);
+      if (findingStatusFilter !== "all" && status !== findingStatusFilter) {
+        return false;
+      }
+
+      if (hasDateFilter) {
+        const createdAt = new Date(finding.created_date);
+        if (start && createdAt < start) {
+          return false;
+        }
+        if (end && createdAt > end) {
+          return false;
+        }
+      }
+
+      if (normalizedSearch) {
+        const searchable = [
+          finding.id,
+          finding.resource_name,
+          finding.resource_arn,
+          finding.finding_type,
+          finding.description,
+          finding.recommendation,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchable.includes(normalizedSearch)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    scanResult,
+    findingSearchTerm,
+    findingSeverityFilter,
+    findingTypeFilter,
+    findingStatusFilter,
+    startDateFilter,
+    endDateFilter,
+    findingStatuses,
+  ]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    findingSearchTerm,
+    findingSeverityFilter,
+    findingTypeFilter,
+    findingStatusFilter,
+    startDateFilter,
+    endDateFilter,
+    pageSize,
+    scanResult?.scan_id
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredFindings.length / pageSize));
+  const paginatedFindings = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return filteredFindings.slice(startIdx, startIdx + pageSize);
+  }, [filteredFindings, currentPage, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const clearFindingFilters = () => {
+    setFindingSearchTerm("");
+    setFindingSeverityFilter("all");
+    setFindingTypeFilter("all");
+    setFindingStatusFilter("all");
+    setStartDateFilter("");
+    setEndDateFilter("");
   };
 
   return (
@@ -527,59 +652,160 @@ export function AWSIAMScan() {
               </TabsList>
               
               <TabsContent value="findings" className="space-y-4">
-                <div className="flex flex-wrap items-center gap-4 mb-4">
-                  <Label htmlFor="severity-filter" className="text-sm font-medium">Filter by severity</Label>
-                  <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                    <SelectTrigger id="severity-filter" className="w-[180px] bg-input border-border">
-                      <SelectValue placeholder="All severities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All severities</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-muted-foreground">
-                    {severityFilter === 'all'
-                      ? `Showing all ${scanResult.findings.length} findings`
-                      : `Showing ${scanResult.findings.filter((f) => f.severity === severityFilter).length} of ${scanResult.findings.length}`}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+                  <div className="xl:col-span-2">
+                    <Label htmlFor="finding-search">Search Findings</Label>
+                    <Input
+                      id="finding-search"
+                      value={findingSearchTerm}
+                      onChange={(event) => setFindingSearchTerm(event.target.value)}
+                      placeholder="Search by resource, finding ID, ARN, or keyword..."
+                      className="bg-input border-border"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="finding-severity">Severity</Label>
+                    <Select value={findingSeverityFilter} onValueChange={setFindingSeverityFilter}>
+                      <SelectTrigger id="finding-severity" className="bg-input border-border">
+                        <SelectValue placeholder="All severities" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All severities</SelectItem>
+                        <SelectItem value="Critical">Critical</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="finding-type">Type</Label>
+                    <Select value={findingTypeFilter} onValueChange={setFindingTypeFilter}>
+                      <SelectTrigger id="finding-type" className="bg-input border-border">
+                        <SelectValue placeholder="All types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="role">Role</SelectItem>
+                        <SelectItem value="policy">Policy</SelectItem>
+                        <SelectItem value="group">Group</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="finding-status">Status</Label>
+                    <Select value={findingStatusFilter} onValueChange={setFindingStatusFilter}>
+                      <SelectTrigger id="finding-status" className="bg-input border-border">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="Open">Open</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Resolved">Resolved</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="finding-page-size">Results per page</Label>
+                    <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                      <SelectTrigger id="finding-page-size" className="bg-input border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="finding-start-date">Start date</Label>
+                    <Input
+                      id="finding-start-date"
+                      type="date"
+                      value={startDateFilter}
+                      onChange={(event) => setStartDateFilter(event.target.value)}
+                      className="bg-input border-border"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="finding-end-date">End date</Label>
+                    <Input
+                      id="finding-end-date"
+                      type="date"
+                      value={endDateFilter}
+                      onChange={(event) => setEndDateFilter(event.target.value)}
+                      className="bg-input border-border"
+                    />
+                  </div>
+                  <div className="md:self-end">
+                    <Button variant="outline" className="border-border w-full md:w-auto" onClick={clearFindingFilters}>
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                    Showing {filteredFindings.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                    {" "}to{" "}
+                    {Math.min(currentPage * pageSize, filteredFindings.length)} of {filteredFindings.length} findings
                   </span>
+                  <span>Page {currentPage} of {totalPages}</span>
                 </div>
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border">
+                      <TableHead>ID</TableHead>
                       <TableHead>Resource</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Finding</TableHead>
                       <TableHead>Severity</TableHead>
-                      <TableHead>Impact / Likelihood</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
                       <TableHead>Risk Score</TableHead>
-                      <TableHead>Recommendation</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       Array.from({ length: 6 }).map((_, index) => (
                         <TableRow key={index} className="border-border">
+                          <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-32 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-16 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-48 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-6 w-20 bg-muted/20" /></TableCell>
+                          <TableCell><Skeleton className="h-6 w-24 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-24 bg-muted/20" /></TableCell>
                           <TableCell><Skeleton className="h-4 w-12 bg-muted/20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-64 bg-muted/20" /></TableCell>
                         </TableRow>
                       ))
+                    ) : paginatedFindings.length === 0 ? (
+                      <TableRow className="border-border">
+                        <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                          No findings match the current filters.
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      scanResult.findings
-                        .filter((f) => severityFilter === 'all' || f.severity === severityFilter)
-                        .map((finding) => (
+                      paginatedFindings.map((finding) => (
                         <TableRow 
                           key={finding.id} 
                           className="border-border cursor-pointer hover:bg-accent/10 transition-colors"
                         >
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {finding.id}
+                            </Badge>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {getResourceIcon(finding.type)}
@@ -607,10 +833,26 @@ export function AWSIAMScan() {
                               {finding.severity}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {finding.impact && finding.likelihood
-                              ? `${finding.impact} / ${finding.likelihood}`
-                              : '—'}
+                          <TableCell>
+                            <Select
+                              value={getFindingStatus(finding)}
+                              onValueChange={(value) => updateFindingStatus(finding.id, value as FindingStatus)}
+                            >
+                              <SelectTrigger className="h-8 w-[130px] bg-input border-border">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Open">Open</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Resolved">Resolved</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Badge className={`mt-2 ${statusColorMap[getFindingStatus(finding)]}`}>
+                              {getFindingStatus(finding)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {finding.created_date ? new Date(finding.created_date).toLocaleDateString() : '—'}
                           </TableCell>
                           <TableCell>
                             <span className={
@@ -622,14 +864,30 @@ export function AWSIAMScan() {
                               {finding.risk_score != null ? `${finding.risk_score}/100` : '—'}
                             </span>
                           </TableCell>
-                          <TableCell className="text-sm max-w-xs">
-                            {finding.recommendation}
-                          </TableCell>
                         </TableRow>
                       ))
                     )}
                   </TableBody>
                 </Table>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="border-border"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-border"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="resources" className="space-y-4">
