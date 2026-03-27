@@ -15,9 +15,9 @@ resource "aws_iam_role_policy" "backend_full_iam" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowFullIAM"
-        Effect = "Allow"
-        Action = "iam:*"
+        Sid      = "AllowFullIAM"
+        Effect   = "Allow"
+        Action   = "iam:*"
         Resource = "*"
       }
     ]
