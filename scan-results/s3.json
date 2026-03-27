@@ -1,0 +1,50 @@
+{
+  "scan_id": "s3-2026-03-25T14:21:32.632191",
+  "scanner_type": "s3",
+  "region": "us-east-1",
+  "timestamp": "2026-03-25T14:21:33.242503",
+  "results": {
+    "account_id": "562559071105",
+    "buckets": {
+      "total": 7,
+      "public": 0,
+      "unencrypted": 0
+    },
+    "findings": [
+      {
+        "severity": "Medium",
+        "type": "bucket",
+        "resource_name": "keenkloud.net",
+        "resource_arn": "arn:aws:s3:::keenkloud.net",
+        "description": "S3 bucket \"keenkloud.net\" does not have versioning enabled",
+        "recommendation": "Enable versioning to protect against accidental deletion or overwrites",
+        "finding_type": "no_versioning"
+      },
+      {
+        "severity": "Medium",
+        "type": "bucket",
+        "resource_name": "nextwave-sharkbyte",
+        "resource_arn": "arn:aws:s3:::nextwave-sharkbyte",
+        "description": "S3 bucket \"nextwave-sharkbyte\" does not have versioning enabled",
+        "recommendation": "Enable versioning to protect against accidental deletion or overwrites",
+        "finding_type": "no_versioning"
+      },
+      {
+        "severity": "Medium",
+        "type": "bucket",
+        "resource_name": "test-562559071105-us-east-1-an",
+        "resource_arn": "arn:aws:s3:::test-562559071105-us-east-1-an",
+        "description": "S3 bucket \"test-562559071105-us-east-1-an\" does not have versioning enabled",
+        "recommendation": "Enable versioning to protect against accidental deletion or overwrites",
+        "finding_type": "no_versioning"
+      }
+    ],
+    "scan_summary": {
+      "critical_findings": 0,
+      "high_findings": 0,
+      "medium_findings": 3,
+      "low_findings": 0
+    },
+    "scan_type": "s3"
+  }
+}

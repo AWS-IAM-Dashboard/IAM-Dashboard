@@ -1,0 +1,11 @@
+{
+  "scan_id": "inspector-2026-03-25T15:12:57.459219",
+  "scanner_type": "inspector",
+  "region": "us-east-1",
+  "timestamp": "2026-03-25T15:12:57.634874",
+  "results": {
+    "findings": [],
+    "total_findings": 0,
+    "scan_type": "inspector"
+  }
+}

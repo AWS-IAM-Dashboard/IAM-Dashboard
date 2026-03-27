@@ -1,0 +1,36 @@
+{
+  "scan_id": "config-2026-03-25T15:12:35.208981",
+  "scanner_type": "config",
+  "region": "us-east-1",
+  "timestamp": "2026-03-25T15:12:35.424958",
+  "results": {
+    "compliance_summary": {
+      "ComplianceSummary": {
+        "CompliantResourceCount": {
+          "CappedCount": 0,
+          "CapExceeded": false
+        },
+        "NonCompliantResourceCount": {
+          "CappedCount": 0,
+          "CapExceeded": false
+        },
+        "ComplianceSummaryTimestamp": "2026-03-25T15:12:35.343000+00:00"
+      },
+      "ResponseMetadata": {
+        "RequestId": "e6c04134-c31f-4524-8661-6e2b3e36d492",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+          "x-amzn-requestid": "e6c04134-c31f-4524-8661-6e2b3e36d492",
+          "strict-transport-security": "max-age=86400",
+          "content-type": "application/x-amz-json-1.1",
+          "content-length": "198",
+          "date": "Wed, 25 Mar 2026 15:12:35 GMT"
+        },
+        "RetryAttempts": 0
+      }
+    },
+    "config_rules": [],
+    "total_rules": 0,
+    "scan_type": "config"
+  }
+}

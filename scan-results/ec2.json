@@ -1,0 +1,24 @@
+{
+  "scan_id": "ec2-2026-03-25T14:22:11.843251",
+  "scanner_type": "ec2",
+  "region": "us-east-1",
+  "timestamp": "2026-03-25T14:22:12.287443",
+  "results": {
+    "account_id": "562559071105",
+    "instances": {
+      "total": 0,
+      "public": 0,
+      "without_imdsv2": 0,
+      "unencrypted_volumes": 0,
+      "open_security_groups": 0
+    },
+    "findings": [],
+    "scan_summary": {
+      "critical_findings": 0,
+      "high_findings": 0,
+      "medium_findings": 0,
+      "low_findings": 0
+    },
+    "scan_type": "ec2"
+  }
+}

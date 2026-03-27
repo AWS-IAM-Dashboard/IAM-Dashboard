@@ -1,0 +1,150 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Action": [
+				"logs:CreateLogGroup",
+				"logs:CreateLogStream",
+				"logs:PutLogEvents"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:logs:*:*:*"
+		},
+		{
+			"Action": [
+				"s3:PutObject",
+				"s3:GetObject",
+				"s3:ListBucket",
+				"s3:ListAllMyBuckets",
+				"s3:GetBucketEncryption",
+				"s3:GetPublicAccessBlock",
+				"s3:GetBucketVersioning"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:s3:::iam-dashboard-project/*",
+				"arn:aws:s3:::iam-dashboard-project",
+				"arn:aws:s3:::iam-dashboard-scan-results-*/*",
+				"arn:aws:s3:::iam-dashboard-scan-results-*",
+				"*"
+			]
+		},
+		{
+			"Action": [
+				"dynamodb:PutItem",
+				"dynamodb:GetItem",
+				"dynamodb:UpdateItem",
+				"dynamodb:Query",
+				"dynamodb:Scan"
+			],
+			"Effect": "Allow",
+			"Resource": "arn:aws:dynamodb:*:*:table/iam-dashboard-*"
+		},
+		{
+			"Action": [
+				"securityhub:GetFindings",
+				"securityhub:BatchImportFindings",
+				"securityhub:GetInsights",
+				"securityhub:GetComplianceSummary"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"guardduty:ListDetectors",
+				"guardduty:GetDetector",
+				"guardduty:ListFindings",
+				"guardduty:GetFindings",
+				"guardduty:DescribeFindings"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"config:DescribeConfigRules",
+				"config:GetComplianceSummaryByConfigRule",
+				"config:GetComplianceSummaryByResourceType",
+				"config:DescribeComplianceByConfigRule",
+				"config:DescribeComplianceByResource"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"inspector2:ListFindings",
+				"inspector2:GetFindings",
+				"inspector2:BatchGetFindings",
+				"inspector2:ListScans"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"macie2:ListFindings",
+				"macie2:GetFindings",
+				"macie2:BatchGetFindings",
+				"macie2:DescribeBuckets"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"iam:ListUsers",
+				"iam:GetUser",
+				"iam:ListRoles",
+				"iam:GetRole",
+				"iam:ListAttachedUserPolicies",
+				"iam:ListAttachedRolePolicies",
+				"iam:ListRolePolicies",
+				"iam:GetRolePolicy",
+				"iam:GetUserPolicy",
+				"iam:ListUserPolicies",
+				"iam:GetPolicy",
+				"iam:GetPolicyVersion",
+				"iam:ListPolicyVersions",
+				"iam:ListMFADevices",
+				"iam:ListAccessKeys",
+				"iam:GetAccessKeyLastUsed",
+				"iam:ListPolicies",
+				"iam:ListGroups",
+				"iam:GetCallerIdentity"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"ec2:DescribeInstances",
+				"ec2:DescribeSecurityGroups",
+				"ec2:DescribeVolumes",
+				"ec2:DescribeSnapshots",
+				"ec2:DescribeImages"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"kms:Decrypt",
+				"kms:Encrypt",
+				"kms:GenerateDataKey",
+				"kms:DescribeKey"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"xray:PutTraceSegments",
+				"xray:PutTelemetryRecords"
+			],
+			"Effect": "Allow",
+			"Resource": "*"
+		}
+	]
+}

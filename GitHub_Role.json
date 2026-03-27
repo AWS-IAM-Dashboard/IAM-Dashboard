@@ -1,0 +1,290 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Deny",
+			"Action": [
+				"lambda:DeleteFunction",
+				"lambda:DeleteAlias",
+				"lambda:DeleteEventSourceMapping",
+				"lambda:DeleteFunctionConcurrency",
+				"lambda:DeleteLayerVersion",
+				"s3:DeleteBucket",
+				"s3:DeleteBucketPolicy",
+				"s3:DeleteBucketWebsite",
+				"dynamodb:DeleteTable",
+				"dynamodb:DeleteBackup",
+				"apigateway:DELETE",
+				"cloudfront:DeleteDistribution",
+				"cloudfront:DeleteCloudFrontOriginAccessIdentity",
+				"iam:DeleteRole",
+				"iam:DeleteRolePolicy",
+				"iam:DetachRolePolicy",
+				"cognito-idp:DeleteUserPool",
+				"cognito-identity:DeleteIdentityPool",
+				"ses:DeleteIdentity",
+				"ses:DeleteConfigurationSet"
+			],
+			"Resource": "*",
+			"Sid": "DenyInfrastructureDeletion"
+		},
+		{
+			"Action": [
+				"lambda:*"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-scanner",
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-scanner:*",
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-*"
+			],
+			"Sid": "LambdaFull"
+		},
+		{
+			"Action": [
+				"lambda:CreateFunction",
+				"lambda:CreateAlias",
+				"lambda:CreateEventSourceMapping",
+				"lambda:UpdateFunctionCode",
+				"lambda:UpdateFunctionConfiguration",
+				"lambda:PublishVersion",
+				"lambda:TagResource",
+				"lambda:UntagResource"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-*"
+			],
+			"Sid": "LambdaCreate"
+		},
+		{
+			"Action": [
+				"apigateway:*"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "APIGatewayFull"
+		},
+		{
+			"Action": [
+				"apigateway:POST",
+				"apigateway:PUT",
+				"apigateway:PATCH"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "APIGatewayCreate"
+		},
+		{
+			"Action": [
+				"s3:*"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:s3:::iam-dashboard-project",
+				"arn:aws:s3:::iam-dashboard-project/*",
+				"arn:aws:s3:::iam-dashboard-scan-results",
+				"arn:aws:s3:::iam-dashboard-scan-results/*",
+				"arn:aws:s3:::iam-dashboard-*",
+				"arn:aws:s3:::iam-dashboard-*/*"
+			],
+			"Sid": "S3Full"
+		},
+		{
+			"Action": [
+				"s3:CreateBucket",
+				"s3:PutBucketPolicy",
+				"s3:PutBucketWebsite",
+				"s3:PutBucketVersioning",
+				"s3:PutBucketPublicAccessBlock",
+				"s3:PutBucketNotification",
+				"s3:PutBucketCors"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:s3:::iam-dashboard-*"
+			],
+			"Sid": "S3Create"
+		},
+		{
+			"Action": [
+				"dynamodb:*"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-scan-results",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-scan-results/index/*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-*/index/*"
+			],
+			"Sid": "DynamoDBFull"
+		},
+		{
+			"Action": [
+				"dynamodb:CreateTable",
+				"dynamodb:UpdateTable",
+				"dynamodb:TagResource",
+				"dynamodb:UntagResource",
+				"dynamodb:PutItem",
+				"dynamodb:UpdateItem"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-*"
+			],
+			"Sid": "DynamoDBCreate"
+		},
+		{
+			"Action": [
+				"cloudfront:*"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "CloudFrontFull"
+		},
+		{
+			"Action": [
+				"cloudfront:CreateDistribution",
+				"cloudfront:CreateCloudFrontOriginAccessIdentity",
+				"cloudfront:UpdateDistribution",
+				"cloudfront:TagResource",
+				"cloudfront:UntagResource"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "CloudFrontCreate"
+		},
+		{
+			"Action": [
+				"iam:GetRole",
+				"iam:PassRole",
+				"iam:ListRoles",
+				"iam:ListAttachedRolePolicies",
+				"iam:ListRolePolicies",
+				"iam:GetRolePolicy"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:iam::562559071105:role/iam-dashboard-*"
+			],
+			"Sid": "IAMPassRoleAndRead"
+		},
+		{
+			"Action": [
+				"iam:CreateRole",
+				"iam:PutRolePolicy",
+				"iam:AttachRolePolicy",
+				"iam:TagRole",
+				"iam:UntagRole",
+				"iam:UpdateRole",
+				"iam:UpdateAssumeRolePolicy"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:iam::562559071105:role/iam-dashboard-*"
+			],
+			"Sid": "IAMCreate"
+		},
+		{
+			"Action": [
+				"iam:CreateRole",
+				"iam:PutRolePolicy",
+				"iam:AttachRolePolicy",
+				"iam:UpdateAssumeRolePolicy",
+				"iam:TagRole",
+				"iam:UntagRole",
+				"sts:AssumeRole"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:iam::562559071105:role/cross-account-*",
+				"arn:aws:iam::*:role/iam-dashboard-*"
+			],
+			"Sid": "CrossAccountRoles"
+		},
+		{
+			"Sid": "CognitoFull",
+			"Effect": "Allow",
+			"Action": [
+				"cognito-idp:*",
+				"cognito-identity:*"
+			],
+			"Resource": [
+				"arn:aws:cognito-idp:us-east-1:562559071105:userpool/existing-pool-id",
+				"arn:aws:cognito-idp:*:562559071105:userpool/*",
+				"arn:aws:cognito-identity:*:562559071105:identitypool/*",
+				"arn:aws:cognito-idp:*:562559071105:userpool/*/domain/*"
+			]
+		},
+		{
+			"Sid": "DescribeUserPoolDomain",
+			"Effect": "Allow",
+			"Action": [
+				"cognito-idp:DescribeUserPoolDomain"
+			],
+			"Resource": "*"
+		},
+		{
+			"Action": [
+				"ses:*"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "SESFull"
+		},
+		{
+			"Action": [
+				"s3:GetObject",
+				"s3:PutObject",
+				"s3:DeleteObject",
+				"s3:ListBucket"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"arn:aws:s3:::iam-dashboard-project",
+				"arn:aws:s3:::iam-dashboard-project/terraform/*"
+			],
+			"Sid": "TerraformState"
+		},
+		{
+			"Action": [
+				"sts:GetCallerIdentity",
+				"iam:GetAccountSummary",
+				"apigateway:GET",
+				"cloudfront:ListDistributions",
+				"cloudfront:ListCloudFrontOriginAccessIdentities",
+				"dynamodb:ListTables",
+				"s3:ListAllMyBuckets",
+				"lambda:ListFunctions",
+				"support:*",
+				"trustedadvisor:*"
+			],
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "ConsoleNavigation"
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"s3:GetObject",
+				"s3:PutObject",
+				"s3:ListBucket"
+			],
+			"Resource": [
+				"arn:aws:s3:::iam-dashboard-terraform-state",
+				"arn:aws:s3:::iam-dashboard-terraform-state/*"
+			],
+			"Sid": "TerraformStateBucket"
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"dynamodb:GetItem",
+				"dynamodb:PutItem",
+				"dynamodb:DeleteItem"
+			],
+			"Resource": "arn:aws:dynamodb:us-east-1:562559071105:table/terraform-state-lock",
+			"Sid": "TerraformStateLock"
+		}
+	]
+}

@@ -1,0 +1,1023 @@
+{
+  "scan_id": "iam-2026-03-25T15:01:03.526976",
+  "scanner_type": "iam",
+  "region": "us-east-1",
+  "timestamp": "2026-03-25T15:01:10.868644",
+  "results": {
+    "account_id": "562559071105",
+    "users": {
+      "total": 6,
+      "with_mfa": 6,
+      "without_mfa": 0,
+      "inactive": 3
+    },
+    "roles": {
+      "total": 35
+    },
+    "policies": {
+      "total": 9
+    },
+    "groups": {
+      "total": 1
+    },
+    "findings": [
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "cyber-Akif/AKIA...2GF5",
+        "resource_arn": "arn:aws:iam::****:user/cy...if",
+        "description": "Access key AKIA...2GF5 for user \"cyber-Akif\" is 147 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Medium",
+        "type": "user",
+        "resource_name": "cyber-Akif",
+        "resource_arn": "arn:aws:iam::562559071105:user/cyber-Akif",
+        "description": "User \"cyber-Akif\" has not logged in for 140 days",
+        "recommendation": "Review and consider disabling inactive user accounts",
+        "finding_type": "inactive_user"
+      },
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "cyber-Alexa/AKIA...JKHW",
+        "resource_arn": "arn:aws:iam::****:user/cy...xa",
+        "description": "Access key AKIA...JKHW for user \"cyber-Alexa\" is 147 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Low",
+        "type": "access_key",
+        "resource_name": "cyber-Alexa/AKIA...JKHW",
+        "resource_arn": "arn:aws:iam::****:user/cy...xa",
+        "description": "Access key AKIA...JKHW has not been used in 147 days",
+        "recommendation": "Consider removing unused access keys",
+        "finding_type": "unused_access_key"
+      },
+      {
+        "severity": "Medium",
+        "type": "user",
+        "resource_name": "cyber-Alexa",
+        "resource_arn": "arn:aws:iam::562559071105:user/cyber-Alexa",
+        "description": "User \"cyber-Alexa\" has not logged in for 133 days",
+        "recommendation": "Review and consider disabling inactive user accounts",
+        "finding_type": "inactive_user"
+      },
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "cyber-Dev/AKIA...SPSO",
+        "resource_arn": "arn:aws:iam::****:user/cy...ev",
+        "description": "Access key AKIA...SPSO for user \"cyber-Dev\" is 147 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Medium",
+        "type": "user",
+        "resource_name": "cyber-Dev",
+        "resource_arn": "arn:aws:iam::562559071105:user/cyber-Dev",
+        "description": "User \"cyber-Dev\" has not logged in for 133 days",
+        "recommendation": "Review and consider disabling inactive user accounts",
+        "finding_type": "inactive_user"
+      },
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "cyber-test/AKIA...R5M6",
+        "resource_arn": "arn:aws:iam::****:user/cy...st",
+        "description": "Access key AKIA...R5M6 for user \"cyber-test\" is 147 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "iamadmin/AKIA...7GET",
+        "resource_arn": "arn:aws:iam::****:user/iamadmin",
+        "description": "Access key AKIA...7GET for user \"iamadmin\" is 222 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Medium",
+        "type": "access_key",
+        "resource_name": "iamadmin/AKIA...AIMD",
+        "resource_arn": "arn:aws:iam::****:user/iamadmin",
+        "description": "Access key AKIA...AIMD for user \"iamadmin\" is 344 days old",
+        "recommendation": "Rotate access keys every 90 days for security best practices",
+        "finding_type": "old_access_key"
+      },
+      {
+        "severity": "Critical",
+        "type": "user",
+        "resource_name": "iamadmin",
+        "resource_arn": "arn:aws:iam::562559071105:user/iamadmin",
+        "description": "User \"iamadmin\" has AdministratorAccess policy attached",
+        "recommendation": "Remove AdministratorAccess and use least privilege principles",
+        "finding_type": "admin_access"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonGuardDuty",
+        "resource_arn": "arn:aws:iam::****:role/aws-...Duty",
+        "description": "Role \"AWSServiceRoleForAmazonGuardDuty\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonGuardDuty",
+        "resource_arn": "arn:aws:iam::****:role/aws-...Duty",
+        "description": "Role \"AWSServiceRoleForAmazonGuardDuty\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonInspector2",
+        "resource_arn": "arn:aws:iam::****:role/aws-...tor2",
+        "description": "Role \"AWSServiceRoleForAmazonInspector2\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonInspector2",
+        "resource_arn": "arn:aws:iam::****:role/aws-...tor2",
+        "description": "Role \"AWSServiceRoleForAmazonInspector2\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonInspector2",
+        "resource_arn": "arn:aws:iam::****:role/aws-...tor2",
+        "description": "Role \"AWSServiceRoleForAmazonInspector2\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAmazonInspector2",
+        "resource_arn": "arn:aws:iam::****:role/aws-...tor2",
+        "description": "Role \"AWSServiceRoleForAmazonInspector2\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAPIGateway",
+        "resource_arn": "arn:aws:iam::****:role/aws-...eway",
+        "description": "Role \"AWSServiceRoleForAPIGateway\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "API Gateway"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForAPIGateway",
+        "resource_arn": "arn:aws:iam::****:role/aws-...eway",
+        "description": "Role \"AWSServiceRoleForAPIGateway\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "API Gateway"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForCloudTrail",
+        "resource_arn": "arn:aws:iam::562559071105:role/aws-service-role/cloudtrail.amazonaws.com/AWSServiceRoleForCloudTrail",
+        "description": "Role \"AWSServiceRoleForCloudTrail\" has full cloudtrail service permissions (cloudtrail:*) in policy \"attached\"",
+        "recommendation": "Replace cloudtrail:* with specific cloudtrail actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForConfig",
+        "resource_arn": "arn:aws:iam::****:role/aws-...nfig",
+        "description": "Role \"AWSServiceRoleForConfig\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForOrganizations",
+        "resource_arn": "arn:aws:iam::****:role/aws-...ions",
+        "description": "Role \"AWSServiceRoleForOrganizations\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForResourceExplorer",
+        "resource_arn": "arn:aws:iam::****:role/aws-...orer",
+        "description": "Role \"AWSServiceRoleForResourceExplorer\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForSupport",
+        "resource_arn": "arn:aws:iam::****:role/aws-...port",
+        "description": "Role \"AWSServiceRoleForSupport\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForSupport",
+        "resource_arn": "arn:aws:iam::****:role/aws-...port",
+        "description": "Role \"AWSServiceRoleForSupport\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "AWSServiceRoleForSupport",
+        "resource_arn": "arn:aws:iam::****:role/aws-...port",
+        "description": "Role \"AWSServiceRoleForSupport\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has write permissions on all resources (*) in policy \"IAM-Dash-cloudwatch-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has write permissions on all resources (*) in policy \"IAM-Dash-cloudwatch-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has write permissions on all resources (*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full lambda service permissions (lambda:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace lambda:* with specific lambda actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full apigateway service permissions (apigateway:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace apigateway:* with specific apigateway actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full s3 service permissions (s3:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace s3:* with specific s3 actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full dynamodb service permissions (dynamodb:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace dynamodb:* with specific dynamodb actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full cloudfront service permissions (cloudfront:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace cloudfront:* with specific cloudfront actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has write permissions on all resources (*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:CreateRole) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:PutRolePolicy) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:AttachRolePolicy) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:CreateRole) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:PutRolePolicy) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::****:role/IAM-...b-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" can create/modify IAM resources (iam:AttachRolePolicy) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full cognito-idp service permissions (cognito-idp:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace cognito-idp:* with specific cognito-idp actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full cognito-identity service permissions (cognito-identity:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace cognito-identity:* with specific cognito-identity actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full ses service permissions (ses:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace ses:* with specific ses actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full support service permissions (support:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace support:* with specific support actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "IAM-Dash-GitHub-CD",
+        "resource_arn": "arn:aws:iam::562559071105:role/IAM-Dash-GitHub-CD",
+        "description": "Role \"IAM-Dash-GitHub-CD\" has full trustedadvisor service permissions (trustedadvisor:*) in policy \"IAM-Dash-Spring-2026-Sprints\"",
+        "recommendation": "Replace trustedadvisor:* with specific trustedadvisor actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full apigateway service permissions (apigateway:*) in policy \"iam-dashboard-deployer-prod-apigateway-policy\"",
+        "recommendation": "Replace apigateway:* with specific apigateway actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full apigatewayv2 service permissions (apigatewayv2:*) in policy \"iam-dashboard-deployer-prod-apigateway-policy\"",
+        "recommendation": "Replace apigatewayv2:* with specific apigatewayv2 actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::****:role/iam-...prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has write permissions on all resources (*) in policy \"iam-dashboard-deployer-prod-cloudfront-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full dynamodb service permissions (dynamodb:*) in policy \"iam-dashboard-deployer-prod-dynamodb-policy\"",
+        "recommendation": "Replace dynamodb:* with specific dynamodb actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::****:role/iam-...prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" can create/modify IAM resources (iam:CreateRole) in policy \"iam-dashboard-deployer-prod-iam-read-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::****:role/iam-...prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" can create/modify IAM resources (iam:PutRolePolicy) in policy \"iam-dashboard-deployer-prod-iam-read-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::****:role/iam-...prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" can create/modify IAM resources (iam:AttachRolePolicy) in policy \"iam-dashboard-deployer-prod-iam-read-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full iam service permissions (iam:*) in policy \"iam-dashboard-deployer-prod-iam-read-policy\"",
+        "recommendation": "Replace iam:* with specific iam actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full lambda service permissions (lambda:*) in policy \"iam-dashboard-deployer-prod-lambda-policy\"",
+        "recommendation": "Replace lambda:* with specific lambda actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-deployer-prod",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-deployer-prod",
+        "description": "Role \"iam-dashboard-deployer-prod\" has full s3 service permissions (s3:*) in policy \"iam-dashboard-deployer-prod-s3-policy\"",
+        "recommendation": "Replace s3:* with specific s3 actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-lambda-role",
+        "resource_arn": "arn:aws:iam::****:role/iam-...role",
+        "description": "Role \"iam-dashboard-lambda-role\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-lambda-role",
+        "resource_arn": "arn:aws:iam::****:role/iam-...role",
+        "description": "Role \"iam-dashboard-lambda-role\" allows s3:PutObject on all S3 buckets in policy \"iam-dashboard-lambda-role-policy\"",
+        "recommendation": "Restrict S3 permissions to specific buckets and enable public access block",
+        "finding_type": "s3_public_write",
+        "service_type": "S3"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-lambda-role",
+        "resource_arn": "arn:aws:iam::****:role/iam-...role",
+        "description": "Role \"iam-dashboard-lambda-role\" has write permissions on all resources (*) in policy \"iam-dashboard-lambda-role-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-lambda-role",
+        "resource_arn": "arn:aws:iam::****:role/iam-...role",
+        "description": "Role \"iam-dashboard-lambda-role\" has write permissions on all resources (*) in policy \"iam-dashboard-lambda-role-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-backend",
+        "description": "Role \"iam-dashboard-role-backend\" has full cloudwatch service permissions (cloudwatch:*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Replace cloudwatch:* with specific cloudwatch actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" can create/modify IAM resources (iam:CreateRole) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" can create/modify IAM resources (iam:AttachRolePolicy) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" can create/modify IAM resources (iam:PutRolePolicy) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Review if this permission is necessary and restrict to specific resources",
+        "finding_type": "iam_privilege_escalation",
+        "service_type": "IAM"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::****:role/iam-...kend",
+        "description": "Role \"iam-dashboard-role-backend\" has write permissions on all resources (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "Critical",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-backend",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-backend",
+        "description": "Role \"iam-dashboard-role-backend\" has full wildcard permissions (*) in policy \"iam-dashboard-backend-policy\"",
+        "recommendation": "Replace wildcard permissions with specific actions following least privilege",
+        "finding_type": "wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-data",
+        "resource_arn": "arn:aws:iam::****:role/iam-...data",
+        "description": "Role \"iam-dashboard-role-data\" has write permissions on all resources (*) in policy \"iam-dashboard-data-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::****:role/iam-...vops",
+        "description": "Role \"iam-dashboard-role-devops\" has write permissions on all resources (*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full lambda service permissions (lambda:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace lambda:* with specific lambda actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full apigateway service permissions (apigateway:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace apigateway:* with specific apigateway actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full s3 service permissions (s3:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace s3:* with specific s3 actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full dynamodb service permissions (dynamodb:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace dynamodb:* with specific dynamodb actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full cloudfront service permissions (cloudfront:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace cloudfront:* with specific cloudfront actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full support service permissions (support:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace support:* with specific support actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "iam-dashboard-role-devops",
+        "resource_arn": "arn:aws:iam::562559071105:role/iam-dashboard-role-devops",
+        "description": "Role \"iam-dashboard-role-devops\" has full trustedadvisor service permissions (trustedadvisor:*) in policy \"iam-dashboard-devops-policy\"",
+        "recommendation": "Replace trustedadvisor:* with specific trustedadvisor actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "keen-vibe-api-role",
+        "resource_arn": "arn:aws:iam::****:role/keen...role",
+        "description": "Role \"keen-vibe-api-role\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "keen-vibe-worker-role",
+        "resource_arn": "arn:aws:iam::****:role/keen...role",
+        "description": "Role \"keen-vibe-worker-role\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "keen-vibe-worker-role",
+        "resource_arn": "arn:aws:iam::****:role/keen...role",
+        "description": "Role \"keen-vibe-worker-role\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "KeenKloud",
+        "resource_arn": "arn:aws:iam::****:role/Ke...ud",
+        "description": "Role \"KeenKloud\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "lambda-SES-Role",
+        "resource_arn": "arn:aws:iam::****:role/lamb...Role",
+        "description": "Role \"lambda-SES-Role\" has write permissions on all resources (*) in policy \"lambda-SES-Policy\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "MarketUpdater-role-gyl79baw",
+        "resource_arn": "arn:aws:iam::****:role/serv...9baw",
+        "description": "Role \"MarketUpdater-role-gyl79baw\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "NextWave-role-e212w7zp",
+        "resource_arn": "arn:aws:iam::562559071105:role/service-role/NextWave-role-e212w7zp",
+        "description": "Role \"NextWave-role-e212w7zp\" has full dynamodb service permissions (dynamodb:*) in policy \"attached\"",
+        "recommendation": "Replace dynamodb:* with specific dynamodb actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "NextWave-role-e212w7zp",
+        "resource_arn": "arn:aws:iam::562559071105:role/service-role/NextWave-role-e212w7zp",
+        "description": "Role \"NextWave-role-e212w7zp\" has full dax service permissions (dax:*) in policy \"attached\"",
+        "recommendation": "Replace dax:* with specific dax actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "NextWave-role-e212w7zp",
+        "resource_arn": "arn:aws:iam::****:role/serv...w7zp",
+        "description": "Role \"NextWave-role-e212w7zp\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "NextWave-role-e212w7zp",
+        "resource_arn": "arn:aws:iam::****:role/serv...w7zp",
+        "description": "Role \"NextWave-role-e212w7zp\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "riterhythm-lambda-role",
+        "resource_arn": "arn:aws:iam::****:role/rite...role",
+        "description": "Role \"riterhythm-lambda-role\" has write permissions on all resources (*) in policy \"attached\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "Critical",
+        "type": "role",
+        "resource_name": "test-admin-role-1764893836",
+        "resource_arn": "arn:aws:iam::****:role/test...3836",
+        "description": "Role \"test-admin-role-1764893836\" has AdministratorAccess policy attached",
+        "recommendation": "Remove AdministratorAccess and use least privilege principles",
+        "finding_type": "admin_access",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "Critical",
+        "type": "role",
+        "resource_name": "test-admin-role-1764893836",
+        "resource_arn": "arn:aws:iam::562559071105:role/test-admin-role-1764893836",
+        "description": "Role \"test-admin-role-1764893836\" has full wildcard permissions (*) in policy \"attached\"",
+        "recommendation": "Replace wildcard permissions with specific actions following least privilege",
+        "finding_type": "wildcard_permissions",
+        "service_type": "Lambda"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::****:role/te...to",
+        "description": "Role \"test-cognito\" has write permissions on all resources (*) in policy \"CloudWatchAccess\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::****:role/te...to",
+        "description": "Role \"test-cognito\" has write permissions on all resources (*) in policy \"CloudWatchAccess\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::****:role/te...to",
+        "description": "Role \"test-cognito\" has write permissions on all resources (*) in policy \"FullCognito\"",
+        "recommendation": "Restrict resource ARNs to specific resources only",
+        "finding_type": "wildcard_resource",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::562559071105:role/test-cognito",
+        "description": "Role \"test-cognito\" has full lambda service permissions (lambda:*) in policy \"FullCognito\"",
+        "recommendation": "Replace lambda:* with specific lambda actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::562559071105:role/test-cognito",
+        "description": "Role \"test-cognito\" has full apigateway service permissions (apigateway:*) in policy \"FullCognito\"",
+        "recommendation": "Replace apigateway:* with specific apigateway actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::562559071105:role/test-cognito",
+        "description": "Role \"test-cognito\" has full s3 service permissions (s3:*) in policy \"FullCognito\"",
+        "recommendation": "Replace s3:* with specific s3 actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      },
+      {
+        "severity": "High",
+        "type": "role",
+        "resource_name": "test-cognito",
+        "resource_arn": "arn:aws:iam::562559071105:role/test-cognito",
+        "description": "Role \"test-cognito\" has full dynamodb service permissions (dynamodb:*) in policy \"FullCognito\"",
+        "recommendation": "Replace dynamodb:* with specific dynamodb actions only",
+        "finding_type": "service_wildcard_permissions",
+        "service_type": "Unknown"
+      }
+    ],
+    "scan_summary": {
+      "critical_findings": 5,
+      "high_findings": 103,
+      "medium_findings": 9,
+      "low_findings": 1
+    },
+    "scan_type": "iam",
+    "status": "completed"
+  }
+}

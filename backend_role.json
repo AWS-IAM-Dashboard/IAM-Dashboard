@@ -1,0 +1,399 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "ConsoleNavigation",
+			"Effect": "Allow",
+			"Action": [
+				"iam:ListRoles",
+				"iam:ListUsers",
+				"iam:GetAccountSummary",
+				"sts:GetCallerIdentity",
+				"resource-groups:ListGroups",
+				"tag:GetResources",
+				"cloudformation:ListStacks",
+				"cloudformation:DescribeStacks"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "LambdaListFunctions",
+			"Effect": "Allow",
+			"Action": [
+				"lambda:ListFunctions"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "LambdaBackendAccess",
+			"Effect": "Allow",
+			"Action": [
+				"lambda:GetFunction",
+				"lambda:GetFunctionConfiguration",
+				"lambda:ListVersionsByFunction",
+				"lambda:ListTags",
+				"lambda:CreateFunction",
+				"lambda:UpdateFunctionCode",
+				"lambda:UpdateFunctionConfiguration",
+				"lambda:InvokeFunction",
+				"lambda:GetPolicy",
+				"lambda:AddPermission",
+				"lambda:RemovePermission",
+				"lambda:CreateEventSourceMapping",
+				"lambda:UpdateEventSourceMapping",
+				"lambda:GetEventSourceMapping",
+				"lambda:ListEventSourceMappings"
+			],
+			"Resource": [
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-scanner",
+				"arn:aws:lambda:us-east-1:562559071105:function:iam-dashboard-scanner:*",
+				"arn:aws:lambda:us-east-1:562559071105:function:*test*",
+				"arn:aws:lambda:us-east-1:562559071105:function:*dev*",
+				"arn:aws:lambda:us-east-1:562559071105:event-source-mapping:*"
+			]
+		},
+		{
+			"Sid": "APIGatewayBackendAccess",
+			"Effect": "Allow",
+			"Action": [
+				"apigateway:GET",
+				"apigateway:POST",
+				"apigateway:PUT",
+				"apigateway:PATCH"
+			],
+			"Resource": [
+				"arn:aws:apigateway:us-east-1::/restapis/*test*",
+				"arn:aws:apigateway:us-east-1::/restapis/*dev*",
+				"arn:aws:apigateway:us-east-1::/restapis/*test*/*",
+				"arn:aws:apigateway:us-east-1::/restapis/*dev*/*"
+			]
+		},
+		{
+			"Sid": "DynamoDBBackendAccess",
+			"Effect": "Allow",
+			"Action": [
+				"dynamodb:DescribeTable",
+				"dynamodb:GetItem",
+				"dynamodb:Scan",
+				"dynamodb:Query",
+				"dynamodb:BatchGetItem",
+				"dynamodb:PutItem",
+				"dynamodb:UpdateItem",
+				"dynamodb:BatchWriteItem",
+				"dynamodb:CreateTable",
+				"dynamodb:UpdateTable",
+				"dynamodb:DescribeTimeToLive",
+				"dynamodb:UpdateTimeToLive",
+				"dynamodb:ListTables",
+				"dynamodb:ListTagsOfResource",
+				"dynamodb:TagResource",
+				"dynamodb:CreateGlobalTable",
+				"dynamodb:UpdateGlobalTable"
+			],
+			"Resource": [
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-scan-results",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-scan-results/index/*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/*test*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/*dev*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/*test*/index/*",
+				"arn:aws:dynamodb:us-east-1:562559071105:table/*dev*/index/*"
+			]
+		},
+		{
+			"Sid": "S3TestingAccess",
+			"Effect": "Allow",
+			"Action": [
+				"s3:CreateBucket",
+				"s3:ListBucket",
+				"s3:GetBucketLocation",
+				"s3:GetBucketVersioning",
+				"s3:PutBucketVersioning",
+				"s3:GetBucketPolicy",
+				"s3:PutBucketPolicy",
+				"s3:GetBucketCors",
+				"s3:PutBucketCors",
+				"s3:GetBucketNotification",
+				"s3:PutBucketNotification",
+				"s3:GetObject",
+				"s3:PutObject",
+				"s3:GetObjectVersion",
+				"s3:GetBucketTagging",
+				"s3:PutBucketTagging",
+				"s3:GetBucketWebsite",
+				"s3:PutBucketWebsite",
+				"s3:DeleteBucketWebsite",
+				"s3:GetBucketPublicAccessBlock",
+				"s3:PutBucketPublicAccessBlock",
+				"s3:GetBucketAcl",
+				"s3:PutBucketAcl",
+				"s3:GetObjectAcl",
+				"s3:PutObjectAcl"
+			],
+			"Resource": [
+				"arn:aws:s3:::*test*",
+				"arn:aws:s3:::*test*/*",
+				"arn:aws:s3:::*dev*",
+				"arn:aws:s3:::*dev*/*",
+				"arn:aws:s3:::iam-dashboard-*",
+				"arn:aws:s3:::iam-dashboard-*/*"
+			]
+		},
+		{
+			"Sid": "S3ListAllBuckets",
+			"Effect": "Allow",
+			"Action": [
+				"s3:ListAllMyBuckets",
+				"s3:GetBucketLocation"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "CloudFrontTestingAccess",
+			"Effect": "Allow",
+			"Action": [
+				"cloudfront:CreateDistribution",
+				"cloudfront:GetDistribution",
+				"cloudfront:GetDistributionConfig",
+				"cloudfront:UpdateDistribution",
+				"cloudfront:DeleteDistribution",
+				"cloudfront:ListDistributions",
+				"cloudfront:CreateOriginAccessControl",
+				"cloudfront:GetOriginAccessControl",
+				"cloudfront:UpdateOriginAccessControl",
+				"cloudfront:DeleteOriginAccessControl",
+				"cloudfront:ListOriginAccessControls",
+				"cloudfront:CreateInvalidation",
+				"cloudfront:GetInvalidation",
+				"cloudfront:ListInvalidations",
+				"cloudfront:TagResource",
+				"cloudfront:UntagResource",
+				"cloudfront:ListTagsForResource",
+				"cloudfront:CreateCachePolicy",
+				"cloudfront:GetCachePolicy",
+				"cloudfront:UpdateCachePolicy",
+				"cloudfront:DeleteCachePolicy",
+				"cloudfront:ListCachePolicies",
+				"cloudfront:CreateOriginRequestPolicy",
+				"cloudfront:GetOriginRequestPolicy",
+				"cloudfront:UpdateOriginRequestPolicy",
+				"cloudfront:DeleteOriginRequestPolicy",
+				"cloudfront:ListOriginRequestPolicies",
+				"cloudfront:CreateResponseHeadersPolicy",
+				"cloudfront:GetResponseHeadersPolicy",
+				"cloudfront:UpdateResponseHeadersPolicy",
+				"cloudfront:DeleteResponseHeadersPolicy",
+				"cloudfront:ListResponseHeadersPolicies"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "SESVerificationAccess",
+			"Effect": "Allow",
+			"Action": [
+				"ses:GetIdentityVerificationAttributes",
+				"ses:ListIdentities",
+				"ses:ListVerifiedEmailAddresses",
+				"ses:GetIdentityDkimAttributes",
+				"ses:GetIdentityNotificationAttributes",
+				"ses:GetIdentityPolicies",
+				"ses:SendEmail",
+				"ses:SendRawEmail",
+				"ses:SendTemplatedEmail",
+				"ses:TagResource",
+				"ses:ListEmailIdentities",
+				"ses:CreateEmailIdentity"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "CognitoTestingAccess",
+			"Effect": "Allow",
+			"Action": [
+				"cognito-idp:CreateUserPool",
+				"cognito-idp:CreateUserPoolClient",
+				"cognito-idp:CreateUserPoolDomain",
+				"cognito-idp:DescribeUserPool",
+				"cognito-idp:DescribeUserPoolClient",
+				"cognito-idp:DescribeUserPoolDomain",
+				"cognito-idp:UpdateUserPool",
+				"cognito-idp:UpdateUserPoolClient",
+				"cognito-idp:ListUserPools",
+				"cognito-idp:ListUserPoolClients",
+				"cognito-idp:DeleteUserPool",
+				"cognito-idp:DeleteUserPoolClient",
+				"cognito-idp:DeleteUserPoolDomain",
+				"cognito-idp:CreateGroup",
+				"cognito-idp:GetGroup",
+				"cognito-idp:ListGroups",
+				"cognito-idp:UpdateGroup",
+				"cognito-idp:DeleteGroup",
+				"cognito-idp:AdminAddUserToGroup",
+				"cognito-idp:AdminRemoveUserFromGroup",
+				"cognito-idp:AdminListGroupsForUser",
+				"cognito-idp:AdminGetUser",
+				"cognito-idp:AdminCreateUser",
+				"cognito-idp:AdminDeleteUser",
+				"cognito-idp:AdminUpdateUserAttributes",
+				"cognito-idp:AdminSetUserPassword",
+				"cognito-idp:AdminConfirmSignUp",
+				"cognito-idp:AdminDisableUser",
+				"cognito-idp:AdminEnableUser",
+				"cognito-idp:ListUsers",
+				"cognito-idp:ListUsersInGroup",
+				"cognito-idp:AdminInitiateAuth",
+				"cognito-idp:AdminRespondToAuthChallenge",
+				"cognito-idp:GetUser",
+				"cognito-idp:InitiateAuth",
+				"cognito-idp:RespondToAuthChallenge",
+				"cognito-idp:ConfirmSignUp",
+				"cognito-idp:ResendConfirmationCode",
+				"cognito-idp:ForgotPassword",
+				"cognito-idp:ConfirmForgotPassword",
+				"cognito-idp:ChangePassword",
+				"cognito-idp:SetUserMFAPreference",
+				"cognito-idp:GetUserAttributeVerificationCode",
+				"cognito-idp:VerifyUserAttribute",
+				"cognito-idp:UpdateUserAttributes",
+				"cognito-idp:DeleteUser",
+				"cognito-idp:SignUp",
+				"cognito-idp:GlobalSignOut",
+				"cognito-idp:DescribeUserPoolDomain",
+				"cognito-idp:CreateResourceServer",
+				"cognito-idp:DescribeResourceServer",
+				"cognito-idp:UpdateResourceServer",
+				"cognito-idp:DeleteResourceServer",
+				"cognito-idp:ListResourceServers",
+				"cognito-idp:CreateUserPoolDomain",
+				"cognito-idp:UpdateUserPoolDomain",
+				"cognito-idp:GetCSVHeader",
+				"cognito-idp:CreateUserImportJob",
+				"cognito-idp:DescribeUserImportJob",
+				"cognito-idp:ListUserImportJobs",
+				"cognito-idp:StartUserImportJob",
+				"cognito-idp:StopUserImportJob",
+				"cognito-idp:TagResource",
+				"cognito-idp:UntagResource",
+				"cognito-idp:ListTagsForResource",
+				"cognito-identity:CreateIdentityPool",
+				"cognito-identity:DescribeIdentityPool",
+				"cognito-identity:UpdateIdentityPool",
+				"cognito-identity:ListIdentityPools",
+				"cognito-identity:DeleteIdentityPool",
+				"cognito-identity:GetIdentityPoolRoles",
+				"cognito-identity:SetIdentityPoolRoles",
+				"cognito-identity:GetId",
+				"cognito-identity:GetCredentialsForIdentity",
+				"cognito-identity:GetOpenIdToken",
+				"cognito-identity:GetOpenIdTokenForDeveloperIdentity",
+				"cognito-identity:LookupDeveloperIdentity",
+				"cognito-identity:MergeDeveloperIdentities",
+				"cognito-identity:UnlinkDeveloperIdentity",
+				"cognito-identity:UnlinkIdentity",
+				"cognito-identity:TagResource",
+				"cognito-identity:UntagResource",
+				"cognito-identity:ListTagsForResource"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringLike": {
+					"aws:RequestedRegion": "us-east-1"
+				}
+			}
+		},
+		{
+			"Sid": "CloudWatchTestingAccess",
+			"Effect": "Allow",
+			"Action": [
+				"cloudwatch:*",
+				"logs:CreateLogGroup",
+				"logs:CreateLogStream",
+				"logs:PutLogEvents",
+				"logs:DescribeLogGroups",
+				"logs:DescribeLogStreams",
+				"logs:GetLogEvents",
+				"logs:FilterLogEvents",
+				"logs:PutMetricFilter",
+				"logs:DescribeMetricFilters"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "IAMTestingRoles",
+			"Effect": "Allow",
+			"Action": [
+				"iam:PassRole",
+				"iam:GetRole",
+				"iam:ListRoles",
+				"iam:CreateRole",
+				"iam:AttachRolePolicy",
+				"iam:PutRolePolicy",
+				"iam:GetRolePolicy",
+				"iam:ListRolePolicies",
+				"iam:ListAttachedRolePolicies"
+			],
+			"Resource": [
+				"arn:aws:iam::562559071105:role/*test*",
+				"arn:aws:iam::562559071105:role/*dev*",
+				"arn:aws:iam::562559071105:role/*lambda*",
+				"arn:aws:iam::562559071105:role/service-role/*"
+			]
+		},
+		{
+			"Sid": "VPCEndpointTesting",
+			"Effect": "Allow",
+			"Action": [
+				"ec2:CreateVpcEndpoint",
+				"ec2:DescribeVpcEndpoints",
+				"ec2:DescribeVpcs",
+				"ec2:DescribeSubnets",
+				"ec2:DescribeSecurityGroups",
+				"ec2:DescribeRouteTables",
+				"ec2:ModifyVpcEndpoint"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "EventBridgeTesting",
+			"Effect": "Allow",
+			"Action": [
+				"events:PutRule",
+				"events:DescribeRule",
+				"events:ListRules",
+				"events:PutTargets",
+				"events:ListTargetsByRule",
+				"events:EnableRule",
+				"events:DisableRule"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "DenyProductionResources",
+			"Effect": "Deny",
+			"Action": "*",
+			"Resource": [
+				"arn:aws:s3:::*prod*",
+				"arn:aws:s3:::*production*",
+				"arn:aws:lambda:*:*:function:*prod*",
+				"arn:aws:lambda:*:*:function:*production*",
+				"arn:aws:dynamodb:*:*:table/*prod*",
+				"arn:aws:dynamodb:*:*:table/*production*"
+			]
+		},
+		{
+			"Sid": "AllowTestResourceDeletion",
+			"Effect": "Allow",
+			"Action": [
+				"s3:DeleteBucket",
+				"s3:DeleteObject",
+				"dynamodb:DeleteTable",
+				"lambda:DeleteFunction"
+			],
+			"Resource": [
+				"arn:aws:s3:::*test*",
+				"arn:aws:s3:::*dev*",
+				"arn:aws:lambda:*:*:function:*test*",
+				"arn:aws:lambda:*:*:function:*dev*"
+			]
+		}
+	]
+}

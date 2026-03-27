@@ -1,0 +1,11 @@
+{
+  "scan_id": "security-hub-2026-03-24T20:39:28.199869",
+  "scanner_type": "security-hub",
+  "region": "us-east-1",
+  "timestamp": "2026-03-24T20:39:28.575388",
+  "results": {
+    "error": "Security Hub is not enabled in this region",
+    "scan_type": "security-hub",
+    "error_code": "InvalidAccessException"
+  }
+}

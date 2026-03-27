@@ -1,0 +1,145 @@
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # module.api_gateway.aws_apigatewayv2_route.config will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "config" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "cr7l157"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.full will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "full" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "jg8iw23"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.guardduty will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "guardduty" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "4ts67c3"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.iam will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "iam" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "gazure2"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.inspector will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "inspector" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "cgzlgb6"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.macie will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "macie" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "dp5yjei"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.s3 will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "s3" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "23y1nw0"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.api_gateway.aws_apigatewayv2_route.security_hub will be updated in-place
+  ~ resource "aws_apigatewayv2_route" "security_hub" {
+      ~ authorization_type                  = "NONE" -> "JWT"
+      + authorizer_id                       = "jww4j7"
+        id                                  = "efld6mh"
+        # (9 unchanged attributes hidden)
+    }
+
+  # module.cloudfront.aws_cloudfront_distribution.iam_dashboard will be updated in-place
+  ~ resource "aws_cloudfront_distribution" "iam_dashboard" {
+        id                              = "E1ASA8I59U9PNG"
+        tags                            = {
+            "Environment" = "prod"
+            "ManagedBy"   = "terraform"
+            "Name"        = "IAMDash-distribution"
+            "Project"     = "IAMDash"
+        }
+        # (22 unchanged attributes hidden)
+
+      - origin {
+          - connection_attempts      = 3 -> null
+          - connection_timeout       = 10 -> null
+          - domain_name              = "test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com" -> null
+          - origin_id                = "iam-dashboard-s3-website-IAMDash" -> null
+            # (2 unchanged attributes hidden)
+
+          - custom_origin_config {
+              - http_port                = 80 -> null
+              - https_port               = 443 -> null
+              - origin_keepalive_timeout = 5 -> null
+              - origin_protocol_policy   = "http-only" -> null
+              - origin_read_timeout      = 30 -> null
+              - origin_ssl_protocols     = [
+                  - "TLSv1.2",
+                ] -> null
+            }
+        }
+      + origin {
+          + connection_attempts      = 3
+          + connection_timeout       = 10
+          + domain_name              = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
+          + origin_id                = "iam-dashboard-s3-website-IAMDash"
+            # (2 unchanged attributes hidden)
+
+          + custom_origin_config {
+              + http_port                = 80
+              + https_port               = 443
+              + origin_keepalive_timeout = 5
+              + origin_protocol_policy   = "http-only"
+              + origin_read_timeout      = 30
+              + origin_ssl_protocols     = [
+                  + "TLSv1.2",
+                ]
+            }
+        }
+
+        # (5 unchanged blocks hidden)
+    }
+
+  # module.cognito.aws_cognito_user_group.admin will be updated in-place
+  ~ resource "aws_cognito_user_group" "admin" {
+      ~ description  = "Admin group for seeded Cognito users" -> "Admin group for Cognito users"
+        id           = "us-east-1_ITzOhtZfA/admin"
+        name         = "admin"
+        # (3 unchanged attributes hidden)
+    }
+
+  # module.cognito.aws_cognito_user_pool_client.spa will be updated in-place
+  ~ resource "aws_cognito_user_pool_client" "spa" {
+      ~ callback_urls                                 = [
+          + "http://localhost:5173/",
+            # (2 unchanged elements hidden)
+        ]
+        id                                            = "58etup16kgcbihhuak5r1l5cti"
+      ~ logout_urls                                   = [
+          + "http://localhost:5173/",
+            # (2 unchanged elements hidden)
+        ]
+        name                                          = "IAMDash-prod-spa-client"
+        # (18 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 11 to change, 0 to destroy.
