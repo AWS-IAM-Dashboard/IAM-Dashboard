@@ -180,7 +180,7 @@ export const MOCK_ARCH_RISKS: ArchitectureRisk[] = [
     affected_resources: ["prod-mysql-01"],
     description: "Production MySQL RDS instance runs in a single AZ (us-east-1a). An AZ outage will cause complete database unavailability.",
     recommendation: "Enable Multi-AZ deployment for prod-mysql-01. Estimated downtime for conversion: ~15 minutes.",
-    linked_service_tab: "ec2-security", estimated_impact: "Full application downtime",
+    linked_service_tab: "ec2-security", estimated_impact: "RTO ∞ for AZ failure — 3 services, ~2,400 RPM affected",
     status: "open",
   },
   {
@@ -189,7 +189,7 @@ export const MOCK_ARCH_RISKS: ArchitectureRisk[] = [
     affected_resources: ["company-prod-data", "acme-cloudtrail", "prod-mysql-01-backup"],
     description: "All backups reside in us-east-1 only. A regional event would destroy both primary and backup data.",
     recommendation: "Configure S3 cross-region replication for critical buckets. Enable RDS cross-region read replica or automated backups to us-west-2.",
-    linked_service_tab: "s3-security", estimated_impact: "Unrecoverable data loss in regional failure",
+    linked_service_tab: "s3-security", estimated_impact: "RPO = total loss if us-east-1 fails — 14 buckets, 1 RDS",
     status: "in_progress",
   },
   {
@@ -198,7 +198,7 @@ export const MOCK_ARCH_RISKS: ArchitectureRisk[] = [
     affected_resources: ["sg-0abc1234 (prod-web-sg)", "sg-0def5678 (prod-app-sg)"],
     description: "Production web and app security groups allow lateral traffic to all ports within the VPC CIDR. A compromised instance can reach any other instance.",
     recommendation: "Restrict SG rules to specific ports and destination SGs (micro-segmentation). Use VPC endpoint policies for AWS service access.",
-    linked_service_tab: "vpc-security", estimated_impact: "Lateral movement across production",
+    linked_service_tab: "vpc-security", estimated_impact: "6 instances reachable from any compromised host in VPC",
     status: "open",
   },
   {
@@ -207,7 +207,7 @@ export const MOCK_ARCH_RISKS: ArchitectureRisk[] = [
     affected_resources: ["nat-0prod123 (us-east-1a)"],
     description: "Production private subnets route through a single NAT Gateway in us-east-1a. AZ failure disrupts all outbound connectivity.",
     recommendation: "Deploy a NAT Gateway per AZ in the production VPC routing table.",
-    linked_service_tab: "vpc-security", estimated_impact: "Outbound connectivity loss for private subnets",
+    linked_service_tab: "vpc-security", estimated_impact: "4 private subnets lose outbound — API calls, log shipping halt",
     status: "open",
   },
   {
@@ -216,7 +216,7 @@ export const MOCK_ARCH_RISKS: ArchitectureRisk[] = [
     affected_resources: ["prod/db/mysql-master-password", "prod/stripe/api-key"],
     description: "Secrets Manager secrets are region-scoped. No replication to a DR region is configured.",
     recommendation: "Enable multi-region secret replication to us-west-2 for critical secrets.",
-    linked_service_tab: undefined, estimated_impact: "Application startup failure in DR scenario",
+    linked_service_tab: undefined, estimated_impact: "5 secrets unavailable in DR — app cold-start blocked",
     status: "open",
   },
 ];

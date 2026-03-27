@@ -4,7 +4,7 @@ import { Globe, ChevronDown, ChevronRight, CheckCircle2, XCircle, AlertTriangle 
 import type { TLSEndpoint, CertificateEntry, PlaintextChannel } from "./types";
 import {
   mono, divider,
-  ComplianceChip, MockBadge, ExpiryTimeline, AcceptanceCheck,
+  ComplianceChip, MockBadge, ExpiryTimeline,
   BackendHandoff, ModuleHeader, StatStrip, DPScenarioSimulator, EvidenceAuditCard, TH,
 } from "./shared";
 import { MOCK_TLS_ENDPOINTS, MOCK_CERTIFICATES, MOCK_PLAINTEXT, MOCK_AUDIT_TRAIL, DP_SCENARIOS } from "./mockData";
@@ -41,7 +41,7 @@ function TLSRow({ endpoint }: { endpoint: TLSEndpoint }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 1fr 80px 70px 70px 80px 80px 80px 100px", alignItems: "center", gap: 8, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? (minColor) : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 1fr 80px 70px 70px 80px 80px 80px 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? (minColor) : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -77,15 +77,6 @@ function TLSRow({ endpoint }: { endpoint: TLSEndpoint }) {
               </div>
             </div>
           )}
-          {endpoint.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Min TLS version ≥ 1.2", status: endpoint.min_tls_version === "1.2" || endpoint.min_tls_version === "1.3" ? "pass" : "fail" },
-              { label: "Perfect Forward Secrecy enabled", status: endpoint.pfs_enabled ? "pass" : "fail" },
-              { label: "HSTS header configured", status: endpoint.hsts_enabled ? "pass" : "fail" },
-              { label: "HTTP redirects to HTTPS", status: endpoint.http_redirect_to_https ? "pass" : "fail" },
-              { label: "Certificate valid and not expiring", status: cert ? (cert.days_remaining > 30 ? "pass" : cert.days_remaining > 0 ? "fail" : "fail") : "pending" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -96,7 +87,7 @@ function TLSRow({ endpoint }: { endpoint: TLSEndpoint }) {
 function PlaintextRow({ channel }: { channel: PlaintextChannel }) {
   const sc = channel.severity === "CRITICAL" ? "#ff0040" : channel.severity === "HIGH" ? "#ff6b35" : "#ffb000";
   return (
-    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 60px 1fr", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider }}>
+    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 60px 1fr", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider }}>
       <span style={{ display: "inline-flex", alignItems: "center", padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}12`, border: `1px solid ${sc}2e`, color: sc, fontSize: 10, fontWeight: 700, ...mono }}>{channel.severity}</span>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{channel.resource_name}</div>
@@ -157,7 +148,7 @@ export function InTransit() {
 
       {section === "endpoints" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 80px 70px 70px 80px 80px 80px 100px", gap: 8, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 80px 70px 70px 80px 80px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <span /><TH>Endpoint</TH><TH>Min TLS</TH><TH>PFS</TH><TH>HSTS</TH><TH>Redirect</TH><TH right>Cert Exp</TH><TH>ID</TH><TH right>Status</TH>
           </div>
           {MOCK_TLS_ENDPOINTS.map(e => <TLSRow key={e.id} endpoint={e} />)}
@@ -165,7 +156,7 @@ export function InTransit() {
       )}
 
       {section === "certificates" && (
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
           {MOCK_CERTIFICATES.map(cert => {
             const expColor = cert.days_remaining < 0 ? "#ff0040" : cert.days_remaining <= 30 ? "#ff6b35" : cert.days_remaining <= 90 ? "#ffb000" : "#00ff88";
             return (
@@ -207,7 +198,7 @@ export function InTransit() {
 
       {section === "plaintext" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 60px 1fr", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 60px 1fr", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <TH>Severity</TH><TH>Resource</TH><TH>Protocol</TH><TH>Port</TH><TH>Description</TH>
           </div>
           {MOCK_PLAINTEXT.map(p => <PlaintextRow key={p.id} channel={p} />)}

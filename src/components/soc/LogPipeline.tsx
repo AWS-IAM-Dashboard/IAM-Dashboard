@@ -69,7 +69,7 @@ function EpsMeter({ src }: { src: PipelineSource }) {
       flex: 1, padding: "16px 18px", borderRadius: 10,
       background: "rgba(15,23,42,0.85)",
       border: `1px solid ${isActive ? c + "18" : "rgba(255,255,255,0.06)"}`,
-      display: "flex", flexDirection: "column", gap: 10,
+      display: "flex", flexDirection: "column", gap: 8,
       position: "relative", overflow: "hidden",
     }}>
       {/* Ambient glow stripe */}
@@ -212,14 +212,14 @@ export function LogPipeline() {
       </div>
 
       {/* EPS meters for top-volume sources */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
         {heroSources.map(src => <EpsMeter key={src.id} src={src} />)}
       </div>
 
       {/* Full source table + errors */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 296px", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 296px", gap: 12 }}>
         <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 96px 80px 96px 80px", padding: "7px 14px", borderBottom: divider, background: "rgba(255,255,255,0.02)", gap: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 96px 80px 96px 80px", padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)", gap: 0 }}>
             {["Source", "Status", "EPS", "Lag", "Vol/d"].map(h => (
               <span key={h} style={{ ...ls, fontSize: 9 }}>{h}</span>
             ))}
@@ -235,7 +235,7 @@ export function LogPipeline() {
                   onClick={() => setSelected(isSelected ? null : src)}
                   style={{
                     display: "grid", gridTemplateColumns: "1fr 96px 80px 96px 80px",
-                    padding: "9px 14px", borderBottom: divider, cursor: "pointer",
+                    padding: "8px 12px", borderBottom: divider, cursor: "pointer",
                     background: isSelected ? "rgba(167,139,250,0.04)" : "transparent",
                     borderLeft: `2px solid ${isSelected ? "#a78bfa" : "transparent"}`,
                     transition: "border-color 0.1s", gap: 0, alignItems: "center",
@@ -260,8 +260,8 @@ export function LogPipeline() {
                 </div>
 
                 {isSelected && (
-                  <div style={{ padding: "10px 14px 12px", borderBottom: divider, background: "rgba(167,139,250,0.025)" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+                  <div style={{ padding: "8px 12px", borderBottom: divider, background: "rgba(167,139,250,0.025)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
                       <div>
                         <div style={{ ...ls, fontSize: 8, marginBottom: 4 }}>Lag</div>
                         <LagBar lag={src.lag_seconds} />
@@ -296,7 +296,7 @@ export function LogPipeline() {
         {/* Errors panel */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ borderRadius: 10, border: "1px solid rgba(255,107,53,0.2)", background: "rgba(255,107,53,0.04)", overflow: "hidden" }}>
-            <div style={{ padding: "9px 14px", borderBottom: "1px solid rgba(255,107,53,0.12)", display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,107,53,0.12)", display: "flex", alignItems: "center", gap: 6 }}>
               <AlertTriangle size={11} color="rgba(255,107,53,0.7)" />
               <span style={{ ...ls, fontSize: 9, color: "rgba(255,107,53,0.7)" }}>
                 Active Errors ({errors.filter(e => !e.resolved && !retried.has(e.id)).length})

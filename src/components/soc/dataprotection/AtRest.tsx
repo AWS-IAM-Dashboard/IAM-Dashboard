@@ -4,7 +4,7 @@ import { HardDrive, ChevronDown, ChevronRight, CheckCircle2, XCircle, AlertTrian
 import type { StorageEncryptionEntry, PublicSnapshot } from "./types";
 import {
   mono, divider,
-  ComplianceChip, MockBadge, AcceptanceCheck, BackendHandoff,
+  ComplianceChip, MockBadge, BackendHandoff,
   ModuleHeader, StatStrip, DPScenarioSimulator, EvidenceAuditCard, TH,
 } from "./shared";
 import { MOCK_STORAGE_ENCRYPTION, MOCK_PUBLIC_SNAPSHOTS, MOCK_AUDIT_TRAIL, DP_SCENARIOS } from "./mockData";
@@ -34,7 +34,7 @@ function EncRow({ entry }: { entry: StorageEncryptionEntry }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -66,14 +66,6 @@ function EncRow({ entry }: { entry: StorageEncryptionEntry }) {
               </div>
             ))}
           </div>
-          {entry.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Encryption enabled", status: entry.encrypted ? "pass" : "fail" },
-              { label: "Customer-managed KMS key (CMK) used", status: entry.kms_key_id ? "pass" : "fail" },
-              { label: "Not publicly accessible", status: !entry.public_accessible ? "pass" : "fail" },
-              { label: "Data classification tag present", status: "pass" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -83,7 +75,7 @@ function EncRow({ entry }: { entry: StorageEncryptionEntry }) {
 function SnapshotRow({ snap }: { snap: PublicSnapshot }) {
   const sc = snap.severity === "CRITICAL" ? "#ff0040" : "#ff6b35";
   return (
-    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider }}>
+    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider }}>
       <span style={{ display: "inline-flex", alignItems: "center", padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}12`, border: `1px solid ${sc}2e`, color: sc, fontSize: 10, fontWeight: 700, ...mono }}>{snap.severity}</span>
       <span style={{ ...mono, fontSize: 9.5, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{snap.snapshot_id}</span>
       <span style={{ ...mono, fontSize: 9.5, color: "rgba(100,116,139,0.65)" }}>{snap.resource_type}</span>
@@ -141,7 +133,7 @@ export function AtRest() {
 
       {section === "encryption" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <span /><TH>Type</TH><TH>Resource</TH><TH>Algorithm</TH><TH>KMS Key</TH><TH>Class</TH><TH>Access</TH><TH right>Status</TH>
           </div>
           {MOCK_STORAGE_ENCRYPTION.map(e => <EncRow key={e.id} entry={e} />)}
@@ -155,7 +147,7 @@ export function AtRest() {
             <span style={{ fontSize: 11, color: "rgba(255,0,64,0.8)" }}>Public snapshots are immediately accessible to any AWS account — treat as data breach risk.</span>
             <MockBadge />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <TH>Severity</TH><TH>Snapshot ID</TH><TH>Type</TH><TH>Size</TH><TH>Encrypted</TH><TH>Created</TH><TH>Description</TH>
           </div>
           {MOCK_PUBLIC_SNAPSHOTS.map(s => <SnapshotRow key={s.id} snap={s} />)}

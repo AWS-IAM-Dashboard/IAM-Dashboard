@@ -1,10 +1,10 @@
 // Governance — org policies, guardrails, exceptions
 import { useState } from "react";
-import { ScrollText, ChevronDown, ChevronRight, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
+import { ScrollText, ChevronDown, ChevronRight, AlertTriangle, Clock } from "lucide-react";
 import type { OrgPolicy, Guardrail, PolicyException } from "./types";
 import {
-  mono, divider, MockBadge, AcceptanceCheck, BackendHandoff,
-  GRCSectionHeader, StatStrip, ProgressBar, StatusDot, CrossLink,
+  mono, divider, MockBadge, BackendHandoff, ModuleHeader,
+  StatStrip, ProgressBar, StatusDot, CrossLink,
   SEV_COLOR, TH, useLocalStorage,
 } from "./shared";
 import { MOCK_POLICIES, MOCK_GUARDRAILS, MOCK_EXCEPTIONS, GOVERNANCE_ENDPOINTS } from "./mockData";
@@ -45,35 +45,33 @@ function PolicyRow({ policy, onNavigate }: { policy: OrgPolicy; onNavigate?: (ta
         <span style={{ ...mono, fontSize: 10, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${cc}10`, border: `1px solid ${cc}28`, color: cc }}>{policy.category}</span>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{policy.name}</div>
-          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{policy.description}</div>
         </div>
         <span style={{ ...mono, fontSize: 10, fontWeight: 700, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${ec}10`, border: `1px solid ${ec}28`, color: ec }}>
           {policy.enforcement === "exception_granted" ? "EXCEPT" : policy.enforcement.toUpperCase()}
         </span>
-        <ProgressBar value={policy.compliance_rate} color={barColor} height={4} label={`${policy.compliance_rate}%`} />
-        <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc, display: "inline-flex", alignItems: "center", gap: 4, padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}10`, border: `1px solid ${sc}28` }}>
+        <ProgressBar value={policy.compliance_rate} color={barColor} height={4} />
+        <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc, display: "inline-flex", alignItems: "center", gap: 4, padding: "0 8px", height: 16, borderRadius: 999, background: `${sc}10`, border: `1px solid ${sc}28` }}>
           {policy.severity}
         </span>
       </div>
       {open && (
         <div style={{ padding: "12px 16px", borderBottom: divider, background: "rgba(0,0,0,0.12)", animation: "fade-in 0.15s ease" }}>
+          <div style={{ fontSize: 11, color: "rgba(148,163,184,0.65)", lineHeight: 1.5, marginBottom: 12 }}>{policy.description}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 12 }}>
             {[
               { l: "Enforcement", v: policy.enforcement_mechanism },
               { l: "Owner", v: policy.owner },
-              { l: "Affected Resources", v: `${policy.affected_resources}` },
-              { l: "Non-Compliant", v: `${policy.non_compliant_resources}` },
+              { l: "Resources", v: `${policy.non_compliant_resources} non-compliant / ${policy.affected_resources} total` },
               { l: "Last Reviewed", v: new Date(policy.last_reviewed).toLocaleDateString() },
-              { l: "Frameworks", v: policy.linked_frameworks.join(", ") },
             ].map(({ l, v }) => (
               <div key={l}>
                 <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.4)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{l}</div>
-                <div style={{ ...mono, fontSize: 11, color: "#e2e8f0", marginTop: 2 }}>{v}</div>
+                <div style={{ ...mono, fontSize: 11, color: "#e2e8f0", marginTop: 4 }}>{v}</div>
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {policy.linked_service_tab && <CrossLink tab={policy.linked_service_tab} label={`Open ${policy.linked_service_tab.replace("-security", "").replace("-", " ").toUpperCase()} scanner`} onNavigate={onNavigate} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
+            {policy.linked_service_tab && <CrossLink tab={policy.linked_service_tab} onNavigate={onNavigate} />}
             {policy.linked_frameworks.map(fw => (
               <span key={fw} style={{ ...mono, fontSize: 10, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.5)" }}>{fw}</span>
             ))}
@@ -85,50 +83,97 @@ function PolicyRow({ policy, onNavigate }: { policy: OrgPolicy; onNavigate?: (ta
 }
 
 function GuardrailRow({ gr }: { gr: Guardrail }) {
+  const [open, setOpen] = useState(false);
   const tc = GUARDRAIL_TYPE_COLOR[gr.type] ?? "#64748b";
   const sc = gr.status === "active" ? "#00ff88" : gr.status === "drifted" ? "#ff0040" : gr.status === "pending" ? "#ffb000" : "#64748b";
 
   return (
-    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "80px 1fr 100px 80px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider }}>
-      <span style={{ ...mono, fontSize: 10, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${tc}10`, border: `1px solid ${tc}28`, color: tc }}>{gr.type.replace("_", " ")}</span>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ ...mono, fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{gr.name}</div>
-        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", marginTop: 1 }}>{gr.scope}</div>
+    <>
+      <div className="soc-row" onClick={() => setOpen(o => !o)} style={{ display: "grid", gridTemplateColumns: "24px 80px 1fr 100px 80px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? sc : "transparent"}`, transition: "border-color 0.15s" }}>
+        <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
+        <span style={{ ...mono, fontSize: 10, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${tc}10`, border: `1px solid ${tc}28`, color: tc }}>{gr.type.replace("_", " ")}</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...mono, fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{gr.name}</div>
+        </div>
+        <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+          {new Date(gr.last_evaluated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <StatusDot color={sc} />
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{gr.status.toUpperCase()}</span>
+          {gr.drift_detected && <AlertTriangle size={10} color="#ff0040" />}
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-        {new Date(gr.last_evaluated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <StatusDot color={sc} />
-        <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{gr.status.toUpperCase()}</span>
-        {gr.drift_detected && <AlertTriangle size={10} color="#ff0040" />}
-      </div>
-    </div>
+      {open && (
+        <div style={{ padding: "12px 16px", borderBottom: divider, background: "rgba(0,0,0,0.12)", animation: "fade-in 0.15s ease" }}>
+          <div style={{ fontSize: 11, color: "rgba(148,163,184,0.65)", lineHeight: 1.5, marginBottom: 12 }}>{gr.description}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+            {[
+              { l: "Scope", v: gr.scope },
+              { l: "Last Evaluated", v: new Date(gr.last_evaluated).toLocaleString() },
+              { l: "Enforces", v: gr.policies_enforced.join(", ") },
+              { l: "Drift", v: gr.drift_detected ? "DETECTED — requires investigation" : "None" },
+            ].map(({ l, v }) => (
+              <div key={l}>
+                <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.4)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{l}</div>
+                <div style={{ ...mono, fontSize: 11, color: l === "Drift" && gr.drift_detected ? "#ff0040" : "#e2e8f0", marginTop: 4 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
 function ExceptionRow({ exc }: { exc: PolicyException }) {
+  const [open, setOpen] = useState(false);
   const sc = EXC_STATUS_COLOR[exc.status] ?? "#64748b";
   const rc = SEV_COLOR[exc.risk_level] ?? "#64748b";
+  const expiryColor = exc.days_remaining < 0 ? "#ff0040" : exc.days_remaining <= 30 ? "#ffb000" : "#00ff88";
 
   return (
-    <div className="soc-row" style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px 80px 80px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{exc.resource_name}</div>
-        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", marginTop: 1 }}>{exc.policy_name}</div>
+    <>
+      <div className="soc-row" onClick={() => setOpen(o => !o)} style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 80px 80px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? expiryColor : "transparent"}`, transition: "border-color 0.15s" }}>
+        <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{exc.resource_name}</div>
+          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", marginTop: 2 }}>{exc.policy_name}</div>
+        </div>
+        <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+          {exc.approved_by}
+        </div>
+        <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: expiryColor }}>
+          {exc.days_remaining < 0 ? `${Math.abs(exc.days_remaining)}d over` : `${exc.days_remaining}d left`}
+        </div>
+        <span style={{ ...mono, fontSize: 10, fontWeight: 700, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${rc}10`, border: `1px solid ${rc}28`, color: rc }}>{exc.risk_level}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <StatusDot color={sc} />
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{exc.status.toUpperCase().replace("_", " ")}</span>
+        </div>
       </div>
-      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
-        {exc.approved_by}
-      </div>
-      <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: exc.days_remaining < 0 ? "#ff0040" : exc.days_remaining <= 30 ? "#ffb000" : "#00ff88" }}>
-        {exc.days_remaining < 0 ? `Expired ${Math.abs(exc.days_remaining)}d` : `${exc.days_remaining}d left`}
-      </div>
-      <span style={{ ...mono, fontSize: 10, fontWeight: 700, padding: "0 8px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${rc}10`, border: `1px solid ${rc}28`, color: rc }}>{exc.risk_level}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <StatusDot color={sc} />
-        <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{exc.status.toUpperCase().replace("_", " ")}</span>
-      </div>
-    </div>
+      {open && (
+        <div style={{ padding: "12px 16px", borderBottom: divider, background: "rgba(0,0,0,0.12)", animation: "fade-in 0.15s ease" }}>
+          <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 12 }}>
+            <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.4)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Justification</div>
+            <div style={{ fontSize: 11, color: "rgba(148,163,184,0.7)", lineHeight: 1.5 }}>{exc.reason}</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+            {[
+              { l: "Approved By", v: exc.approved_by },
+              { l: "Approved", v: new Date(exc.approved_at).toLocaleDateString() },
+              { l: "Expires", v: new Date(exc.expires_at).toLocaleDateString() },
+              { l: "Resource", v: exc.resource_id },
+            ].map(({ l, v }) => (
+              <div key={l}>
+                <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.4)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>{l}</div>
+                <div style={{ ...mono, fontSize: 11, color: "#e2e8f0", marginTop: 4 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -136,34 +181,30 @@ export function Governance({ onNavigate }: { onNavigate?: (tab: string) => void 
   const [section, setSection] = useState<"policies" | "guardrails" | "exceptions">("policies");
   const [catFilter, setCatFilter] = useLocalStorage<string>("grc-gov-cat-filter", "all");
 
-  const enforced = MOCK_POLICIES.filter(p => p.enforcement === "enforced").length;
-  const advisory = MOCK_POLICIES.filter(p => p.enforcement === "advisory").length;
-  const withExceptions = MOCK_POLICIES.filter(p => p.enforcement === "exception_granted").length;
   const avgCompliance = Math.round(MOCK_POLICIES.reduce((a, p) => a + p.compliance_rate, 0) / MOCK_POLICIES.length);
+  const belowThreshold = MOCK_POLICIES.filter(p => p.compliance_rate < 80).length;
   const drifted = MOCK_GUARDRAILS.filter(g => g.drift_detected).length;
-  const activeExceptions = MOCK_EXCEPTIONS.filter(e => e.status === "active").length;
   const expiredExceptions = MOCK_EXCEPTIONS.filter(e => e.status === "expired").length;
+  const staleReviews = MOCK_POLICIES.filter(p => (Date.now() - new Date(p.last_reviewed).getTime()) > 60 * 86_400_000).length;
 
   const categories = ["all", ...Array.from(new Set(MOCK_POLICIES.map(p => p.category)))];
   const filteredPolicies = catFilter === "all" ? MOCK_POLICIES : MOCK_POLICIES.filter(p => p.category === catFilter);
 
   const SECTIONS = [
-    { id: "policies", label: "Policy Catalog", accent: "#a78bfa", count: MOCK_POLICIES.filter(p => p.non_compliant_resources > 0).length },
+    { id: "policies", label: "Policy Catalog", accent: "#a78bfa", count: belowThreshold },
     { id: "guardrails", label: "Guardrails", accent: "#38bdf8", count: drifted },
     { id: "exceptions", label: "Exceptions", accent: "#ff6b35", count: expiredExceptions },
   ] as const;
 
   return (
     <div style={{ display: "flex", flexDirection: "column" as const }}>
-      <GRCSectionHeader icon={<ScrollText size={16} color="#a78bfa" />} title="Governance" subtitle="Organizational security policies, enforcement guardrails, and approved exceptions" accent="#a78bfa" />
+      <ModuleHeader icon={<ScrollText size={16} color="#a78bfa" />} title="Governance" subtitle="Organizational security policies, enforcement guardrails, and approved exceptions" accent="#a78bfa" />
 
       <StatStrip stats={[
         { label: "Avg Compliance", value: `${avgCompliance}%`, color: avgCompliance >= 85 ? "#00ff88" : "#ffb000", accent: true },
-        { label: "Enforced", value: enforced, color: "#00ff88" },
-        { label: "Advisory", value: advisory, color: "#ffb000" },
-        { label: "Exceptions", value: withExceptions, color: "#ff6b35" },
+        { label: "Below 80%", value: belowThreshold, color: belowThreshold > 0 ? "#ff0040" : "#00ff88", accent: belowThreshold > 0 },
         { label: "Guardrail Drift", value: drifted, color: drifted > 0 ? "#ff0040" : "#00ff88", accent: drifted > 0 },
-        { label: "Active Exceptions", value: activeExceptions, color: activeExceptions > 0 ? "#ff6b35" : "#00ff88" },
+        { label: "Stale Reviews", value: staleReviews, color: staleReviews > 0 ? "#ffb000" : "#00ff88", accent: staleReviews > 0 },
       ]} />
 
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
@@ -212,8 +253,8 @@ export function Governance({ onNavigate }: { onNavigate?: (tab: string) => void 
               <MockBadge />
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 100px 80px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <TH>Type</TH><TH>Guardrail</TH><TH>Last Evaluated</TH><TH>Status</TH>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 80px 1fr 100px 80px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+            <span /><TH>Type</TH><TH>Guardrail</TH><TH>Last Evaluated</TH><TH>Status</TH>
           </div>
           {MOCK_GUARDRAILS.map(g => <GuardrailRow key={g.id} gr={g} />)}
         </div>
@@ -228,8 +269,8 @@ export function Governance({ onNavigate }: { onNavigate?: (tab: string) => void 
               <MockBadge />
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px 80px 80px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <TH>Resource / Policy</TH><TH>Approved By</TH><TH>Expires</TH><TH>Risk</TH><TH>Status</TH>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 80px 80px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+            <span /><TH>Resource / Policy</TH><TH>Approved By</TH><TH>Expires</TH><TH>Risk</TH><TH>Status</TH>
           </div>
           {MOCK_EXCEPTIONS.map(e => <ExceptionRow key={e.id} exc={e} />)}
         </div>

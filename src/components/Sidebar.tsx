@@ -74,7 +74,6 @@ const navGroups: NavGroup[] = [
       { id: "infra-security", label: "Infra Security", icon: Layers },
       { id: "grc", label: "GRC", icon: BookOpen },
       { id: "alerts", label: "Security Alerts", icon: AlertTriangle },
-      { id: "compliance", label: "Compliance", icon: BadgeCheck },
       { id: "reports", label: "Reports", icon: FileText },
       { id: "grafana", label: "Grafana", icon: BarChart3 },
       { id: "settings", label: "Settings", icon: Settings },

@@ -4,7 +4,7 @@ import { KeyRound, ChevronDown, ChevronRight, RotateCcw, AlertTriangle } from "l
 import type { SecretEntry, KMSKeyEntry } from "./types";
 import {
   mono, divider,
-  ComplianceChip, MockBadge, AcceptanceCheck, BackendHandoff, ExpiryTimeline,
+  ComplianceChip, MockBadge, BackendHandoff, ExpiryTimeline,
   ModuleHeader, StatStrip, DPScenarioSimulator, EvidenceAuditCard,
   KeyUsageGraph, PolicyDiff, TH,
 } from "./shared";
@@ -83,7 +83,7 @@ function SecretRow({ entry }: { entry: SecretEntry }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -134,14 +134,6 @@ function SecretRow({ entry }: { entry: SecretEntry }) {
               </div>
             ))}
           </div>
-          {entry.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Rotation enabled", status: entry.rotation_enabled ? "pass" : "fail" },
-              { label: "Rotated within 90 days", status: entry.days_since_rotation <= 90 ? "pass" : "fail" },
-              { label: "KMS CMK protection", status: entry.kms_key_id ? "pass" : "fail" },
-              { label: "Next rotation scheduled", status: entry.next_rotation ? "pass" : "fail" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -158,7 +150,7 @@ function KMSKeyRow({ entry }: { entry: KMSKeyEntry }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -226,14 +218,6 @@ function KMSKeyRow({ entry }: { entry: KMSKeyEntry }) {
             </div>
           )}
 
-          {entry.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Key rotation enabled", status: entry.rotation_enabled ? "pass" : "fail" },
-              { label: "No policy issues", status: entry.policy_issues.length === 0 ? "pass" : "fail" },
-              { label: "Key state active (Enabled)", status: entry.state === "Enabled" ? "pass" : "fail" },
-              { label: "Customer-managed key (not AWS managed)", status: entry.key_manager === "CUSTOMER" ? "pass" : "pending" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -287,7 +271,7 @@ export function SecretsKeys() {
 
       {section === "secrets" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <span /><TH>Type</TH><TH>Secret</TH><TH>Rotation Status</TH><TH right>Days Ago</TH><TH>Auto-Rotate</TH><TH right>Compliance</TH>
           </div>
           {MOCK_SECRETS.map(s => <SecretRow key={s.id} entry={s} />)}
@@ -301,7 +285,7 @@ export function SecretsKeys() {
             <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)" }}>Over-permissive KMS key policies allow any IAM principal to decrypt data — a high-impact privilege escalation vector.</span>
             <MockBadge />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <span /><TH>Key / Alias</TH><TH>State</TH><TH>Usage (7d)</TH><TH>Rotation</TH><TH>Policy</TH><TH right>Compliance</TH>
           </div>
           {MOCK_KMS_KEYS.map(k => <KMSKeyRow key={k.id} entry={k} />)}

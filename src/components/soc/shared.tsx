@@ -1,5 +1,5 @@
 // SOC shared micro-components
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Wifi, WifiOff, ChevronDown, ChevronRight, Link } from "lucide-react";
 import type { AlertSeverity, AlertStatus, PipelineStatus, CoverageStatus } from "./types";
 
@@ -44,34 +44,20 @@ export function MockBadge({ label = "MOCK ONLY" }: { label?: string }) {
 // ─── SignalRail — live data freshness pulse ───────────────────────────────────
 
 export function SignalRail({ active = true }: { active?: boolean }) {
-  const [pulses, setPulses] = useState<number[]>([]);
-  const nextId = useRef(0);
-
-  useEffect(() => {
-    if (!active) return;
-    const tick = () => {
-      const id = nextId.current++;
-      setPulses(prev => [...prev.slice(-6), id]);
-      // next pulse at irregular interval (200–1400ms)
-      setTimeout(tick, 200 + Math.random() * 1200);
-    };
-    const t = setTimeout(tick, 400);
-    return () => clearTimeout(t);
-  }, [active]);
-
   return (
     <div style={{ height: 2, width: "100%", position: "relative", overflow: "hidden", background: "rgba(255,255,255,0.03)", borderRadius: 1 }}>
-      {pulses.map((id) => (
-        <span
-          key={id}
-          style={{
-            position: "absolute", top: 0, height: "100%",
-            width: 40, borderRadius: 1,
-            background: active ? "linear-gradient(90deg, transparent, #00ff88, transparent)" : "transparent",
-            animation: "rail-sweep 1.8s ease-out forwards",
-          }}
-        />
-      ))}
+      <span
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: 1,
+          background: active
+            ? "linear-gradient(90deg, rgba(0,255,136,0.35), rgba(0,255,136,0.9), rgba(0,255,136,0.35))"
+            : "transparent",
+          transformOrigin: "center",
+          animation: active ? "rail-heartbeat 2.9s ease-in-out infinite" : "none",
+        }}
+      />
     </div>
   );
 }
@@ -271,7 +257,23 @@ export function SOCGlobalStyles() {
     <style>{`
       @keyframes ir-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
       @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-      @keyframes rail-sweep { 0%{left:-60px;opacity:0} 10%{opacity:1} 90%{opacity:.6} 100%{left:calc(100% + 10px);opacity:0} }
+      @keyframes rail-heartbeat {
+        0%, 100% {
+          transform: scaleX(0.985);
+          opacity: 0.55;
+          filter: drop-shadow(0 0 0px rgba(0,255,136,0));
+        }
+        45% {
+          transform: scaleX(1);
+          opacity: 0.95;
+          filter: drop-shadow(0 0 6px rgba(0,255,136,0.35));
+        }
+        55% {
+          transform: scaleX(0.992);
+          opacity: 0.75;
+          filter: drop-shadow(0 0 3px rgba(0,255,136,0.2));
+        }
+      }
       @keyframes fade-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
       .soc-row:hover { background: rgba(255,255,255,0.025) !important; }
       .soc-btn:hover { opacity:.85; }

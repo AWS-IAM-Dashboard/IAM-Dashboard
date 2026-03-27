@@ -1,6 +1,6 @@
 // Compliance & Evidence — wraps existing ComplianceDashboard in embedded mode
 import { ComplianceDashboard } from "../ComplianceDashboard";
-import { BackendHandoff, MockBadge, GRCSectionHeader, mono } from "./shared";
+import { BackendHandoff, ModuleHeader } from "./shared";
 import { BadgeCheck } from "lucide-react";
 
 const COMPLIANCE_ENDPOINTS = [
@@ -14,10 +14,10 @@ const COMPLIANCE_ENDPOINTS = [
 export function ComplianceEvidence({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column" as const }}>
-      <GRCSectionHeader
+      <ModuleHeader
         icon={<BadgeCheck size={16} color="#00ff88" />}
         title="Compliance & Evidence"
-        subtitle="Framework scores, control evidence mapping, and audit-ready evidence packages"
+        subtitle="CIS, SOC 2, PCI-DSS, and HIPAA framework scores with scan-derived control evidence"
         accent="#00ff88"
       />
 

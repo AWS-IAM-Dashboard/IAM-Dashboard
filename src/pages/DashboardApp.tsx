@@ -123,7 +123,9 @@ export function DashboardApp() {
       case "cloudtrail":
         return <PlaceholderPage title="CloudTrail Monitoring" subtitle="Audit log analysis, anomaly detection, and API activity intelligence across all regions." items={["Unusual API call patterns", "Cross-region activity monitoring", "Root account usage alerts", "Data event analysis (S3/Lambda)", "Log integrity validation"]} />;
       case "compliance":
-        return <ComplianceDashboard onNavigate={setActiveTab} />;
+        // Compliance moved into GRC — redirect
+        setActiveTab("grc");
+        return null;
       case "cost-optimization":
         return <PlaceholderPage title="Cost & Optimization" subtitle="Identify unused resources, right-sizing opportunities, and cost anomalies tied to security misconfigurations." items={["Unattached EBS volumes & snapshots", "Idle EC2 instances", "Over-provisioned IAM roles", "Unused Elastic IPs", "Orphaned load balancers"]} />;
       case "soc":
@@ -140,7 +142,7 @@ export function DashboardApp() {
         );
       case "grc":
         return (
-          <div style={{ height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "20px 24px", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
             <GRCCenter onNavigate={setActiveTab} />
           </div>
         );

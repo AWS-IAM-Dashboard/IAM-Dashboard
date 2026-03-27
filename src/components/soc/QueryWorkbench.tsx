@@ -444,7 +444,7 @@ export function QueryWorkbench() {
                       {result.columns.map(col => (
                         <th key={col} style={{
                           ...ls, fontSize: 9,
-                          padding: "6px 14px",
+                          padding: "8px 12px",
                           textAlign: isNumericCol(col) ? "right" : "left",
                           borderBottom: divider, whiteSpace: "nowrap",
                         }}>
@@ -468,7 +468,7 @@ export function QueryWorkbench() {
                           return (
                             <td key={ci} style={{
                               ...mono, fontSize: 11,
-                              padding: "8px 14px",
+                              padding: "8px 12px",
                               borderBottom: divider,
                               textAlign: isNum ? "right" : "left",
                               color: isTs ? "rgba(100,116,139,0.5)" : isNum ? "#ffb000" : isArn ? "rgba(148,163,184,0.6)" : "#94a3b8",

@@ -150,7 +150,7 @@ export function SOCConfig() {
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 12 }}>
           {config.thresholds.map(t => (
             <div key={t.severity} style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: `1px solid ${SEV_COLOR[t.severity]}18` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <SeverityBadge severity={t.severity} />
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
                   <span style={{ ...ls, fontSize: 9 }}>Page On-Call</span>
@@ -162,7 +162,7 @@ export function SOCConfig() {
                   </button>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 <NumField label="SLA" value={t.sla_hours} unit="hours" onChange={v => updateThreshold(t.severity, "sla_hours", v)} min={1} />
                 <NumField label="Auto-Escalate After" value={t.auto_escalate_hours} unit="hours" onChange={v => updateThreshold(t.severity, "auto_escalate_hours", v)} min={1} />
                 <NumField label="Suppress Duplicate" value={t.auto_suppress_duplicate_hours} unit="hours" onChange={v => updateThreshold(t.severity, "auto_suppress_duplicate_hours", v)} min={0} />
@@ -247,7 +247,7 @@ export function SOCConfig() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                 {ep.steps.map((step, si) => (
-                  <div key={si} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div key={si} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", minWidth: 60 }}>+{step.delay_minutes}m</span>
                     <span style={{ ...mono, fontSize: 10, color: "#94a3b8" }}>{step.notify}</span>
                     <span style={{ ...mono, fontSize: 9, padding: "1px 7px", borderRadius: 3, background: "rgba(148,163,184,0.07)", border: "1px solid rgba(148,163,184,0.15)", color: "rgba(148,163,184,0.5)" }}>{step.method}</span>
@@ -263,7 +263,7 @@ export function SOCConfig() {
       {/* Retention Policy */}
       <Section title="Log Retention Policy">
         <div style={{ marginTop: 8 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
             {Object.entries(config.retention).map(([key, days]) => (
               <NumField
                 key={key}

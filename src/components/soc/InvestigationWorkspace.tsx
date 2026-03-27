@@ -50,7 +50,7 @@ function TimelineEvent({ event }: { event: InvestigationEvent }) {
   };
   const c = colors[event.type];
   return (
-    <div style={{ display: "flex", gap: 10, paddingBottom: 12 }}>
+    <div style={{ display: "flex", gap: 8, paddingBottom: 12 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
         <div style={{ width: 22, height: 22, borderRadius: "50%", background: `${c}14`, border: `1px solid ${c}28`, display: "flex", alignItems: "center", justifyContent: "center", color: c, flexShrink: 0 }}>
           {EVENT_ICON[event.type]}
@@ -69,7 +69,7 @@ function TimelineEvent({ event }: { event: InvestigationEvent }) {
             </button>
           )}
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)" }}>{new Date(event.timestamp).toLocaleString()}</span>
           <span style={{ ...mono, fontSize: 9, color: c, opacity: 0.6 }}>{event.actor}</span>
         </div>
@@ -138,7 +138,7 @@ export function InvestigationWorkspace() {
         { label: "Evidence Items", value: MOCK_INVESTIGATIONS.reduce((s, i) => s + i.evidence.length, 0), color: "#94a3b8" },
       ]} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 12 }}>
         {/* Case list */}
         <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)", alignSelf: "start" }}>
           <div style={{ padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
@@ -166,7 +166,7 @@ export function InvestigationWorkspace() {
                   key={inv.id}
                   className="soc-row"
                   onClick={() => setSelected(inv)}
-                  style={{ padding: "10px 12px", borderBottom: divider, cursor: "pointer", background: isSelected ? "rgba(96,165,250,0.05)" : "transparent", borderLeft: `2px solid ${isSelected ? "#60a5fa" : "transparent"}` }}
+                  style={{ padding: "8px 12px", borderBottom: divider, cursor: "pointer", background: isSelected ? "rgba(96,165,250,0.05)" : "transparent", borderLeft: `2px solid ${isSelected ? "#60a5fa" : "transparent"}` }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.title}</span>

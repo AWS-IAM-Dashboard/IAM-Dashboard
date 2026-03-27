@@ -84,7 +84,7 @@ export function InfraSecurityCenter() {
               className="infra-btn"
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 13px", borderRadius: 7,
+                padding: "6px 12px", borderRadius: 6,
                 background: isActive ? `${tab.accent}14` : "transparent",
                 border: `1px solid ${isActive ? tab.accent + "35" : "rgba(255,255,255,0.06)"}`,
                 color: isActive ? tab.accent : "rgba(100,116,139,0.5)",

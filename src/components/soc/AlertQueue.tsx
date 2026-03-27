@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Filter, Search, UserPlus, CheckCircle2, EyeOff, ArrowUpCircle, Megaphone, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Search, UserPlus, CheckCircle2, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { SOCAlert, AlertSeverity, AlertStatus } from "./types";
 import { MOCK_ALERTS, ANALYSTS } from "./mockData";
@@ -21,33 +21,21 @@ function relativeTime(iso: string) {
 interface AlertRowProps {
   alert: SOCAlert;
   isExpanded: boolean;
-  isSelected: boolean;
   onToggle: () => void;
-  onSelect: (checked: boolean) => void;
   onStatusChange: (id: string, status: AlertStatus) => void;
   onAssign: (id: string, analyst: string) => void;
   onEscalate: (id: string) => void;
 }
 
-function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusChange, onAssign, onEscalate }: AlertRowProps) {
+function AlertRow({ alert, isExpanded, onToggle, onStatusChange, onAssign, onEscalate }: AlertRowProps) {
   const [showAssign, setShowAssign] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const sc = SEV_COLOR[alert.severity];
 
-  const rowStyle: React.CSSProperties = {
-    borderBottom: divider,
-    borderLeft: `2px solid ${isExpanded ? sc : "transparent"}`,
-    transition: "border-color 0.15s",
-    animation: "fade-in 0.2s ease-out",
-  };
-
   return (
     <>
-      <div className="soc-row" style={{ ...rowStyle, background: isSelected ? "rgba(0,255,136,0.03)" : "transparent" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px 10px 14px" }}>
-          {/* Select */}
-          <input type="checkbox" checked={isSelected} onChange={e => onSelect(e.target.checked)} style={{ accentColor: "#00ff88", flexShrink: 0, cursor: "pointer" }} />
-
+      <div className="soc-row" style={{ borderBottom: divider, borderLeft: `2px solid ${isExpanded ? sc : "transparent"}`, transition: "border-color 0.15s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px" }}>
           {/* Expand */}
           <button onClick={onToggle} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(100,116,139,0.4)", padding: 0, display: "flex", flexShrink: 0 }}>
             {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -68,7 +56,7 @@ function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusC
               <span style={{ fontSize: 9, color: "rgba(100,116,139,0.3)" }}>·</span>
               <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.4)" }}>{alert.source}</span>
               {alert.count > 1 && (
-                <span style={{ ...mono, fontSize: 9, padding: "1px 6px", borderRadius: 999, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.5)" }}>
+                <span style={{ ...mono, fontSize: 9, padding: "0 8px", borderRadius: 999, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.5)" }}>
                   ×{alert.count}
                 </span>
               )}
@@ -137,9 +125,9 @@ function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusC
 
       {/* Expanded detail */}
       {isExpanded && (
-        <div style={{ padding: "12px 16px 14px 40px", borderBottom: divider, background: "rgba(255,255,255,0.012)", borderLeft: `2px solid ${sc}` }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ padding: "12px 16px 12px 40px", borderBottom: divider, background: "rgba(255,255,255,0.012)", borderLeft: `2px solid ${sc}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
                 ["Rule ID", alert.rule_id],
                 ["Region", alert.region],
@@ -153,7 +141,7 @@ function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusC
               ))}
             </div>
             <div>
-              <div style={{ ...ls, marginBottom: 6, fontSize: 9 }}>Resource ARN</div>
+              <div style={{ ...ls, marginBottom: 8, fontSize: 9 }}>Resource ARN</div>
               <code style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.6)", wordBreak: "break-all", lineHeight: 1.5 }}>
                 {alert.resource_arn}
               </code>
@@ -165,9 +153,9 @@ function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusC
             ))}
           </div>
           {alert.investigation_id && (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ ...ls, fontSize: 9 }}>Investigation</span>
-              <span style={{ ...mono, fontSize: 10, color: "#60a5fa", padding: "2px 8px", borderRadius: 4, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)" }}>{alert.investigation_id}</span>
+              <span style={{ ...mono, fontSize: 10, color: "#60a5fa", padding: "0 8px", borderRadius: 4, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)" }}>{alert.investigation_id}</span>
             </div>
           )}
         </div>
@@ -179,7 +167,6 @@ function AlertRow({ alert, isExpanded, isSelected, onToggle, onSelect, onStatusC
 export function AlertQueue() {
   const [alerts, setAlerts] = useState<SOCAlert[]>(MOCK_ALERTS);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterSev, setFilterSev] = useState<AlertSeverity | "ALL">("ALL");
   const [filterStatus, setFilterStatus] = useState<AlertStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
@@ -212,15 +199,6 @@ export function AlertQueue() {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, status: "ESCALATED" } : a));
     toast.warning("Alert escalated", { description: "On-call team notified via PagerDuty (mock)." });
   }, []);
-
-  const handleBulkAcknowledge = () => {
-    if (!selected.size) return;
-    setAlerts(prev => prev.map(a => selected.has(a.id) ? { ...a, status: "ACKNOWLEDGED" } : a));
-    toast.success(`${selected.size} alerts acknowledged`);
-    setSelected(new Set());
-  };
-
-  const allSelected = filtered.length > 0 && filtered.every(a => selected.has(a.id));
 
   return (
     <div>
@@ -261,21 +239,12 @@ export function AlertQueue() {
           <option value="ALL">All statuses</option>
           {ALL_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
         </select>
-
-        {/* Bulk actions */}
-        {selected.size > 0 && (
-          <button onClick={handleBulkAcknowledge} style={{ ...mono, fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 5, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-            <CheckCircle2 size={10} />
-            Acknowledge {selected.size}
-          </button>
-        )}
       </div>
 
       {/* Table */}
-      <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
+      <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
         {/* Table header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px 8px 14px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
-          <input type="checkbox" checked={allSelected} onChange={e => { if (e.target.checked) setSelected(new Set(filtered.map(a => a.id))); else setSelected(new Set()); }} style={{ accentColor: "#00ff88", cursor: "pointer" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
           <span style={{ ...ls, width: 16 }} />
           <span style={{ ...ls, width: 90 }}>Severity</span>
           <span style={{ ...ls, flex: 1 }}>Finding</span>
@@ -293,9 +262,7 @@ export function AlertQueue() {
               key={alert.id}
               alert={alert}
               isExpanded={expandedId === alert.id}
-              isSelected={selected.has(alert.id)}
               onToggle={() => setExpandedId(x => x === alert.id ? null : alert.id)}
-              onSelect={checked => setSelected(prev => { const n = new Set(prev); checked ? n.add(alert.id) : n.delete(alert.id); return n; })}
               onStatusChange={handleStatusChange}
               onAssign={handleAssign}
               onEscalate={handleEscalate}

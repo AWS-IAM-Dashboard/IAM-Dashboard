@@ -4,7 +4,7 @@ import { Archive, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from 
 import type { RetentionPolicy, S3LifecycleRule } from "./types";
 import {
   mono, divider,
-  ComplianceChip, MockBadge, AcceptanceCheck, BackendHandoff,
+  ComplianceChip, MockBadge, BackendHandoff,
   ModuleHeader, StatStrip, DPScenarioSimulator, EvidenceAuditCard, DriftIndicator, TH,
 } from "./shared";
 import { MOCK_RETENTION, MOCK_S3_LIFECYCLE, MOCK_AUDIT_TRAIL, DP_SCENARIOS } from "./mockData";
@@ -40,7 +40,7 @@ function RetentionRow({ policy }: { policy: RetentionPolicy }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 56px 1fr 80px 72px 72px 72px 100px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 56px 1fr 80px 72px 72px 72px 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -83,14 +83,6 @@ function RetentionRow({ policy }: { policy: RetentionPolicy }) {
               </div>
             ))}
           </div>
-          {policy.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Retention policy configured", status: policy.actual_days !== null ? "pass" : "fail" },
-              { label: `Meets ${policy.framework} minimum (${policy.required_days}d)`, status: (policy.actual_days ?? 0) >= policy.required_days ? "pass" : "fail" },
-              { label: "Policy reviewed within 90 days", status: (Date.now() - new Date(policy.last_reviewed).getTime()) < 90 * 86_400_000 ? "pass" : "fail" },
-              { label: "Data classification tag present", status: "pass" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -105,7 +97,7 @@ function LifecycleRuleRow({ rule }: { rule: S3LifecycleRule }) {
     <>
       <div
         className="soc-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 60px 1fr 100px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
+        style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 60px 1fr 100px", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? cc : "transparent"}`, transition: "border-color 0.15s" }}
         onClick={() => setOpen(o => !o)}
       >
         <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
@@ -153,14 +145,6 @@ function LifecycleRuleRow({ rule }: { rule: S3LifecycleRule }) {
               </div>
             ))}
           </div>
-          {rule.compliance !== "compliant" && (
-            <AcceptanceCheck checks={[
-              { label: "Lifecycle rule enabled", status: rule.enabled ? "pass" : "fail" },
-              { label: "Expiration policy configured", status: rule.expiration_days != null ? "pass" : "fail" },
-              { label: "Transition rules defined", status: rule.transitions.length > 0 ? "pass" : "pending" },
-              { label: "Incomplete MPU cleanup configured", status: rule.abort_incomplete_multipart_days != null ? "pass" : "fail" },
-            ]} />
-          )}
         </div>
       )}
     </>
@@ -228,7 +212,7 @@ export function Lifecycle() {
             ))}
           </div>
           <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "24px 56px 1fr 80px 72px 72px 72px 100px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "24px 56px 1fr 80px 72px 72px 72px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
               <span /><TH>Type</TH><TH>Resource</TH><TH>Framework</TH><TH right>Required</TH><TH right>Actual</TH><TH right>Drift</TH><TH right>Status</TH>
             </div>
             {filteredRetention.map(r => <RetentionRow key={r.id} policy={r} />)}
@@ -243,7 +227,7 @@ export function Lifecycle() {
             <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)" }}>S3 lifecycle rules control tiering, expiration, and data cost. Disabled or missing rules violate retention requirements.</span>
             <MockBadge />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 60px 1fr 100px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 60px 1fr 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
             <span /><TH>Bucket</TH><TH>Transitions</TH><TH>Status</TH><TH>Expiration Config</TH><TH right>Compliance</TH>
           </div>
           {MOCK_S3_LIFECYCLE.map(r => <LifecycleRuleRow key={r.id} rule={r} />)}
