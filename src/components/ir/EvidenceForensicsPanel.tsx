@@ -81,7 +81,7 @@ function StatusPill({ color, label }: { color: string; label: string }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: 4,
         padding: "2px 8px",
         borderRadius: 999,
         background: `${color}18`,
@@ -208,7 +208,7 @@ function LockModeBadge({ mode }: { mode: "GOVERNANCE" | "COMPLIANCE" }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: 4,
         padding: "2px 8px",
         borderRadius: 4,
         background: isCompliance ? "rgba(255,0,64,0.08)" : "rgba(255,176,0,0.08)",
@@ -562,7 +562,7 @@ export function EvidenceForensicsPanel({ finding }: EvidenceForensicsPanelProps)
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
+                  gap: 4,
                   padding: "6px 10px",
                   borderRadius: 6,
                   background: "rgba(255,255,255,0.03)",

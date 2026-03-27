@@ -410,7 +410,7 @@ export function FindingDetailPanel({
                       border: "none",
                       cursor: "pointer",
                       padding: "2px 4px",
-                      borderRadius: 3,
+                      borderRadius: 4,
                       color: copiedId === "arn" ? "#00ff88" : "rgba(100,116,139,0.4)",
                       display: "flex",
                       alignItems: "center",
@@ -905,7 +905,7 @@ export function FindingDetailPanel({
                           <span
                             style={{
                               padding: "2px 8px",
-                              borderRadius: 3,
+                              borderRadius: 4,
                               fontSize: 9,
                               fontWeight: 700,
                               background: `${ph.color}18`,
@@ -1047,7 +1047,7 @@ export function FindingDetailPanel({
                             <span
                               style={{
                                 padding: "2px 8px",
-                                borderRadius: 3,
+                                borderRadius: 4,
                                 fontSize: 9,
                                 fontWeight: 700,
                                 background: `${ACTOR_COLORS[event.actor_type] ?? "#64748b"}20`,
@@ -1114,7 +1114,7 @@ export function FindingDetailPanel({
                   <Bot size={14} color="#a78bfa" />
                   <span style={{ fontSize: 11, color: "#a78bfa" }}>
                     AI Agent integration ready — wire{" "}
-                    <code style={{ ...mono, background: "rgba(167,139,250,0.14)", padding: "2px 8px", borderRadius: 3 }}>
+                    <code style={{ ...mono, background: "rgba(167,139,250,0.14)", padding: "2px 8px", borderRadius: 4 }}>
                       /api/agents
                     </code>{" "}
                     endpoints per action below

@@ -20,7 +20,7 @@
   --accent-foreground: #000814;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 255, 136, 0.2);
+  --border: rgba(255, 255, 255, 0.07);
   --input: rgba(30, 41, 59, 0.8);
   --input-background: rgba(30, 41, 59, 0.8);
   --switch-background: #334155;
@@ -30,7 +30,7 @@
   --sidebar-foreground: #e2e8f0;
   --sidebar-accent: rgba(30, 41, 59, 0.8);
   --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: rgba(0, 255, 136, 0.2);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {

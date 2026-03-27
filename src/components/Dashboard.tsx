@@ -889,7 +889,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
               background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)",
-              borderRadius: 8, padding: "6px 12px",
+              borderRadius: 8, padding: "8px 12px",
             }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00ff88", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
               <span style={{ fontSize: 12, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
@@ -1037,7 +1037,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             {stats.critical_alerts} critical · {stats.high_findings} high · {slaBreachedCount > 0 ? `${slaBreachedCount} SLA breach${slaBreachedCount > 1 ? "es" : ""}` : "no SLA breaches"}
           </span>
           {slaBreachedCount > 0 && (
-            <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.28)", padding: "3px 10px", borderRadius: 999, letterSpacing: "0.08em" }}>
+            <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.28)", padding: "4px 8px", borderRadius: 999, letterSpacing: "0.08em" }}>
               ● {slaBreachedCount} SLA BREACH{slaBreachedCount > 1 ? "ES" : ""}
             </span>
           )}
@@ -1091,7 +1091,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Triage Queue</span>
                       {triageFindings.length > 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.25)", padding: "2px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.25)", padding: "4px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
                           {triageFindings.length} active
                         </span>
                       )}
@@ -1392,7 +1392,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               {/* Responder Board */}
               <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative", flex: 1, display: "flex", flexDirection: "column" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(129,140,248,0.7), transparent)" }} />
-                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ padding: "12px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Responder Board</span>
                   <span style={{ fontSize: 9, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>
                     {TRIAGE_ASSIGNEES.filter(n => Object.values(workflows).some(wf => wf.assignee === n)).length} active
@@ -1410,7 +1410,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     const loadColor = assigned >= 4 ? "#ff0040" : assigned >= 2 ? "#ffb000" : "#00ff88";
                     const isLastRow = ni === TRIAGE_ASSIGNEES.length - 1;
                     return (
-                      <div key={name} style={{ padding: "9px 16px", borderBottom: isLastRow ? "none" : "1px solid rgba(255,255,255,0.04)" }}>
+                      <div key={name} style={{ padding: "8px 16px", borderBottom: isLastRow ? "none" : "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: assigned > 0 ? 6 : 0 }}>
                           <div style={{ width: 20, height: 20, borderRadius: "50%", background: assigned > 0 ? "rgba(129,140,248,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${assigned > 0 ? "rgba(129,140,248,0.3)" : "rgba(255,255,255,0.08)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, color: assigned > 0 ? "#818cf8" : "rgba(100,116,139,0.4)", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace" }}>
                             {triageInitials(name)}
@@ -1479,7 +1479,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                           strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
                           transform="rotate(-90 34 34)" style={{ transition: "stroke-dasharray 0.6s ease" }} />
                         <text x="34" y="38" textAnchor="middle" fill={color}
-                          style={{ fontSize: 15, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                          style={{ fontSize: 14, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
                           {roundedScore}%
                         </text>
                       </svg>
@@ -1637,7 +1637,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                           <div key={az.name} style={{ display: "grid", gridTemplateColumns: "6px 1fr auto", alignItems: "center", gap: 8, padding: "4px 12px" }}>
                             <span style={{ width: 5, height: 5, borderRadius: "50%", background: dotColor, display: "inline-block", flexShrink: 0, boxShadow: `0 0 4px ${dotColor}88` }} />
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(148,163,184,0.85)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.01em", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(148,163,184,0.85)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.01em", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
                                 {az.name.split("-").slice(-1)[0].toUpperCase()}
                               </div>
                               <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1, marginTop: 4, overflow: "hidden" }}>
@@ -1645,7 +1645,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                               </div>
                             </div>
                             <div style={{ textAlign: "right" as const, minWidth: 28 }}>
-                              <span style={{ fontSize: 9.5, fontWeight: 700, color: az.instances > 0 ? "rgba(148,163,184,0.7)" : "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: az.instances > 0 ? "rgba(148,163,184,0.7)" : "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace" }}>
                                 {az.instances > 0 ? az.instances : "—"}
                               </span>
                             </div>
@@ -1863,7 +1863,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     <div
                       key={ctrl.rowId}
                       onClick={() => onNavigate?.("alerts")}
-                      style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "10px 20px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s", cursor: "pointer" }}
+                      style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s", cursor: "pointer" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >

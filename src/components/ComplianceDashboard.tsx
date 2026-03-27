@@ -164,7 +164,7 @@ function TrendDelta({ values, color }: { values: number[]; color: string }) {
         color,
         fontFamily: "'JetBrains Mono', monospace",
         background: `${color}15`,
-        padding: "2px 7px",
+        padding: "4px 8px",
         borderRadius: "999px",
         letterSpacing: "0.02em",
       }}
@@ -313,23 +313,23 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
       )}
 
       {/* ── Aggregate KPI stats ── */}
-      <div style={{ display: "flex", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "8px" }}>
         {[
           { label: "AVG SCORE", value: `${avgScore}%`, color: avgScore >= 80 ? "#00ff88" : avgScore >= 60 ? "#ffb000" : "#ff0040" },
           { label: "OPEN ACTIONS", value: String(totalOpenActions), color: totalOpenActions > 0 ? "#ffb000" : "#00ff88" },
           { label: "CRITICAL CONTROLS", value: String(totalCritical), color: totalCritical > 0 ? "#ff0040" : "#00ff88" },
           { label: "FRAMEWORKS", value: String(FRAMEWORKS.length), color: "#0ea5e9" },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "14px 20px", position: "relative", overflow: "hidden", flex: 1 }}>
+          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "12px 20px", position: "relative", overflow: "hidden", flex: 1 }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${color}88, transparent)` }} />
-            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "6px" }}>{label}</div>
-            <div style={{ fontSize: "26px", fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1 }}>{value}</div>
+            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>{label}</div>
+            <div style={{ fontSize: "28px", fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1 }}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* ── Framework score overview row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
         {FRAMEWORKS.map((fw) => {
           const isActive = fw.id === activeFramework;
           const color = scoreColor(fw.baseScore);
@@ -339,7 +339,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
               onClick={() => setActiveFramework(fw.id)}
               style={{
                 textAlign: "left",
-                padding: "14px 16px",
+                padding: "12px 16px",
                 borderRadius: "8px",
                 border: isActive
                   ? `1px solid ${color}40`
@@ -388,7 +388,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
               <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
                 <span
                   style={{
-                    fontSize: "26px",
+                    fontSize: "28px",
                     fontWeight: 700,
                     color,
                     fontFamily: "'JetBrains Mono', monospace",
@@ -402,7 +402,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
               <div
                 style={{
                   display: "flex",
-                  gap: "10px",
+                  gap: "8px",
                   marginTop: "8px",
                   fontSize: "10px",
                   color: "rgba(100,116,139,0.6)",
@@ -434,7 +434,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
         >
           <div
             style={{
-              padding: "14px 20px",
+              padding: "12px 20px",
               borderBottom: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
@@ -527,7 +527,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                     display: "grid",
                     gridTemplateColumns: "80px 1fr 90px 70px 80px",
                     width: "100%",
-                    padding: "10px 20px",
+                    padding: "8px 20px",
                     textAlign: "left",
                     background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
                     border: "none",
@@ -783,7 +783,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                     fontSize: "10px",
                     background: "rgba(255,64,96,0.15)",
                     color: "#ff0040",
-                    padding: "2px 7px",
+                    padding: "4px 8px",
                     borderRadius: "999px",
                     fontFamily: "'JetBrains Mono', monospace",
                     fontWeight: 600,
@@ -816,7 +816,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                   <div
                     key={action.id}
                     style={{
-                      padding: "10px 14px",
+                      padding: "8px 12px",
                       borderBottom: "1px solid rgba(255,255,255,0.04)",
                       position: "relative",
                     }}

@@ -364,7 +364,7 @@ export function AccessAnalyzer() {
   };
 
   const chip = (active: boolean, color?: string): React.CSSProperties => ({
-    padding: "3px 10px",
+    padding: "4px 8px",
     borderRadius: 999,
     fontSize: 11,
     cursor: "pointer",
@@ -484,11 +484,11 @@ export function AccessAnalyzer() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search findings…"
-                style={{ ...monoText, width: "100%", padding: "7px 10px 7px 30px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ ...monoText, width: "100%", padding: "8px 12px 8px 32px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box" }}
               />
             </div>
             {(searchTerm || severityFilter !== "all" || typeFilter !== "all") && (
-              <button onClick={() => { setSearchTerm(""); setSeverityFilter("all"); setTypeFilter("all"); }} style={{ ...chip(false), padding: "6px 12px" }}>Clear</button>
+              <button onClick={() => { setSearchTerm(""); setSeverityFilter("all"); setTypeFilter("all"); }} style={{ ...chip(false), padding: "8px 12px" }}>Clear</button>
             )}
             <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
               {filteredFindings.length} finding{filteredFindings.length !== 1 ? "s" : ""}
@@ -508,7 +508,7 @@ export function AccessAnalyzer() {
           </div>
 
           {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "6px 12px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
             <div />
             {["Type", "Resource", "Finding", "Public", "Risk", "Analyzed"].map((h) => (
               <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
@@ -531,7 +531,7 @@ export function AccessAnalyzer() {
                   {/* Main row */}
                   <div
                     onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
-                    style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "10px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
+                    style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
                     onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
                     onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                   >
@@ -542,7 +542,7 @@ export function AccessAnalyzer() {
 
                     {/* Resource type badge */}
                     <div>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
                         <ResourceIcon type={finding.resource_type} />
                         {finding.resource_type}
                       </span>
@@ -627,7 +627,7 @@ export function AccessAnalyzer() {
       {!scanResult && !isScanning && (
         <div style={{ ...card, padding: "60px 24px", textAlign: "center" }}>
           <ScanLine size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
           <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 6 }}>Run a scan to find external access findings and public resources</p>
         </div>
       )}

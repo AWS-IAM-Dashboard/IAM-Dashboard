@@ -532,7 +532,7 @@ export function DynamoDBSecurity() {
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cardStyle, padding: "14px 20px" }}>
+      <div style={{ ...cardStyle, padding: "12px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={labelStyle}>Workflow Pipeline</span>
@@ -574,7 +574,7 @@ export function DynamoDBSecurity() {
       </div>
 
       {/* Risk Indicators Strip */}
-      <div style={{ ...cardStyle, padding: "12px 18px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ ...cardStyle, padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ ...labelStyle, marginRight: 4 }}>Risk Indicators</span>
         {[
           { label: `No Deletion Protection: ${summary.no_deletion_protection} tables`, color: "#ff0040" },
@@ -582,7 +582,7 @@ export function DynamoDBSecurity() {
           { label: `No Streams: ${summary.no_streams} tables`, color: "#ff6b35" },
           { label: `Total Findings: ${summary.critical_findings + summary.high_findings + summary.medium_findings + summary.low_findings}`, color: "#818cf8" },
         ].map(chip => (
-          <span key={chip.label} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...monoStyle }}>
+          <span key={chip.label} style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: `${chip.color}18`, border: `1px solid ${chip.color}40`, color: chip.color, ...monoStyle }}>
             {chip.label}
           </span>
         ))}
@@ -598,7 +598,7 @@ export function DynamoDBSecurity() {
               <button
                 key={sev}
                 onClick={() => setSeverityFilter(sev)}
-                style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)", transition: "all 0.15s" }}
+                style={{ padding: "4px 8px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)", transition: "all 0.15s" }}
               >
                 {sev}
               </button>
@@ -611,7 +611,7 @@ export function DynamoDBSecurity() {
             value={findingSearch}
             onChange={e => setFindingSearch(e.target.value)}
             placeholder="Search tables, finding types…"
-            style={{ width: "100%", padding: "7px 10px 7px 30px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...monoStyle }}
+            style={{ width: "100%", padding: "8px 12px 8px 32px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...monoStyle }}
           />
         </div>
         {statusFilter !== "ALL" && (
@@ -627,7 +627,7 @@ export function DynamoDBSecurity() {
 
       {/* Findings Table */}
       <div style={cardStyle}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Table / Finding</span>
           <span style={labelStyle}>Encryption</span>

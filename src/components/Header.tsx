@@ -300,7 +300,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
         {/* Search Dropdown */}
         {searchDropdownOpen && searchTerm.trim() && (
           <div
-            className="absolute top-full mt-2 left-0 right-0 rounded-xl overflow-hidden z-50"
+            className="absolute top-full mt-2 left-0 right-0 rounded-[10px] overflow-hidden z-50"
             style={{
               background: "rgba(15,23,41,0.99)",
               border: "1px solid rgba(255,255,255,0.09)",
@@ -385,7 +385,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           }}
         >
           <span className="relative flex h-1.5 w-1.5">
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 4px rgba(0,255,136,0.5)" }} />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 0 1px rgba(0,255,136,0.3)" }} />
           </span>
           LIVE
         </div>
@@ -409,7 +409,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="p-0 w-80 rounded-xl"
+            className="p-0 w-80 rounded-[10px]"
             align="end"
             style={{
               background: "rgba(15,23,41,0.99)",
@@ -501,7 +501,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className={cn("w-52 p-0 rounded-xl")}
+            className={cn("w-52 p-0 rounded-[10px]")}
             style={{
               background: "rgba(15,23,41,0.99)",
               border: "1px solid rgba(255,255,255,0.08)",

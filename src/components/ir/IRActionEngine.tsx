@@ -83,7 +83,7 @@ function StatusChip({ status }: { status: IRActionStatus }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: 4,
         padding: "2px 8px",
         borderRadius: 999,
         background: `${meta.color}18`,
@@ -248,7 +248,7 @@ function ApprovalGate({
           <button
             onClick={() => setRejecting(true)}
             style={{
-              padding: "5px 12px",
+              padding: "4px 12px",
               borderRadius: 5,
               background: "rgba(100,116,139,0.08)",
               border: "1px solid rgba(100,116,139,0.2)",
@@ -268,7 +268,7 @@ function ApprovalGate({
             <button
               onClick={() => setRejecting(false)}
               style={{
-                padding: "5px 12px",
+                padding: "4px 12px",
                 borderRadius: 5,
                 background: "rgba(100,116,139,0.06)",
                 border: "1px solid rgba(100,116,139,0.16)",
@@ -285,7 +285,7 @@ function ApprovalGate({
               onClick={onReject}
               disabled={!rejectReason.trim()}
               style={{
-                padding: "5px 12px",
+                padding: "4px 12px",
                 borderRadius: 5,
                 background: "rgba(255,0,64,0.1)",
                 border: "1px solid rgba(255,0,64,0.25)",
@@ -305,7 +305,7 @@ function ApprovalGate({
           <button
             onClick={onApprove}
             style={{
-              padding: "5px 16px",
+              padding: "4px 16px",
               borderRadius: 5,
               background: "rgba(251,146,60,0.14)",
               border: "1px solid rgba(251,146,60,0.35)",

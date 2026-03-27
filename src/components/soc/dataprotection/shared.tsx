@@ -246,14 +246,14 @@ export function AcceptanceCheck({
   const allPass = checks.every(c => c.status === "pass");
   return (
     <div style={{ borderRadius: 7, border: `1px solid ${allPass ? "rgba(0,255,136,0.2)" : "rgba(255,176,0,0.2)"}`, background: allPass ? "rgba(0,255,136,0.03)" : "rgba(255,176,0,0.03)", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderBottom: `1px solid ${allPass ? "rgba(0,255,136,0.12)" : "rgba(255,176,0,0.12)"}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${allPass ? "rgba(0,255,136,0.12)" : "rgba(255,176,0,0.12)"}` }}>
         <Shield size={11} color={allPass ? "#00ff88" : "#ffb000"} />
         <span style={{ ...mono, fontSize: 9, fontWeight: 700, color: allPass ? "rgba(0,255,136,0.7)" : "rgba(255,176,0,0.7)", letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
           Acceptance Checks — {allPass ? "All Passed" : "Pending"}
         </span>
         <MockBadge label="SIMULATED" />
       </div>
-      <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column" as const, gap: 5 }}>
+      <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column" as const, gap: 4 }}>
         {checks.map((c, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {c.status === "pass" ? <CheckCircle2 size={11} color="#00ff88" /> : c.status === "fail" ? <AlertTriangle size={11} color="#ff0040" /> : <Clock size={11} color="#64748b" />}
@@ -359,7 +359,7 @@ export function DPScenarioSimulator({ scenario }: { scenario: DPScenario }) {
         <span style={{ display: "inline-flex", alignItems: "center", padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}12`, border: `1px solid ${sc}2e`, color: sc, fontSize: 10, fontWeight: 700, ...mono }}>{scenario.severity}</span>
       </div>
       <div style={{ padding: "10px 14px" }}>
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 5, marginBottom: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 4, marginBottom: 10 }}>
           {scenario.simulation_steps.map((s, i) => {
             const active = step === i && running;
             const done_ = step > i || (done && step >= i);

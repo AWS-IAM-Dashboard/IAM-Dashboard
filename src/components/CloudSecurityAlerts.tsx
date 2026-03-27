@@ -415,7 +415,7 @@ export function CloudSecurityAlerts() {
                   onClick={() => setStatusFilter(statusFilter === stage ? "all" : stage)}
                   style={{ flex: 1, padding: "8px 12px", borderRadius: 6, background: statusFilter === stage ? meta.bg : "rgba(255,255,255,0.02)", border: `1px solid ${statusFilter === stage ? `${meta.color}50` : "rgba(255,255,255,0.06)"}`, cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}
                 >
-                  <div style={{ fontSize: 18, fontWeight: 700, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>{count}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", fontFamily: "'JetBrains Mono', monospace" }}>{count}</div>
                   <div style={{ fontSize: 9, fontWeight: 600, color: count > 0 ? meta.color : "rgba(100,116,139,0.3)", letterSpacing: "0.1em", marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{meta.label}</div>
                 </div>
                 {!isLast && (
@@ -821,7 +821,7 @@ export function CloudSecurityAlerts() {
                                     </div>
                                     <div style={{ paddingBottom: 8 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                        <span style={{ padding: "4px 8px", borderRadius: 3, fontSize: 9, fontWeight: 700, background: `${phaseColor}18`, color: phaseColor, fontFamily: "'JetBrains Mono', monospace" }}>{phase}</span>
+                                        <span style={{ padding: "4px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, background: `${phaseColor}18`, color: phaseColor, fontFamily: "'JetBrains Mono', monospace" }}>{phase}</span>
                                         <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Remediation Step {i + 1}</span>
                                         <span style={{ marginLeft: "auto", fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace" }}>~4 min</span>
                                       </div>
@@ -908,7 +908,7 @@ export function CloudSecurityAlerts() {
                                   <div style={{ paddingBottom: 4 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                                       <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{ev.action}</span>
-                                      <span style={{ padding: "4px 4px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: `${actorColors[ev.actorType]}20`, color: actorColors[ev.actorType], fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>{ev.actorType}</span>
+                                      <span style={{ padding: "4px 4px", borderRadius: 4, fontSize: 9, fontWeight: 600, background: `${actorColors[ev.actorType]}20`, color: actorColors[ev.actorType], fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase" }}>{ev.actorType}</span>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                       <span style={{ fontSize: 11, color: "rgba(100,116,139,0.7)" }}>{ev.actor}</span>
@@ -927,7 +927,7 @@ export function CloudSecurityAlerts() {
                             <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 6, background: "rgba(167,139,250,0.07)", border: "1px solid rgba(167,139,250,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
                               <Bot size={14} color="#a78bfa" />
                               <span style={{ fontSize: 11, color: "#a78bfa" }}>
-                                AI Agent integration ready — wire endpoints below to <code style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(167,139,250,0.15)", padding: "4px 8px", borderRadius: 3 }}>/api/agents</code>
+                                AI Agent integration ready — wire endpoints below to <code style={{ fontFamily: "'JetBrains Mono', monospace", background: "rgba(167,139,250,0.15)", padding: "4px 8px", borderRadius: 4 }}>/api/agents</code>
                               </span>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

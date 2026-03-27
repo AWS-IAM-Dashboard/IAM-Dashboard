@@ -269,7 +269,7 @@ export function Macie() {
                 alignItems: 'center',
                 gap: 4,
                 padding: '4px 12px',
-                borderRadius: 12,
+                borderRadius: 10,
                 fontSize: 11,
                 fontWeight: 600,
                 background: `${dt.color}14`,

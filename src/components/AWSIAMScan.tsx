@@ -722,7 +722,7 @@ export function AWSIAMScan() {
       {!scanResult && !isScanning && (
         <div style={{ ...card, padding: "64px 24px", textAlign: "center" }}>
           <Users size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
           <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 8 }}>Run a scan to analyze your AWS IAM posture</p>
         </div>
       )}

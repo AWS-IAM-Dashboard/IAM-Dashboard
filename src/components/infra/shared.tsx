@@ -72,7 +72,7 @@ export function LifecyclePill({ lifecycle, onClick }: { lifecycle: FindingLifecy
     <span
       onClick={onClick}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
+        display: "inline-flex", alignItems: "center", gap: 4,
         padding: "0 8px", height: 18, borderRadius: 999,
         background: `${c}10`, border: `1px solid ${c}28`,
         color: c, fontSize: 9.5, fontWeight: 700, ...mono, letterSpacing: "0.04em",
@@ -101,7 +101,7 @@ export function PostureChip({ status }: { status: PostureStatus }) {
   const c = POSTURE_COLOR[status];
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 4,
       padding: "0 8px", height: 18, borderRadius: 999,
       background: `${c}0c`, border: `1px solid ${c}28`,
       color: c, fontSize: 9.5, fontWeight: 700, ...mono, letterSpacing: "0.05em",
@@ -206,13 +206,13 @@ export function ApprovalGate({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => { setStatus("approved"); onApprove(); }}
-            style={{ ...mono, padding: "5px 14px", borderRadius: 5, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+            style={{ ...mono, padding: "4px 12px", borderRadius: 4, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.25)", color: "#00ff88", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
           >
             Approve
           </button>
           <button
             onClick={() => { setStatus("rejected"); onReject(); }}
-            style={{ ...mono, padding: "5px 14px", borderRadius: 5, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.6)", fontSize: 11, cursor: "pointer" }}
+            style={{ ...mono, padding: "4px 12px", borderRadius: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.6)", fontSize: 11, cursor: "pointer" }}
           >
             Reject
           </button>
@@ -269,7 +269,7 @@ export function EvidenceCard({ item }: { item: EvidenceItem }) {
     <div style={{ borderRadius: 6, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
       <button
         onClick={() => setExpanded(x => !x)}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "rgba(255,255,255,0.02)", border: "none", cursor: "pointer", textAlign: "left" as const }}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(255,255,255,0.02)", border: "none", cursor: "pointer", textAlign: "left" as const }}
       >
         <span style={{ color: "rgba(100,116,139,0.5)", display: "flex" }}>{EVIDENCE_ICON[item.type]}</span>
         <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.7)", flex: 1 }}>{item.label}</span>

@@ -419,7 +419,7 @@ export function SecurityHub() {
             background: "rgba(255,0,64,0.07)",
             border: `1px solid ${C.critical}55`,
             borderRadius: C.borderRadius,
-            padding: "14px 18px",
+            padding: "12px 16px",
             display: "flex",
             alignItems: "flex-start",
             gap: 10,
@@ -482,7 +482,7 @@ export function SecurityHub() {
           background: C.cardBg,
           border: `1px solid ${C.border}`,
           borderRadius: C.borderRadius,
-          padding: "14px 18px",
+          padding: "12px 16px",
           marginBottom: 16,
         }}
       >
@@ -495,7 +495,7 @@ export function SecurityHub() {
             background: "rgba(255,255,255,0.04)",
             border: `1px solid ${C.border}`,
             borderRadius: 8,
-            padding: "6px 12px",
+            padding: "8px 12px",
             marginBottom: 12,
           }}
         >
@@ -587,7 +587,7 @@ export function SecurityHub() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "14px 20px",
+            padding: "12px 20px",
             borderBottom: `1px solid ${C.border}`,
           }}
         >
@@ -715,7 +715,7 @@ export function SecurityHub() {
                 />
 
                 {/* Title + description */}
-                <div style={{ padding: "10px 12px", minWidth: 0 }}>
+                <div style={{ padding: "8px 12px", minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <p
                       style={{
