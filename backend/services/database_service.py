@@ -57,6 +57,121 @@ class PerformanceMetric(Base):
     region = Column(String(50))
     account_id = Column(String(50))
 
+class IAMUser(Base):
+    """IAM user resource model"""
+    __tablename__ = 'iam_users'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), unique=True, nullable=False)
+    username = Column(String(255), nullable=False)
+    mfa_enabled = Column(Boolean, default=False)
+    has_console_access = Column(Boolean, default=False)
+    has_admin_access = Column(Boolean, default=False)
+    last_activity = Column(DateTime, nullable=True)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IAMRole(Base):
+    """IAM role resource model"""
+    __tablename__ = 'iam_roles'
+
+    id = Column(Integer, primary_key=True)
+    role_id = Column(String(255), unique=True, nullable=False)
+    role_name = Column(String(255), nullable=False)
+    is_cross_account = Column(Boolean, default=False)
+    has_external_trust = Column(Boolean, default=False)
+    has_excessive_permissions = Column(Boolean, default=False)
+    last_used = Column(DateTime, nullable=True)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IAMPolicy(Base):
+    """IAM policy resource model"""
+    __tablename__ = 'iam_policies'
+
+    id = Column(Integer, primary_key=True)
+    policy_id = Column(String(255), unique=True, nullable=False)
+    policy_name = Column(String(255), nullable=False)
+    policy_type = Column(String(50))  # inline or managed
+    has_wildcards = Column(Boolean, default=False)
+    is_overly_permissive = Column(Boolean, default=False)
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IAMAccessKey(Base):
+    """IAM access key resource model"""
+    __tablename__ = 'iam_access_keys'
+
+    id = Column(Integer, primary_key=True)
+    key_id = Column(String(255), unique=True, nullable=False)
+    username = Column(String(255), nullable=False)
+    status = Column(String(50), default='Active')  # Active or Inactive
+    last_used = Column(DateTime, nullable=True)
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EC2Instance(Base):
+    """EC2 instance resource model"""
+    __tablename__ = 'ec2_instances'
+
+    id = Column(Integer, primary_key=True)
+    instance_id = Column(String(255), unique=True, nullable=False)
+    state = Column(String(50), nullable=False)  # running, stopped, etc.
+    instance_type = Column(String(50))
+    has_encrypted_volumes = Column(Boolean, default=False)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EC2SecurityGroup(Base):
+    """EC2 security group resource model"""
+    __tablename__ = 'ec2_security_groups'
+
+    id = Column(Integer, primary_key=True)
+    sg_id = Column(String(255), unique=True, nullable=False)
+    sg_name = Column(String(255), nullable=False)
+    has_open_ports = Column(Boolean, default=False)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EC2Volume(Base):
+    """EC2 EBS volume resource model"""
+    __tablename__ = 'ec2_volumes'
+
+    id = Column(Integer, primary_key=True)
+    volume_id = Column(String(255), unique=True, nullable=False)
+    encrypted = Column(Boolean, default=False)
+    state = Column(String(50))
+    size_gb = Column(Integer)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class S3Bucket(Base):
+    """S3 bucket resource model"""
+    __tablename__ = 's3_buckets'
+
+    id = Column(Integer, primary_key=True)
+    bucket_name = Column(String(255), unique=True, nullable=False)
+    is_public = Column(Boolean, default=False)
+    has_encryption = Column(Boolean, default=False)
+    has_versioning = Column(Boolean, default=False)
+    has_logging = Column(Boolean, default=False)
+    region = Column(String(50))
+    account_id = Column(String(50))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class DatabaseService:
     """Service for database operations"""
     
@@ -211,3 +326,135 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Error getting dashboard summary: {str(e)}")
             return {}
+
+    # ------------------------------------------------------------------
+    # IAM query methods
+    # ------------------------------------------------------------------
+
+    def get_iam_users(self, account_id: str = None) -> list:
+        """Get all IAM users, optionally filtered by account"""
+        try:
+            session = self.get_session()
+            query = session.query(IAMUser)
+            if account_id:
+                query = query.filter(IAMUser.account_id == account_id)
+            users = query.all()
+            session.close()
+            return users
+        except Exception as e:
+            logger.error(f"Error getting IAM users: {str(e)}")
+            return []
+
+    def get_iam_roles(self, account_id: str = None) -> list:
+        """Get all IAM roles, optionally filtered by account"""
+        try:
+            session = self.get_session()
+            query = session.query(IAMRole)
+            if account_id:
+                query = query.filter(IAMRole.account_id == account_id)
+            roles = query.all()
+            session.close()
+            return roles
+        except Exception as e:
+            logger.error(f"Error getting IAM roles: {str(e)}")
+            return []
+
+    def get_iam_policies(self, account_id: str = None) -> list:
+        """Get all IAM policies, optionally filtered by account"""
+        try:
+            session = self.get_session()
+            query = session.query(IAMPolicy)
+            if account_id:
+                query = query.filter(IAMPolicy.account_id == account_id)
+            policies = query.all()
+            session.close()
+            return policies
+        except Exception as e:
+            logger.error(f"Error getting IAM policies: {str(e)}")
+            return []
+
+    def get_iam_access_keys(self, account_id: str = None) -> list:
+        """Get all IAM access keys, optionally filtered by account"""
+        try:
+            session = self.get_session()
+            query = session.query(IAMAccessKey)
+            if account_id:
+                query = query.filter(IAMAccessKey.account_id == account_id)
+            keys = query.all()
+            session.close()
+            return keys
+        except Exception as e:
+            logger.error(f"Error getting IAM access keys: {str(e)}")
+            return []
+
+    # ------------------------------------------------------------------
+    # EC2 query methods
+    # ------------------------------------------------------------------
+
+    def get_ec2_instances(self, region: str = None, account_id: str = None) -> list:
+        """Get all EC2 instances, optionally filtered by region and account"""
+        try:
+            session = self.get_session()
+            query = session.query(EC2Instance)
+            if region:
+                query = query.filter(EC2Instance.region == region)
+            if account_id:
+                query = query.filter(EC2Instance.account_id == account_id)
+            instances = query.all()
+            session.close()
+            return instances
+        except Exception as e:
+            logger.error(f"Error getting EC2 instances: {str(e)}")
+            return []
+
+    def get_ec2_security_groups(self, region: str = None, account_id: str = None) -> list:
+        """Get all EC2 security groups, optionally filtered by region and account"""
+        try:
+            session = self.get_session()
+            query = session.query(EC2SecurityGroup)
+            if region:
+                query = query.filter(EC2SecurityGroup.region == region)
+            if account_id:
+                query = query.filter(EC2SecurityGroup.account_id == account_id)
+            groups = query.all()
+            session.close()
+            return groups
+        except Exception as e:
+            logger.error(f"Error getting EC2 security groups: {str(e)}")
+            return []
+
+    def get_ec2_volumes(self, region: str = None, account_id: str = None) -> list:
+        """Get all EC2 volumes, optionally filtered by region and account"""
+        try:
+            session = self.get_session()
+            query = session.query(EC2Volume)
+            if region:
+                query = query.filter(EC2Volume.region == region)
+            if account_id:
+                query = query.filter(EC2Volume.account_id == account_id)
+            volumes = query.all()
+            session.close()
+            return volumes
+        except Exception as e:
+            logger.error(f"Error getting EC2 volumes: {str(e)}")
+            return []
+
+    # ------------------------------------------------------------------
+    # S3 query methods
+    # ------------------------------------------------------------------
+
+    def get_s3_buckets(self, region: str = None, account_id: str = None) -> list:
+        """Get all S3 buckets, optionally filtered by region and account"""
+        try:
+            session = self.get_session()
+            query = session.query(S3Bucket)
+            if region:
+                query = query.filter(S3Bucket.region == region)
+            if account_id:
+                query = query.filter(S3Bucket.account_id == account_id)
+            buckets = query.all()
+            session.close()
+            return buckets
+        except Exception as e:
+            logger.error(f"Error getting S3 buckets: {str(e)}")
+            return []
