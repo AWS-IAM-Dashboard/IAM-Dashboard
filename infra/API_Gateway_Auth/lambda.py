@@ -75,6 +75,14 @@ def get_origin(event: dict[str, Any]) -> str | None:
     return headers.get("origin") or headers.get("Origin")
 
 
+def normalize_request_path(event: dict[str, Any], path: str) -> str:
+    # Strip a leading API Gateway stage segment when the raw path includes it.
+    stage = str(event.get("requestContext", {}).get("stage", "")).strip()
+    if not stage or not path.startswith(f"/{stage}/"):
+        return path
+    return path[len(stage) + 1 :]
+
+
 def is_origin_allowed(origin: str | None) -> bool:
     # Check whether the provided origin is explicitly allowed.
     return bool(origin and origin in get_allowed_origins())
@@ -454,8 +462,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     # Route HTTP API requests and keep auth, origin, and backend failures separate.
     origin = get_origin(event)
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
-    path = event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path", "")
-    logger.info("method=%s path=%s origin=%s", method, path, origin)
+    raw_path = event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path", "")
+    path = normalize_request_path(event, raw_path)
+    logger.info("method=%s raw_path=%s normalized_path=%s origin=%s", method, raw_path, path, origin)
 
     try:
         if method == "OPTIONS":

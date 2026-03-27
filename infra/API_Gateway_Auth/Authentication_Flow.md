@@ -269,3 +269,52 @@ The intended final architecture should use:
 
 - a dedicated session storage model
 - clear separation between auth/session data and scan-result data
+
+# Testing Lambda + APIGateway
+
+```ps1
+Invoke-RestMethod `
+>>     -Method GET `
+>>     -Uri "$baseUrl/auth/session" `
+>>     -WebSession $session `
+>>     -Headers @{
+>>       Origin = $origin
+>>     }
+```
+
+```ps1
+Invoke-RestMethod `
+>>     -Method POST `
+>>     -Uri "$baseUrl/auth/logout" `
+>>     -WebSession $session `
+>>     -Headers @{
+>>       Origin = $origin
+>>     }
+```
+
+```ps1
+try {
+>>     Invoke-RestMethod `
+>>       -Method POST `
+>>       -Uri "$baseUrl/auth/login" `
+>>       -WebSession $session `
+>>       -Headers @{
+>>         Origin = $origin
+>>         "Content-Type" = "application/json"
+>>       } `
+>>       -Body '{"username":"testuser","password":"Admin123!"}'
+>>   }
+>>   catch {
+>>     $resp = $_.Exception.Response
+>>     if ($resp) {
+>>       Write-Host "Status:" ([int]$resp.StatusCode)
+>>       $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+>>       $reader.BaseStream.Position = 0
+>>       $reader.DiscardBufferedData()
+>>       $body = $reader.ReadToEnd()
+>>       Write-Host "Body:" $body
+>>     } else {
+>>       Write-Host $_
+>>     }
+>>   }
+```
