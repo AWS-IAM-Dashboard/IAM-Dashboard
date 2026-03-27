@@ -1567,11 +1567,11 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       </div>
                       <div style={{ textAlign: "right" as const }}>
                         {totalFindings > 0 ? (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,107,53,0.9)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, padding: "2px 7px" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,107,53,0.9)", fontFamily: "'JetBrains Mono', monospace", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, padding: "4px 8px" }}>
                             {totalFindings} findings
                           </span>
                         ) : (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor === "#ffb000" ? "#ffb000" : "rgba(0,255,136,0.7)", fontFamily: "'JetBrains Mono', monospace", background: scoreColor === "#ffb000" ? "rgba(255,176,0,0.07)" : "rgba(0,255,136,0.06)", border: `1px solid ${scoreColor === "#ffb000" ? "rgba(255,176,0,0.2)" : "rgba(0,255,136,0.18)"}`, borderRadius: 999, padding: "2px 7px" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor === "#ffb000" ? "#ffb000" : "rgba(0,255,136,0.7)", fontFamily: "'JetBrains Mono', monospace", background: scoreColor === "#ffb000" ? "rgba(255,176,0,0.07)" : "rgba(0,255,136,0.06)", border: `1px solid ${scoreColor === "#ffb000" ? "rgba(255,176,0,0.2)" : "rgba(0,255,136,0.18)"}`, borderRadius: 999, padding: "4px 8px" }}>
                             {scoreColor === "#ffb000" ? "no gd" : "clean"}
                           </span>
                         )}
@@ -1592,7 +1592,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           {/* ── Availability Zone Topology ──────────────────────────── */}
           <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
-            <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Availability Zone Topology</span>
                 <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>
@@ -1624,12 +1624,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 return (
                   <div key={reg.region} style={{ background: "rgba(6,9,18,0.6)", border: `1px solid ${regionBorderColor}`, borderRadius: 8, overflow: "hidden" }}>
                     {/* Region header */}
-                    <div style={{ padding: "10px 12px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.02em" }}>{reg.region}</div>
                       <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", fontFamily: "'DM Sans', sans-serif", marginTop: 2 }}>{reg.label}</div>
                     </div>
                     {/* AZ rows */}
-                    <div style={{ padding: "6px 0" }}>
+                    <div style={{ padding: "8px 0" }}>
                       {reg.azs.map((az) => {
                         const dotColor = az.findings > 0 ? "#ff6b35" : !az.guardduty ? "#ffb000" : "#00ff88";
                         const barWidth = maxInstances > 0 ? Math.round((az.instances / maxInstances) * 100) : 0;
@@ -1640,7 +1640,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                               <div style={{ fontSize: 9.5, fontWeight: 600, color: "rgba(148,163,184,0.85)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.01em", whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>
                                 {az.name.split("-").slice(-1)[0].toUpperCase()}
                               </div>
-                              <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1, marginTop: 3, overflow: "hidden" }}>
+                              <div style={{ height: 2, background: "rgba(255,255,255,0.05)", borderRadius: 1, marginTop: 4, overflow: "hidden" }}>
                                 <div style={{ height: "100%", width: `${barWidth}%`, background: dotColor, borderRadius: 1, opacity: 0.6, transition: "width 0.5s ease" }} />
                               </div>
                             </div>
@@ -1660,16 +1660,16 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         {/* GuardDuty coverage chip */}
-                        <span title={`GuardDuty: ${gdCoverage}/${reg.azs.length} AZs`} style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "1px 5px", borderRadius: 999, background: gdCoverage === reg.azs.length ? "rgba(0,255,136,0.08)" : "rgba(255,176,0,0.08)", border: `1px solid ${gdCoverage === reg.azs.length ? "rgba(0,255,136,0.2)" : "rgba(255,176,0,0.2)"}`, color: gdCoverage === reg.azs.length ? "#00ff88" : "#ffb000" }}>
+                        <span title={`GuardDuty: ${gdCoverage}/${reg.azs.length} AZs`} style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "0 4px", borderRadius: 999, background: gdCoverage === reg.azs.length ? "rgba(0,255,136,0.08)" : "rgba(255,176,0,0.08)", border: `1px solid ${gdCoverage === reg.azs.length ? "rgba(0,255,136,0.2)" : "rgba(255,176,0,0.2)"}`, color: gdCoverage === reg.azs.length ? "#00ff88" : "#ffb000" }}>
                           GD {gdCoverage}/{reg.azs.length}
                         </span>
                         {/* Findings badge */}
                         {totalFindings > 0 ? (
-                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "1px 5px", borderRadius: 999, background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.25)", color: "#ff6b35" }}>
+                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "0 4px", borderRadius: 999, background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.25)", color: "#ff6b35" }}>
                             {totalFindings}F
                           </span>
                         ) : (
-                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "1px 5px", borderRadius: 999, background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", color: "rgba(0,255,136,0.6)" }}>
+                          <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", padding: "0 4px", borderRadius: 999, background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", color: "rgba(0,255,136,0.6)" }}>
                             CLEAN
                           </span>
                         )}

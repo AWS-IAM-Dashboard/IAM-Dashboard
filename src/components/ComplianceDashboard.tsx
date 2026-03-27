@@ -176,9 +176,10 @@ function TrendDelta({ values, color }: { values: number[]; color: string }) {
 
 interface ComplianceDashboardProps {
   onNavigate?: (tab: string) => void;
+  embedded?: boolean;
 }
 
-export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashboardProps) {
+export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false }: ComplianceDashboardProps) {
   const [activeFramework, setActiveFramework] = useState(FRAMEWORKS[0].id);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedControl, setExpandedControl] = useState<string | null>(null);
@@ -287,27 +288,29 @@ export function ComplianceDashboard({ onNavigate: _onNavigate }: ComplianceDashb
   return (
     <div
       style={{
-        padding: "24px",
+        padding: embedded ? "0" : "24px",
         display: "flex",
         flexDirection: "column",
         gap: "20px",
               }}
     >
       {/* ── Page header ── */}
-      <ScanPageHeader
-        icon={<BadgeCheck size={20} color="#00ff88" />}
-        iconColor="#00ff88"
-        title="Compliance Dashboard"
-        subtitle={
-          scanResults.length > 0
-            ? `${allFindings.length} findings mapped across 4 frameworks`
-            : "No scan data — scores are baseline estimates"
-        }
-        isScanning={isRefreshing}
-        onRefresh={handleRefresh}
-        onExport={handleExportAuditPackage}
-        scanLabel="Audit Package"
-      />
+      {!embedded && (
+        <ScanPageHeader
+          icon={<BadgeCheck size={20} color="#00ff88" />}
+          iconColor="#00ff88"
+          title="Compliance Dashboard"
+          subtitle={
+            scanResults.length > 0
+              ? `${allFindings.length} findings mapped across 4 frameworks`
+              : "No scan data — scores are baseline estimates"
+          }
+          isScanning={isRefreshing}
+          onRefresh={handleRefresh}
+          onExport={handleExportAuditPackage}
+          scanLabel="Audit Package"
+        />
+      )}
 
       {/* ── Aggregate KPI stats ── */}
       <div style={{ display: "flex", gap: "10px" }}>

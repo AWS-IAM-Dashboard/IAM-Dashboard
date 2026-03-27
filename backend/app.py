@@ -23,6 +23,21 @@ from api.health import HealthResource
 from api.scan_history import ScanHistoryResource
 
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.ir import (
+    LLMTriageResource,
+    LLMRootCauseResource,
+    LLMRunbookResource,
+    AutomationContainResource,
+    AutomationRemediateResource,
+    ForensicsCaptureResource,
+    EvidencePreserveResource,
+    IRJobStatusResource,
+    IRJobApproveResource,
+    IRJobRejectResource,
+    IRForensicsResource,
+    IREvidenceResource,
+    IRAuditResource,
+)
 
 # Import services
 from services.aws_service import AWSService
@@ -76,6 +91,21 @@ def create_app():
     api.add_resource(SecurityHubResource, '/aws/security-hub')
     api.add_resource(ConfigResource, '/aws/config')
     api.add_resource(GrafanaResource, '/grafana')
+
+    # IR Action Engine routes
+    api.add_resource(LLMTriageResource,           '/llm/triage')
+    api.add_resource(LLMRootCauseResource,        '/llm/root-cause')
+    api.add_resource(LLMRunbookResource,          '/llm/runbook')
+    api.add_resource(AutomationContainResource,   '/automation/contain')
+    api.add_resource(AutomationRemediateResource, '/automation/remediate')
+    api.add_resource(ForensicsCaptureResource,    '/forensics/capture')
+    api.add_resource(EvidencePreserveResource,    '/evidence/preserve')
+    api.add_resource(IRJobStatusResource,         '/ir/actions/<string:job_id>')
+    api.add_resource(IRJobApproveResource,        '/ir/actions/<string:job_id>/approve')
+    api.add_resource(IRJobRejectResource,         '/ir/actions/<string:job_id>/reject')
+    api.add_resource(IRForensicsResource,         '/ir/forensics/<string:finding_id>')
+    api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
+    api.add_resource(IRAuditResource,             '/ir/audit')
 
     # Serve static files (React frontend)
     @app.route('/')

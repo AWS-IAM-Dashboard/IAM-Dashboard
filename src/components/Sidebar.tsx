@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  ShieldAlert,
+  Layers,
+  BookOpen,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -67,6 +70,9 @@ const navGroups: NavGroup[] = [
   {
     label: "Operations",
     items: [
+      { id: "soc", label: "Security Ops", icon: ShieldAlert },
+      { id: "infra-security", label: "Infra Security", icon: Layers },
+      { id: "grc", label: "GRC", icon: BookOpen },
       { id: "alerts", label: "Security Alerts", icon: AlertTriangle },
       { id: "compliance", label: "Compliance", icon: BadgeCheck },
       { id: "reports", label: "Reports", icon: FileText },
@@ -220,8 +226,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="relative flex h-1.5 w-1.5 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00ff88] opacity-50" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 4px rgba(0,255,136,0.5)" }} />
                 </span>
                 <span
                   className="text-[11px] font-medium"
@@ -241,8 +246,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         ) : (
           <div className="flex justify-center py-3">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00ff88] opacity-50" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00ff88]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 4px rgba(0,255,136,0.5)" }} />
             </span>
           </div>
         )}

@@ -16,6 +16,14 @@
  */
 
 import type { DashboardData, ScanResponse } from "../services/api";
+import {
+  triggerMockAction,
+  pollMockJob,
+  approveMockAction,
+  mockForensicsData,
+  mockEvidenceRecord,
+} from "./irMock";
+import type { IRActionType } from "../types/ir";
 
 // ─── Shared constants ────────────────────────────────────────────────────────
 
@@ -1123,6 +1131,50 @@ export function getMockResponse(endpoint: string): unknown | undefined {
 
   if (endpoint.startsWith("/aws/iam")) {
     return iamSummaryResponse();
+  }
+
+  // ── IR Action Engine endpoints ────────────────────────────────────────
+  if (endpoint === "/llm/triage") {
+    return triggerMockAction("llm_triage", "mock-finding", false);
+  }
+  if (endpoint === "/llm/root-cause") {
+    return triggerMockAction("llm_root_cause", "mock-finding", false);
+  }
+  if (endpoint === "/llm/runbook") {
+    return triggerMockAction("llm_runbook", "mock-finding", false);
+  }
+  if (endpoint === "/automation/contain") {
+    // Resolved via body in live mode; mock defaults to ec2_isolate for type
+    return triggerMockAction("aws_ec2_isolate", "mock-finding", true);
+  }
+  if (endpoint === "/automation/remediate") {
+    return triggerMockAction("aws_iam_disable_key", "mock-finding", false);
+  }
+  if (endpoint === "/forensics/capture") {
+    return triggerMockAction("aws_ebs_snapshot", "mock-finding", false);
+  }
+  if (endpoint === "/evidence/preserve") {
+    return triggerMockAction("aws_evidence_vault", "mock-finding", false);
+  }
+
+  // IR job status polling
+  if (endpoint.startsWith("/ir/actions/") && !endpoint.includes("/approve") && !endpoint.includes("/reject")) {
+    const jobId = endpoint.replace("/ir/actions/", "");
+    return pollMockJob(jobId) ?? undefined;
+  }
+  if (endpoint.match(/\/ir\/actions\/[^/]+\/approve$/)) {
+    const jobId = endpoint.replace("/ir/actions/", "").replace("/approve", "");
+    return { success: approveMockAction(jobId) };
+  }
+
+  // Forensics + evidence
+  if (endpoint.startsWith("/ir/forensics/")) {
+    const findingId = endpoint.replace("/ir/forensics/", "").split("?")[0];
+    return mockForensicsData(findingId);
+  }
+  if (endpoint.startsWith("/ir/evidence/")) {
+    const findingId = endpoint.replace("/ir/evidence/", "");
+    return mockEvidenceRecord(findingId);
   }
 
   if (endpoint.startsWith("/scan/")) {

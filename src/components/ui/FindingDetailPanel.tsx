@@ -34,9 +34,13 @@ import {
   Zap,
   X,
   UserCircle,
+  FlaskConical,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SeverityBadge } from "./SeverityBadge";
+import { IRActionEngine } from "../ir/IRActionEngine";
+import { EvidenceForensicsPanel } from "../ir/EvidenceForensicsPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC TYPES  (import from here in each scanner tab)
@@ -296,7 +300,7 @@ function defaultPlaybook(finding: FindingData): PlaybookStep[] {
 // COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-type TabId = "overview" | "runbook" | "timeline" | "agent";
+type TabId = "overview" | "runbook" | "timeline" | "agent" | "ir_engine" | "evidence";
 
 export function FindingDetailPanel({
   finding,
@@ -722,10 +726,12 @@ export function FindingDetailPanel({
           >
             {(
               [
-                { id: "overview", label: "Overview",      icon: <Shield size={12} /> },
-                { id: "runbook",  label: "Runbook",       icon: <GitBranch size={12} /> },
-                { id: "timeline", label: "Timeline",      icon: <Clock size={12} /> },
-                { id: "agent",    label: "Agent Actions", icon: <Bot size={12} /> },
+                { id: "overview",   label: "Overview",      icon: <Shield size={12} /> },
+                { id: "runbook",    label: "Runbook",       icon: <GitBranch size={12} /> },
+                { id: "timeline",   label: "Timeline",      icon: <Clock size={12} /> },
+                { id: "ir_engine",  label: "IR Engine",     icon: <FlaskConical size={12} /> },
+                { id: "evidence",   label: "Evidence",      icon: <Archive size={12} /> },
+                { id: "agent",      label: "Agent Actions", icon: <Bot size={12} /> },
               ] as { id: TabId; label: string; icon: React.ReactNode }[]
             ).map((t) => (
               <button
@@ -1081,7 +1087,17 @@ export function FindingDetailPanel({
               </div>
             )}
 
-            {/* ── AGENT ACTIONS ────────────────────────────────────────── */}
+            {/* ── IR ENGINE ───────────────────────────────────────────── */}
+            {activeTab === "ir_engine" && (
+              <IRActionEngine finding={finding} />
+            )}
+
+            {/* ── EVIDENCE & FORENSICS ─────────────────────────────────── */}
+            {activeTab === "evidence" && (
+              <EvidenceForensicsPanel finding={finding} />
+            )}
+
+            {/* ── AGENT ACTIONS (legacy stubs) ─────────────────────────── */}
             {activeTab === "agent" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div

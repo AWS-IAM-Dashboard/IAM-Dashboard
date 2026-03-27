@@ -54,15 +54,23 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.10.0",
     "@vitejs/plugin-react-swc": "^3.10.2",
+    "@vitest/ui": "^4.1.2",
+    "jsdom": "^29.0.1",
     "tailwindcss": "^4.2.1",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "vitest": "^4.1.2"
   },
   "scripts": {
     "dev": "vite",
     "dev:mock": "vite --mode mock",
     "dev:live": "vite --mode live",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
   }
 }

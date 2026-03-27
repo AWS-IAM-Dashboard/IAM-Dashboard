@@ -230,7 +230,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       <div className="flex items-center gap-3.5 shrink-0">
         <div className="flex items-center gap-2.5">
           <ShieldMark />
-          <div className="hidden sm:flex flex-col leading-none gap-[3px]">
+          <div className="hidden sm:flex flex-col leading-none gap-1">
             <span
               className="text-[11px] font-bold tracking-[0.22em] text-white"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -385,8 +385,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           }}
         >
           <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00ff88] opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 4px rgba(0,255,136,0.5)" }} />
           </span>
           LIVE
         </div>
@@ -421,7 +420,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
               <div className="flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-slate-200">Alerts</span>
                 {unreadCount > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.22)", padding: "2px 6px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.22)", padding: "0 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
                     {unreadCount}
                   </span>
                 )}
@@ -511,7 +510,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             <div className="px-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div className="flex items-center justify-between mb-0.5">
                 <p className="text-sm font-semibold text-slate-200">Cloud Security Admin</p>
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", padding: "2px 6px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", padding: "0 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
                   ADMIN
                 </span>
               </div>

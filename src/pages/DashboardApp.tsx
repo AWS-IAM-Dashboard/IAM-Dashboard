@@ -73,6 +73,9 @@ import { CloudSecurityAlerts } from "../components/CloudSecurityAlerts";
 import { Reports } from "../components/Reports";
 import { Settings } from "../components/Settings";
 import { ComplianceDashboard } from "../components/ComplianceDashboard";
+import { SecurityOpsCenter } from "../components/soc/SecurityOpsCenter";
+import { InfraSecurityCenter } from "../components/infra/InfraSecurityCenter";
+import { GRCCenter } from "../components/grc/GRCCenter";
 import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
 import type { ReportRecord } from "../types/report";
@@ -123,6 +126,24 @@ export function DashboardApp() {
         return <ComplianceDashboard onNavigate={setActiveTab} />;
       case "cost-optimization":
         return <PlaceholderPage title="Cost & Optimization" subtitle="Identify unused resources, right-sizing opportunities, and cost anomalies tied to security misconfigurations." items={["Unattached EBS volumes & snapshots", "Idle EC2 instances", "Over-provisioned IAM roles", "Unused Elastic IPs", "Orphaned load balancers"]} />;
+      case "soc":
+        return (
+          <div style={{ padding: "20px 24px", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+            <SecurityOpsCenter />
+          </div>
+        );
+      case "infra-security":
+        return (
+          <div style={{ padding: "20px 24px", height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+            <InfraSecurityCenter />
+          </div>
+        );
+      case "grc":
+        return (
+          <div style={{ height: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+            <GRCCenter onNavigate={setActiveTab} />
+          </div>
+        );
       case "alerts":
         return <CloudSecurityAlerts />;
       case "grafana":
