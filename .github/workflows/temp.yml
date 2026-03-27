@@ -1,0 +1,83 @@
+name: temp
+
+on:
+  push:
+    branches: [ feature/backend/Cognito-JWT ]
+    paths:
+      - "infra/**"
+      - ".github/workflows/temp.yml"
+      - ".github/workflows/temp.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: temp-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    env:
+      # KMS key alias or ID used by the KMS data source in infra/.
+      # Set this secret in GitHub as KMS_KEY_ID (e.g. alias/IAM-Dashboard-Keys).
+      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
+    defaults:
+      run:
+        working-directory: infra/IAM
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -input=false -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false -no-color
+
+  apply:
+    name: Terraform Apply
+    needs: [plan]
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    env:
+      # Use the same KMS key alias/ID for apply as for plan.
+      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
+    defaults:
+      run:
+        working-directory: infra/IAM
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: terraform init -input=false -backend=false
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve -input=false
