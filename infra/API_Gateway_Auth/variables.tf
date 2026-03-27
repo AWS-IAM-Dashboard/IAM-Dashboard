@@ -50,3 +50,9 @@ variable "cors_allowed_headers" {
   type        = list(string)
   default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
+
+variable "lambda_function_arn" {
+  description = "ARN for the BFF-Auth lambda function"
+  type        = string
+  default     = "arn:aws:lambda:us-east-1:562559071105:function:test-BFF"
+}

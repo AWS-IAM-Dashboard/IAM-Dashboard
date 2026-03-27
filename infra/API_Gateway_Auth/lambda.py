@@ -455,6 +455,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     origin = get_origin(event)
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
     path = event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path", "")
+    logger.info("method=%s path=%s origin=%s", method, path, origin)
 
     try:
         if method == "OPTIONS":
