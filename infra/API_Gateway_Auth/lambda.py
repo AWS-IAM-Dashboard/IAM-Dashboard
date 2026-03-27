@@ -9,13 +9,14 @@ from typing import Any
 from urllib.parse import urlparse
 
 import boto3
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
 
 COGNITO_CLIENT_ID_ENV = "COGNITO_CLIENT_ID"
 SESSION_TABLE_NAME_ENV = "SESSION_TABLE_NAME"
 SESSION_TTL_SECONDS_ENV = "SESSION_TTL_SECONDS"
 ALLOWED_ORIGINS_ENV = "ALLOWED_ORIGINS"
+USERNAME_INDEX_NAME = "username-index"
 
 COOKIE_NAME = "iamdash_session"
 DEFAULT_SESSION_TTL_SECONDS = 3600
@@ -281,22 +282,23 @@ def authenticate_with_cognito(username: str, password: str) -> dict[str, Any]:
 
 
 def list_sessions_for_username(username: str) -> list[dict[str, Any]]:
-    # Find existing sessions for a username in the current temporary table shape.
+    # Query the username GSI so session replacement does not scan the full table.
     try:
         table = get_session_table()
         items: list[dict[str, Any]] = []
-        scan_kwargs: dict[str, Any] = {
-            "FilterExpression": Attr("username").eq(username),
+        query_kwargs: dict[str, Any] = {
+            "IndexName": USERNAME_INDEX_NAME,
+            "KeyConditionExpression": Key("username").eq(username),
             "ProjectionExpression": "session_id",
         }
 
         while True:
-            response_data = table.scan(**scan_kwargs)
+            response_data = table.query(**query_kwargs)
             items.extend(response_data.get("Items", []))
             last_key = response_data.get("LastEvaluatedKey")
             if not last_key:
                 break
-            scan_kwargs["ExclusiveStartKey"] = last_key
+            query_kwargs["ExclusiveStartKey"] = last_key
 
         return items
     except (ClientError, BotoCoreError) as exc:
