@@ -1,9 +1,7 @@
 from backend.ai_remediation import generate_remediation
-
 """
 AWS IAM API endpoints for identity and access management analysis
 """
-
 from flask_restful import Resource, reqparse
 from services.aws_service import AWSService
 import logging
