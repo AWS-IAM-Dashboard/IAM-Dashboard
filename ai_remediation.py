@@ -32,7 +32,18 @@ REMEDIATION_RULES = {
         ],
         "confidence": "high"
     },
-
+  
+     "ROOT_MFA_DISABLED": {
+        "title": "Root MFA Disabled",
+        "summary": "Root account does not have MFA enabled, making it vulnerable to unauthorized access.",
+        "recommended_actions": [
+            "Enable MFA for the root account immediately.",
+            "Store backup MFA codes securely.",
+            "Avoid using the root account for daily operations."
+        ],
+        "confidence": "high"
+    },
+  
     "CredentialAccess:IAMUser/CompromisedCredentials": {
         "title": "Compromised Credentials Suspected",
         "summary": "AWS detected signs that this IAM user's credentials may be compromised.",
