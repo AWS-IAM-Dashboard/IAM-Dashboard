@@ -1,0 +1,33 @@
+# CodeRabbit — https://docs.coderabbit.ai/getting-started/yaml-configuration
+language: en
+reviews:
+  profile: chill
+  review_status: false
+  finishing_touches: false
+  path_instructions:
+    - path: "infra/**"
+      instructions: >
+        Security-sensitive Terraform (IAM, KMS, public access, networking, secrets) should align with
+        DevSecOps/opa-policies/ where applicable. Never hardcode AWS account IDs or ARNs. Flag risky
+        ignore_changes or overly broad wildcards without justification. Removing modules without state
+        hygiene can orphan resources — call out removed blocks or state migration when modules disappear.
+    - path: "src/components/ir/**"
+      instructions: >
+        High-impact IR actions must have an approval gate before execution. Account for both LLM and
+        automation lanes.
+    - path: ".github/workflows/**"
+      instructions: >
+        Deploy jobs must not run before the DevSecOps scan job succeeds (OPA, Checkov, Gitleaks).
+        Editing devsecops-scan.yml is on Terraform workflow path filters — flag if that change looks
+        unrelated to infra or CI intent.
+    - path: "backend/**"
+      instructions: >
+        Flag incorrect use of backend.* imports for Lambda-only code paths. Flask serves local dev;
+        Lambda serves production — PRs should make clear which runtime is affected.
+    - path: "src/mock/**"
+      instructions: >
+        New API endpoints should have corresponding mock fixtures. Components should behave in both mock
+        and live data modes.
+
+chat:
+  auto_reply: false
