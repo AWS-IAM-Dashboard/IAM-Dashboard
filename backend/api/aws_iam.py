@@ -10,7 +10,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class IAMResource(Resource):
     """IAM analysis and security endpoint"""
     
