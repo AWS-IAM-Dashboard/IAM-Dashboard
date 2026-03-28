@@ -16,10 +16,18 @@ datasources:
     user: postgres
     secureJsonData:
       password: password
+    jsonData:
+      sslmode: disable
     editable: true
 
   - name: Redis
     type: redis
     access: proxy
     url: redis:6379
+    editable: true
+
+  - name: Scanner API
+    type: marcusolsson-json-datasource
+    access: proxy
+    url: http://app:5000
     editable: true
