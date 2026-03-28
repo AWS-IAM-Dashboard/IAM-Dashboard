@@ -17,10 +17,27 @@ Repo: **AWS-IAM-Dashboard/IAM-Dashboard**. Clone the org repo (no fork), work on
 ```bash
 git clone https://github.com/AWS-IAM-Dashboard/IAM-Dashboard.git
 cd IAM-Dashboard
-docker-compose up -d
+docker compose up -d --build
 ```
 
 **URLs:** Dashboard http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
+
+### Frontend data mode (dev-only)
+
+The frontend supports two dev modes:
+
+- **live** (default): calls the backend API at `http://localhost:5001/api/v1`
+- **mock**: uses local mock fixtures (for UI/UX work; backend not required)
+
+Switch modes by setting `VITE_DATA_MODE` and restarting the `frontend` service:
+
+```bash
+# Mock mode
+VITE_DATA_MODE=mock docker compose up -d frontend
+
+# Live mode (default)
+VITE_DATA_MODE=live docker compose up -d frontend
+```
 
 **Pull latest:** `git checkout main && git pull origin main`
 
@@ -87,9 +104,10 @@ Runs OPA, Checkov, and Gitleaks. `make opa`, `make checkov`, `make gitleaks` for
 ## Troubleshooting
 
 - **Ports in use:** 5001, 3000, 5432, 6379, 9090 must be free.
-- **Logs:** `docker-compose logs -f` or `docker-compose logs app`
-- **Rebuild:** `docker-compose up --build -d`
-- **Reset:** `docker-compose down -v`
+- **Logs:** `docker compose logs -f` or `docker compose logs app`
+- **Rebuild:** `docker compose up -d --build`
+- **Reset:** `docker compose down -v`
+- **Frontend deps missing (e.g. "failed to resolve import")**: `docker compose down -v && docker compose up -d --build` (this resets the `node_modules` volume so the container re-runs `npm ci`)
 
 ---
 
