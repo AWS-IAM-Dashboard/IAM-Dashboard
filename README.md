@@ -22,6 +22,10 @@ cd IAM-Dashboard
 docker-compose up -d
 ```
 
+# 2. Start the application
+
+docker-compose up -d
+
 ### Full-Stack Development
 
 New contributors only need Docker. No need to install Node.js or run `npm install` locally.
@@ -223,14 +227,9 @@ npm run build
 ```
 
 ### Backend Development
-Use a single project virtualenv at `.venv` (not committed):
-
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# Install Python dependencies
 pip install -r requirements.txt
-# Optional — PostgreSQL driver for Docker/Postgres workflows:
-# pip install -r requirements-postgres.txt
 
 # Run Flask development server
 python backend/app.py

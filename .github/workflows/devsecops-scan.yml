@@ -59,12 +59,12 @@ jobs:
     - name: Convert Checkov JSON to Markdown
       if: always()
       run: |
-        python scripts/failed_checkov_results.py --path "$RUNNER_TEMP/checkov-results.json" --output "$RUNNER_TEMP/checkov-results.md" || true
+        python failed_checkov_results.py --path "$RUNNER_TEMP/checkov-results.json" --output "$RUNNER_TEMP/checkov-results.md" || true
 
     - name: Convert Gitleaks JSON to Markdown
       if: always()
       run: |
-        python scripts/failed_gitleaks_results.py --path "$RUNNER_TEMP/gitleaks-results.json" --output "$RUNNER_TEMP/gitleaks-results.md" || true
+        python failed_gitleaks_results.py --path "$RUNNER_TEMP/gitleaks-results.json" --output "$RUNNER_TEMP/gitleaks-results.md" || true
 
     - name: Upload DevSecOps Scan Results
       uses: actions/upload-artifact@v4

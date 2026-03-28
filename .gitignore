@@ -1,19 +1,11 @@
-# Environment files (never commit secrets; template is env.example in repo root)
+# Environment files
 .env
-.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Python
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.nox/
-.coverage
-.coverage.*
-htmlcov/
-*.cover
-.hypothesis/
-
 __pycache__/
 *.py[cod]
 *$py.class
@@ -37,7 +29,6 @@ wheels/
 MANIFEST
 
 # Virtual environments
-.venv/
 venv/
 env/
 ENV/
@@ -46,7 +37,6 @@ venv.bak/
 
 # IDE
 .cursor/
-.claude/
 .vscode/
 .idea/
 *.swp
@@ -89,14 +79,6 @@ jspm_packages/
 
 # Optional npm cache directory
 .npm
-.pnpm-store/
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-
-# TypeScript incremental / tool caches
-*.tsbuildinfo
 
 # Optional eslint cache
 .eslintcache
@@ -145,6 +127,9 @@ temp/
 *.sqlite
 *.sqlite3
 
+# Docker
+.dockerignore
+
 # AWS
 .aws/
 
@@ -184,7 +169,6 @@ scanner-results/
 scanner-reports/
 security-reports/
 checkov-results.json
-/results.json
 
 # Terraform Plan Files
 *.tfplan
@@ -204,13 +188,3 @@ nul
 
 # File I use to think
 temp.txt
-
-# Merge / patch artifacts
-*.orig
-*.rej
-
-# Optional: local shell env (direnv)
-.direnv/
-
-# Local Redis dumps if bound to host
-dump.rdb
