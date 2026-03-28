@@ -1,3 +1,5 @@
+from ai_remediation import generate_remediation  #connecting backend to ai 
+
 """
 AWS IAM API endpoints for identity and access management analysis
 """
@@ -100,10 +102,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error analyzing access keys: {str(e)}")
             return {}
-    
-    
-   def _get_security_findings(self, region):
-    """Get IAM security findings"""
+            
+            
+    def _get_security_findings(self, region):
     try:
         iam = self.aws_service.session.client('iam')
         findings = []
@@ -118,6 +119,27 @@ class IAMResource(Resource):
                 'resource': 'root-account',
                 'description': 'Root account does not have MFA enabled'
             })
+
+        response = iam.list_users()
+        users = response.get('Users', [])
+
+        for user in users:
+            username = user.get('UserName')
+
+            policies_response = iam.list_attached_user_policies(UserName=username)
+            policies = policies_response.get('AttachedPolicies', [])
+
+            for policy in policies:
+                if policy.get('PolicyName') == "AdministratorAccess":
+                    findings.append({
+                        'finding_type': 'IAM_USER_ADMIN_PERMISSIONS',
+                        'severity': 'High',
+                        'resource': username,
+                        'description': f'IAM user {username} has AdministratorAccess policy'
+                    })
+
+        for f in findings:
+            f["remediation"] = generate_remediation(f)
 
         return findings
 
