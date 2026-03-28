@@ -214,3 +214,6 @@ temp.txt
 
 # Local Redis dumps if bound to host
 dump.rdb
+
+# Files I use to think
+temp.md
