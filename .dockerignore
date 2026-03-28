@@ -1,0 +1,44 @@
+node_modules
+npm-cache
+venv
+build
+logs
+scanner-results
+results.json
+.DS_Store
+.git
+.github
+# Keep Docker build context small and stable across OS/filesystems.
+# This avoids Windows/WSL file attribute issues and extremely slow builds.
+
+# Dependency folders
+node_modules
+**/node_modules
+npm-cache
+
+# Build outputs
+build
+dist
+coverage
+
+# Local dev / tooling artifacts
+.git
+.gitignore
+.gitattributes
+.cursor
+.pytest_cache
+.vscode
+
+# Env / secrets (never bake into images)
+.env
+.env.*
+
+# Generated runtime data
+logs
+results.json
+scanner-results
+
+# Python / virtualenv
+venv
+.venv
+
