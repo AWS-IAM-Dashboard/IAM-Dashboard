@@ -23,6 +23,42 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Legacy Cognito module was removed from config but resources remained in remote state,
+# which breaks plan/apply ("Provider configuration not present" for module.cognito).
+# These removed blocks drop only Terraform tracking; they do not call AWS to destroy pools/clients.
+# After one successful apply, delete these blocks. See infra/README.md (Troubleshooting).
+removed {
+  from = module.cognito.aws_cognito_user_pool.this
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cognito.aws_cognito_user_pool_client.spa
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cognito.aws_cognito_user_pool_domain.this
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.cognito.aws_cognito_user_group.admin
+
+  lifecycle {
+    destroy = false
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 # Use existing KMS key (no create in Terraform; CI does not need kms:CreateKey).

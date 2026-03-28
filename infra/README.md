@@ -250,6 +250,27 @@ This directory is scanned by:
 5. Plan changes: `terraform plan`
 6. Apply changes: `terraform apply`
 
+## Troubleshooting
+
+### `Provider configuration not present` for `module.cognito.*` (orphan)
+
+If CI or local `terraform plan` fails because **`module.cognito`** resources are still in **remote state** but the Cognito module was removed from `main.tf`, fix it in one of two ways:
+
+1. **Preferred (in-repo):** Temporary `removed { ... }` blocks in `main.tf` (with `lifecycle { destroy = false }`) list each legacy address so the next **apply** removes them from state **without** deleting AWS Cognito. After a successful apply, **delete those `removed` blocks** in a follow-up PR so the config stays clean.
+
+2. **Manual:** With AWS + backend access, from `infra/`:
+
+   ```bash
+   terraform init -input=false
+   terraform state list | grep '^module\.cognito\.'
+   terraform state rm 'module.cognito.aws_cognito_user_pool.this' \
+     'module.cognito.aws_cognito_user_pool_client.spa' \
+     'module.cognito.aws_cognito_user_pool_domain.this' \
+     'module.cognito.aws_cognito_user_group.admin'
+   ```
+
+   Add any other `module.cognito.*` lines from `state list`. `state rm` does **not** destroy AWS resources; delete them in the console if you no longer need them.
+
 ## Security Notes
 
 - Never commit `.terraform/` directory
