@@ -13,22 +13,27 @@ Adds a Grafana dashboard that shows:
 2. Open Grafana: http://localhost:3000 (admin/admin)
 3. Navigate to Dashboards → Scanner Performance Dashboard
 
-## Testing The Endpoint
-Visit: http://localhost:5001/api/v1/scan-history?limit=10
+## How To Test
+1. Check the scan history endpoint:
+   http://localhost:5001/api/v1/scan-history?limit=10
 
-Expected response locally (no AWS credentials):
-{"items": [], "total": 0}
+2. Check the health endpoint:
+   http://localhost:5001/api/v1/health
 
-This is expected — no AWS credentials are set locally.
+## Expected Results Locally (No AWS Credentials)
+- scan-history returns: {"items": [], "total": 0}
+- health endpoint returns: {"status": "healthy"}
+- Grafana panels show "No data" — this is expected
+  without real AWS credentials
 
 ## Expected Results With Real AWS
-When AWS credentials are configured, panels will show:
-- Real scan duration data in the time series panel
-- Accurate success/failure rates
-- Recent scans populated in the table
-- Live health metrics
+When AWS credentials are configured:
+- Scan duration panel shows real timing data
+- Success/failure rates show actual percentages
+- Recent scans table populates with real scan records
+- Health panel shows live service metrics
 
-## Why Panels Show "No Data" Locally
-DynamoDB requires real AWS credentials. Locally the
-endpoint returns empty data gracefully instead of crashing.
+## Why Panels Show No Data Locally
+DynamoDB requires real AWS credentials. The endpoint
+returns empty data gracefully instead of crashing.
 
