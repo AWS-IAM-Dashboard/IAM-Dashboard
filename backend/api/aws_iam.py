@@ -102,7 +102,7 @@ class IAMResource(Resource):
             return {}
     
     
-    def _get_security_findings(self, region):
+   def _get_security_findings(self, region):
     """Get IAM security findings"""
     try:
         iam = self.aws_service.session.client('iam')
@@ -124,7 +124,6 @@ class IAMResource(Resource):
     except Exception as e:
         logger.error(f"Error getting security findings: {str(e)}")
         return []
-    
 
     
     def _get_recommendations(self, region):
