@@ -13,19 +13,20 @@ logger = logging.getLogger(__name__)
 
 class IAMResource(Resource):
     """IAM analysis and security endpoint"""
-
+    
     def __init__(self):
         self.aws_service = AWSService()
         self.parser = reqparse.RequestParser()
         self.parser.add_argument('region', type=str, help='AWS region')
         self.parser.add_argument('scan_type', type=str, choices=['full', 'quick'], default='quick')
-
+    
     def get(self):
+        """Get IAM security analysis"""
         try:
             args = self.parser.parse_args()
             region = args.get('region', 'us-east-1')
             scan_type = args.get('scan_type', 'quick')
-
+            
             iam_data = {
                 'users': self._analyze_users(region),
                 'roles': self._analyze_roles(region),
@@ -34,14 +35,15 @@ class IAMResource(Resource):
                 'security_findings': self._get_security_findings(region),
                 'recommendations': self._get_recommendations(region)
             }
-
+            
             return iam_data, 200
-
+            
         except Exception as e:
             logger.error(f"Error analyzing IAM: {str(e)}")
             return {'error': 'Failed to analyze IAM configuration'}, 500
-
+    
     def _analyze_users(self, region):
+        """Analyze IAM users for security issues"""
         try:
             return {
                 'total_users': 0,
@@ -54,8 +56,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error analyzing users: {str(e)}")
             return {}
-
+    
     def _analyze_roles(self, region):
+        """Analyze IAM roles for security issues"""
         try:
             return {
                 'total_roles': 0,
@@ -67,8 +70,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error analyzing roles: {str(e)}")
             return {}
-
+    
     def _analyze_policies(self, region):
+        """Analyze IAM policies for security issues"""
         try:
             return {
                 'total_policies': 0,
@@ -80,8 +84,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error analyzing policies: {str(e)}")
             return {}
-
+    
     def _analyze_access_keys(self, region):
+        """Analyze access keys for security issues"""
         try:
             return {
                 'total_access_keys': 0,
@@ -93,8 +98,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error analyzing access keys: {str(e)}")
             return {}
-
+    
     def _get_security_findings(self, region):
+        """Get IAM security findings"""
         try:
             iam = self.aws_service.session.client('iam')
             findings = []
@@ -136,8 +142,9 @@ class IAMResource(Resource):
         except Exception as e:
             logger.error(f"Error getting security findings: {str(e)}")
             return []
-
+    
     def _get_recommendations(self, region):
+        """Get IAM security recommendations"""
         try:
             return [
                 {
