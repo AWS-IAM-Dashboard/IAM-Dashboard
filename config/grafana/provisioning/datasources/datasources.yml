@@ -16,6 +16,8 @@ datasources:
     user: postgres
     secureJsonData:
       password: password
+    jsonData:
+      sslmode: disable
     editable: true
 
   - name: Redis
