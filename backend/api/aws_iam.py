@@ -101,14 +101,31 @@ class IAMResource(Resource):
             logger.error(f"Error analyzing access keys: {str(e)}")
             return {}
     
+    
     def _get_security_findings(self, region):
-        """Get IAM security findings"""
-        try:
-            # This would integrate with AWS Security Hub and Access Analyzer
-            return []
-        except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
-            return []
+    """Get IAM security findings"""
+    try:
+        iam = self.aws_service.session.client('iam')
+        findings = []
+
+        summary = iam.get_account_summary()
+        summary_map = summary.get('SummaryMap', {})
+
+        if summary_map.get('AccountMFAEnabled', 0) == 0:
+            findings.append({
+                'finding_type': 'ROOT_MFA_DISABLED',
+                'severity': 'High',
+                'resource': 'root-account',
+                'description': 'Root account does not have MFA enabled'
+            })
+
+        return findings
+
+    except Exception as e:
+        logger.error(f"Error getting security findings: {str(e)}")
+        return []
+    
+
     
     def _get_recommendations(self, region):
         """Get IAM security recommendations"""
