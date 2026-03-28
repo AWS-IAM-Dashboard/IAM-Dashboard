@@ -1,162 +1,38 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getSession, login, logout, type AuthUser } from "../services/auth";
 
-type AuthProfile = Record<string, unknown>;
-
-type AuthUser = {
-  accessToken: string;
-  idToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresAt: number;
-  profile: AuthProfile;
-};
-
+// Shared auth state exposed to the rest of the application.
 type AuthContextValue = {
-  error: string | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null;
   signIn: (username: string, password: string) => Promise<void>;
-  signOut: () => void;
-  user: AuthUser | null;
+  signOut: () => Promise<void>;
 };
-
-type CognitoAuthResponse = {
-  AuthenticationResult?: {
-    AccessToken?: string;
-    ExpiresIn?: number;
-    IdToken?: string;
-    RefreshToken?: string;
-    TokenType?: string;
-  };
-  ChallengeName?: string;
-  message?: string;
-  __type?: string;
-};
-
-const SESSION_STORAGE_KEY = "iam-dashboard-auth-session";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function decodeJwtPayload(token: string): AuthProfile {
-  const [, payload] = token.split(".");
-  const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  return JSON.parse(atob(padded));
-}
-
-function getCognitoRegion(authority: string): string {
-  const hostnameParts = new URL(authority).hostname.split(".");
-  return hostnameParts[1] ?? "us-east-1";
-}
-
-function getAuthEndpoint(authority: string): string {
-  return `https://cognito-idp.${getCognitoRegion(authority)}.amazonaws.com/`;
-}
-
-async function initiateAuth(
-  endpoint: string,
-  body: Record<string, unknown>
-): Promise<CognitoAuthResponse> {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-amz-json-1.1",
-      "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth"
-    },
-    body: JSON.stringify(body)
-  });
-
-  const payload = (await response.json()) as CognitoAuthResponse;
-
-  if (!response.ok) {
-    const message = payload.message || payload.__type || "Authentication request failed.";
-    throw new Error(message);
-  }
-
-  if (payload.ChallengeName) {
-    if (payload.ChallengeName === "NEW_PASSWORD_REQUIRED") {
-      throw new Error(
-        "Your password must be changed before you can continue. Please contact an administrator or use the password reset flow."
-      );
-    }
-
-    throw new Error("This Cognito sign-in challenge is not supported yet. Please contact an administrator.");
-  }
-
-  return payload;
-}
-
-function buildUser(
-  authResult: NonNullable<CognitoAuthResponse["AuthenticationResult"]>,
-  existingRefreshToken?: string
-): AuthUser {
-  if (!authResult.AccessToken || !authResult.IdToken) {
-    throw new Error("Cognito did not return the required tokens.");
-  }
-
-  const profile = decodeJwtPayload(authResult.IdToken);
-  const expiresAt =
-    typeof authResult.ExpiresIn === "number"
-      ? Date.now() + authResult.ExpiresIn * 1000
-      : ((profile.exp as number | undefined) ?? 0) * 1000;
-
-  const refreshToken = authResult.RefreshToken || existingRefreshToken;
-  if (!refreshToken) {
-    throw new Error("Cognito did not return a refresh token.");
-  }
-
-  return {
-    accessToken: authResult.AccessToken,
-    idToken: authResult.IdToken,
-    refreshToken,
-    tokenType: authResult.TokenType || "Bearer",
-    expiresAt,
-    profile
-  };
-}
-
+// Loads the browser-backed session once on app startup and exposes shared auth state.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const authority = import.meta.env.VITE_COGNITO_AUTHORITY;
-  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
-  const endpoint = getAuthEndpoint(authority);
-
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Restore app auth state from the server-side session cookie if one exists.
     const restoreSession = async () => {
-      const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-
-      if (!storedSession) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const parsedUser = JSON.parse(storedSession) as AuthUser;
+        const session = await getSession();
 
-        if (parsedUser.expiresAt > Date.now()) {
-          setUser(parsedUser);
+        if (session.authenticated && session.user) {
+          setUser(session.user);
           setError(null);
-          setIsLoading(false);
-          return;
+        } else {
+          setUser(null);
+          setError(null);
         }
-
-        const refreshed = await initiateAuth(endpoint, {
-          AuthFlow: "REFRESH_TOKEN_AUTH",
-          ClientId: clientId,
-          AuthParameters: {
-            REFRESH_TOKEN: parsedUser.refreshToken
-          }
-        });
-
-        const nextUser = buildUser(refreshed.AuthenticationResult ?? {}, parsedUser.refreshToken);
-        window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextUser));
-        setUser(nextUser);
-        setError(null);
       } catch {
-        window.localStorage.removeItem(SESSION_STORAGE_KEY);
         setUser(null);
         setError(null);
       } finally {
@@ -165,55 +41,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     void restoreSession();
-  }, [clientId, endpoint]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      error,
+      user,
       isAuthenticated: user !== null,
       isLoading,
+      error,
       signIn: async (username: string, password: string) => {
         setError(null);
 
         try {
-          const response = await initiateAuth(endpoint, {
-            AuthFlow: "USER_PASSWORD_AUTH",
-            ClientId: clientId,
-            AuthParameters: {
-              USERNAME: username,
-              PASSWORD: password
-            }
-          });
-
-          const nextUser = buildUser(response.AuthenticationResult ?? {});
-          window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextUser));
-          setUser(nextUser);
+          const response = await login(username, password);
+          setUser(response.user);
           setError(null);
         } catch (signInError) {
           const message =
-            signInError instanceof Error ? signInError.message : "Unable to sign in with Cognito.";
+            signInError instanceof Error ? signInError.message : "Unable to sign in.";
           setUser(null);
+          setError(message);
           throw new Error(message);
         }
       },
-      signOut: () => {
-        window.localStorage.removeItem(SESSION_STORAGE_KEY);
-        setUser(null);
-        setError(null);
+      signOut: async () => {
+        try {
+          await logout();
+        } catch {
+          // Clear local auth state even if the server session is already missing.
+        } finally {
+          setUser(null);
+          setError(null);
+        }
       },
-      user
     }),
-    [clientId, endpoint, error, isLoading, user]
+    [error, isLoading, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// Returns the shared auth context and enforces provider usage.
 export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error("useAuth must be used within the custom AuthProvider.");
+    throw new Error("useAuth must be used within the AuthProvider.");
   }
 
   return context;
