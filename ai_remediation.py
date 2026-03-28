@@ -300,6 +300,12 @@ REMEDIATION_RULES = {
 
    
 def apply_guardrails(remediation):
+    """
+    Modifies a remediation dictionary to ensure that:
+    - Only the first three recommended actions are included.
+    - The summary is truncated to a maximum of 220 characters.
+    - A 'safe' flag is added to indicate the remediation is processed.
+    """
     actions = remediation.get("recommended_actions", [])
     remediation["recommended_actions"] = actions[:3]
 
@@ -309,18 +315,7 @@ def apply_guardrails(remediation):
 
     remediation["safe"] = True
     return remediation
- """
-    Modifies a remediation dictionary to ensure that:
-    - Only the first three recommended actions are included.
-    - The summary is truncated to a maximum of 220 characters.
-    - A 'safe' flag is added to indicate the remediation is processed.
-
-    Parameters:
-    remediation (dict): A dictionary containing remediation details.
-
-    Returns:
-    dict: The updated remediation dictionary.
-    """
+  
 def generate_remediation(finding):
     finding_type = finding.get("finding_type", "UNKNOWN")
     severity = finding.get("severity", "Medium")
