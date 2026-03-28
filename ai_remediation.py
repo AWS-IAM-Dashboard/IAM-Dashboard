@@ -298,4 +298,52 @@ REMEDIATION_RULES = {
     }
 }
 
+def apply_guardrails(remediation):
+    actions = remediation.get("recommended_actions", [])
+    remediation["recommended_actions"] = actions[:3]
+
+    summary = remediation.get("summary", "").strip()
+    if len(summary) > 220:
+        remediation["summary"] = summary[:220]
+
+    remediation["safe"] = True
+    return remediation
+
+
+def generate_remediation(finding):
+    finding_type = finding.get("finding_type", "UNKNOWN")
+    severity = finding.get("severity", "Medium")
+    resource = finding.get("resource", "unknown")
+    description = finding.get("description", "")
+
+    rule = REMEDIATION_RULES.get(finding_type)
+
+    if rule:
+        result = {
+            "finding_type": finding_type,
+            "title": rule["title"],
+            "severity": severity,
+            "resource": resource,
+            "description": description,
+            "summary": rule["summary"],
+            "recommended_actions": rule["recommended_actions"],
+            "confidence": rule["confidence"]
+        }
+    else:
+        result = {
+            "finding_type": finding_type,
+            "title": "IAM Security Finding",
+            "severity": severity,
+            "resource": resource,
+            "description": description,
+            "summary": "Review this IAM finding and investigate whether the activity or configuration is expected.",
+            "recommended_actions": [
+                "Inspect the affected IAM user, role, or policy.",
+                "Review recent related activity and permissions.",
+                "Restrict access if the behavior appears unauthorized."
+            ],
+            "confidence": "low"
+        }
+
+    return apply_guardrails(result)
 
