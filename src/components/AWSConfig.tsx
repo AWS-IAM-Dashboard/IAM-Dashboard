@@ -1,20 +1,19 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Label } from "./ui/label";
-import { 
-  Shield, 
-  CheckCircle,
+import { useState, useEffect } from "react";
+import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
+import {
+  Settings2,
+  Settings,
+  CheckCircle2,
   XCircle,
-  RefreshCw,
-  Download
+  AlertTriangle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DemoModeBanner } from "./DemoModeBanner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
 interface ConfigRule {
   id: string;
@@ -72,11 +71,73 @@ const mockSummary: ComplianceSummary = {
   compliance_percentage: 67
 };
 
+function getRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  return `${mins}m ago`;
+}
+
+function getRemediationHint(ruleName: string): string {
+  const name = ruleName.toLowerCase();
+  if (name.includes('s3')) {
+    return 'Enable S3 Block Public Access at account level. Review bucket policies and ACLs.';
+  }
+  if (name.includes('iam')) {
+    return 'Review IAM password policy. Enforce min length 14, require uppercase/lowercase/numbers/symbols.';
+  }
+  if (name.includes('encrypted') || name.includes('volume')) {
+    return 'Enable EBS encryption by default in EC2 settings. Encrypt existing volumes via snapshot.';
+  }
+  return 'Review rule configuration and remediate non-compliant resources via AWS Console.';
+}
+
+const CARD_STYLE: React.CSSProperties = {
+  background: 'rgba(15,23,42,0.6)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  borderRadius: 10,
+  padding: '20px 24px',
+};
+
+const CHIP_BASE: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '4px 14px',
+  borderRadius: 20,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+  border: '1px solid rgba(255,255,255,0.10)',
+  transition: 'all 0.15s',
+  userSelect: 'none',
+};
+
 export function AWSConfig() {
-  const [rules, setRules] = useState<ConfigRule[]>(mockRules);
-  const [summary, setSummary] = useState<ComplianceSummary>(mockSummary);
+  const [rules] = useState<ConfigRule[]>(mockRules);
+  const [summary] = useState<ComplianceSummary>(mockSummary);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
+
+  useEffect(() => {
+    setWorkflows(prev => {
+      const next = { ...prev };
+      rules.forEach(r => {
+        if (!next[r.id]) {
+          next[r.id] = { status: "NEW", first_seen: r.last_evaluated, timeline: [] };
+        }
+      });
+      return next;
+    });
+  }, [rules]);
+
+  const advanceStatus = (id: string) => { const NEXT: Record<string, WorkflowData["status"]> = { NEW: "TRIAGED", TRIAGED: "ASSIGNED", ASSIGNED: "IN_PROGRESS", IN_PROGRESS: "PENDING_VERIFY", PENDING_VERIFY: "REMEDIATED" }; setWorkflows(prev => { const w = prev[id]; if (!w) return prev; const n = NEXT[w.status]; if (!n) return prev; return { ...prev, [id]: { ...w, status: n, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Status advanced to ${n}` }] } }; }); };
+  const assignFinding = (id: string, assignee: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, assignee, status: (w.status === "NEW" || w.status === "TRIAGED") ? "ASSIGNED" : w.status, timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: `Assigned to ${assignee}` }] } }; }); toast.success(`Assigned to ${assignee}`); };
+  const markFalsePositive = (id: string) => { setWorkflows(prev => { const w = prev[id] ?? { status: "NEW" as const, first_seen: new Date().toISOString(), timeline: [] }; return { ...prev, [id]: { ...w, status: "FALSE_POSITIVE", timeline: [...w.timeline, { id: `${id}-${Date.now()}`, timestamp: new Date().toISOString(), actor: "Security Analyst", actor_type: "analyst" as const, action: "Marked as false positive" }] } }; }); toast.info("Marked as false positive"); };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -92,148 +153,232 @@ export function AWSConfig() {
     return r.compliance_status === selectedStatus;
   });
 
+  const complianceColor =
+    summary.compliance_percentage > 80
+      ? '#00ff88'
+      : summary.compliance_percentage > 60
+      ? '#ffb000'
+      : '#ff0040';
+
+  const statusFilters = [
+    { label: 'All', value: 'all' },
+    { label: 'COMPLIANT', value: 'COMPLIANT' },
+    { label: 'NON_COMPLIANT', value: 'NON_COMPLIANT' },
+    { label: 'NOT_APPLICABLE', value: 'NOT_APPLICABLE' },
+  ];
+
+  const statusIcon = (status: string) => {
+    if (status === 'COMPLIANT') return <CheckCircle2 size={16} color="#00ff88" />;
+    if (status === 'NON_COMPLIANT') return <XCircle size={16} color="#ff0040" />;
+    return <AlertTriangle size={16} color="#64748b" />;
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <DemoModeBanner />
-      
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
-            AWS Config
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Compliance and configuration management service
-          </p>
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
+
+      <ScanPageHeader
+        icon={<Settings size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="AWS Config"
+        subtitle="Continuous configuration compliance evaluation and drift detection across your AWS resources"
+        isScanning={isRefreshing}
+        onRefresh={handleRefresh}
+      />
+
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+        <StatCard label="Total Rules" value={summary.total_rules} accent="#e2e8f0" icon={Settings2} />
+        <StatCard label="Compliant" value={summary.compliant_rules} accent="#00ff88" icon={CheckCircle2} />
+        <StatCard label="Non-Compliant" value={summary.non_compliant_rules} accent="#ff0040" icon={XCircle} />
+        <StatCard label="Compliance" value={`${summary.compliance_percentage}%`} accent={complianceColor} />
+      </div>
+
+      {/* Progress Bar */}
+      <div style={CARD_STYLE}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: 'rgba(100,116,139,0.7)' }}>Overall Compliance</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: complianceColor }}>{summary.compliance_percentage}%</span>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+        <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${summary.compliance_percentage}%`,
+              background: complianceColor,
+              borderRadius: 3,
+              transition: 'width 0.6s ease',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 20, marginTop: 10 }}>
+          <span style={{ fontSize: 11, color: '#00ff88' }}>{summary.compliant_rules} Compliant</span>
+          <span style={{ fontSize: 11, color: '#ff0040' }}>{summary.non_compliant_rules} Non-Compliant</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>{summary.not_applicable_rules} Not Applicable</span>
         </div>
       </div>
 
-      {/* Compliance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="cyber-card">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Compliance Score</p>
-                <p className="text-2xl font-bold mt-1">{summary.compliance_percentage}%</p>
-              </div>
-              <Shield className="h-8 w-8 text-primary opacity-50" />
-            </div>
-            <Progress value={summary.compliance_percentage} className="mt-4" />
-          </CardContent>
-        </Card>
+      {/* Filter Chips + Table */}
+      <div style={CARD_STYLE}>
+        {/* Filter chips */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          {statusFilters.map(f => {
+            const active = selectedStatus === f.value;
+            let activeColor = '#00ff88';
+            if (f.value === 'NON_COMPLIANT') activeColor = '#ff0040';
+            if (f.value === 'NOT_APPLICABLE') activeColor = '#64748b';
+            return (
+              <button
+                key={f.value}
+                onClick={() => setSelectedStatus(f.value)}
+                style={{
+                  ...CHIP_BASE,
+                  background: active ? `${activeColor}18` : 'rgba(255,255,255,0.03)',
+                  borderColor: active ? `${activeColor}55` : 'rgba(255,255,255,0.08)',
+                  color: active ? activeColor : 'rgba(100,116,139,0.9)',
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(100,116,139,0.7)', alignSelf: 'center' }}>
+            {filteredRules.length} rule{filteredRules.length !== 1 ? 's' : ''}
+          </span>
+        </div>
 
-        <Card className="cyber-card border-[#00ff88]/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Compliant</p>
-                <p className="text-2xl font-bold mt-1 text-[#00ff88]">{summary.compliant_rules}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-[#00ff88] opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Table Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '36px 1fr 200px 120px 140px 36px',
+          gap: 12,
+          padding: '0 12px 10px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {['', 'Rule Name', 'Resource Type', 'Non-Compliant', 'Last Evaluated', ''].map((h, i) => (
+            <span key={i} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(100,116,139,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {h}
+            </span>
+          ))}
+        </div>
 
-        <Card className="cyber-card border-[#ff0040]/50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Non-Compliant</p>
-                <p className="text-2xl font-bold mt-1 text-[#ff0040]">{summary.non_compliant_rules}</p>
-              </div>
-              <XCircle className="h-8 w-8 text-[#ff0040] opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="cyber-card">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Rules</p>
-                <p className="text-2xl font-bold mt-1">{summary.total_rules}</p>
-              </div>
-              <Shield className="h-8 w-8 text-primary opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Rules Table */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle>Compliance Rules</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Label>Filter by Status</Label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="COMPLIANT">Compliant</SelectItem>
-                <SelectItem value="NON_COMPLIANT">Non-Compliant</SelectItem>
-                <SelectItem value="NOT_APPLICABLE">Not Applicable</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Table Rows */}
+        {filteredRules.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(100,116,139,0.7)' }}>
+            <AlertTriangle size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+            <p style={{ margin: 0 }}>No rules match the selected filter.</p>
           </div>
+        ) : (
+          filteredRules.map((rule, idx) => {
+            const isExpanded = expandedId === rule.id;
+            return (
+              <div key={rule.id}>
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : rule.id)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '36px 1fr 200px 120px 140px 36px',
+                    gap: 12,
+                    padding: '14px 12px',
+                    borderBottom: idx < filteredRules.length - 1 || isExpanded ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                    cursor: 'pointer',
+                    background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent',
+                    transition: 'background 0.15s',
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                  onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                >
+                  {/* Status Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {statusIcon(rule.compliance_status)}
+                  </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rule Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Compliance Status</TableHead>
-                <TableHead>Resource Type</TableHead>
-                <TableHead>Resources</TableHead>
-                <TableHead>Last Evaluated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRules.map((rule) => (
-                <TableRow key={rule.id} className="cursor-pointer hover:bg-accent/10">
-                  <TableCell>
-                    <p className="font-medium font-mono text-sm">{rule.name}</p>
-                  </TableCell>
-                  <TableCell>{rule.description}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      className={
-                        rule.compliance_status === 'COMPLIANT' 
-                          ? 'bg-[#00ff88] text-black' 
-                          : rule.compliance_status === 'NON_COMPLIANT'
-                          ? 'bg-[#ff0040] text-white'
-                          : 'bg-gray-500 text-white'
-                      }
-                    >
-                      {rule.compliance_status.replace('_', '-')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{rule.resource_type}</TableCell>
-                  <TableCell>{rule.resource_count}</TableCell>
-                  <TableCell className="text-sm">
-                    {new Date(rule.last_evaluated).toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  {/* Rule Name */}
+                  <div>
+                    <span style={{
+                      fontFamily: '"JetBrains Mono", "Fira Mono", monospace',
+                      fontSize: 13,
+                      color: '#e2e8f0',
+                    }}>
+                      {rule.name}
+                    </span>
+                  </div>
+
+                  {/* Resource Type */}
+                  <div>
+                    <span style={{
+                      fontFamily: '"JetBrains Mono", "Fira Mono", monospace',
+                      fontSize: 11,
+                      color: 'rgba(100,116,139,0.7)',
+                    }}>
+                      {rule.resource_type}
+                    </span>
+                  </div>
+
+                  {/* Non-Compliant Count */}
+                  <div>
+                    {rule.compliance_status === 'NON_COMPLIANT' ? (
+                      <SeverityBadge severity="NON_COMPLIANT" size="sm" label={String(rule.resource_count)} />
+                    ) : rule.compliance_status === 'COMPLIANT' ? (
+                      <SeverityBadge severity="COMPLIANT" size="sm" label="0" />
+                    ) : (
+                      <SeverityBadge severity="NOT_APPLICABLE" size="sm" />
+                    )}
+                  </div>
+
+                  {/* Last Evaluated */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Clock size={12} color="rgba(100,116,139,0.6)" />
+                    <span style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)' }}>
+                      {getRelativeTime(rule.last_evaluated)}
+                    </span>
+                  </div>
+
+                  {/* Expand Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(100,116,139,0.5)' }}>
+                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </div>
+                </div>
+
+                {/* Expanded Detail */}
+                {isExpanded && (
+                  <FindingDetailPanel
+                    finding={{
+                      id: rule.id,
+                      title: rule.name,
+                      resource_name: rule.resource_type ?? rule.id,
+                      resource_arn: undefined,
+                      severity: "MEDIUM",
+                      description: rule.description,
+                      recommendation: getRemediationHint(rule.name),
+                      risk_score: undefined,
+                      compliance_frameworks: undefined,
+                      last_seen: rule.last_evaluated,
+                      first_seen: rule.last_evaluated,
+                      region: undefined,
+                      metadata: {
+                        ...(rule.compliance_status ? { "Status": rule.compliance_status } : {}),
+                        ...(rule.name ? { "Rule": rule.name } : {}),
+                        ...(rule.resource_type ? { "Resource Type": rule.resource_type } : {}),
+                      },
+                    }}
+                    workflow={workflows[rule.id]}
+                    onAdvanceStatus={advanceStatus}
+                    onAssign={assignFinding}
+                    onMarkFalsePositive={markFalsePositive}
+                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                    onClose={() => setExpandedId(null)}
+                  />
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
-
