@@ -191,8 +191,9 @@ def build_session_cookie(session_id: str, max_age: int, secure: bool) -> str:
         f"Max-Age={max_age}",
         "Path=/",
         "HttpOnly",
-        "SameSite=None",
+        "SameSite=None" if secure else "SameSite=Lax",
     ]
+    # Cross-site hosted flows need SameSite=None and Secure together to keep the cookie usable.
     if secure:
         parts.append("Secure")
     return "; ".join(parts)
@@ -205,7 +206,7 @@ def build_clear_cookie(secure: bool) -> str:
         "Max-Age=0",
         "Path=/",
         "HttpOnly",
-        "SameSite=None",
+        "SameSite=None" if secure else "SameSite=Lax",
     ]
     if secure:
         parts.append("Secure")
