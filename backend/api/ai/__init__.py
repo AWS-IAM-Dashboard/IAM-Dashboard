@@ -1,0 +1,2 @@
+"""AI-related REST endpoints."""
+

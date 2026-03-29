@@ -43,6 +43,16 @@
     {
       "Effect": "Allow",
       "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:ChangeMessageVisibility"
+      ],
+      "Resource": "arn:aws:sqs:*:*:iam-dashboard-remediation-queue*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "securityhub:GetFindings",
         "securityhub:BatchImportFindings",
         "securityhub:GetInsights",

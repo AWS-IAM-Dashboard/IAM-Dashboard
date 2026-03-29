@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RemediationResponse (AI-3)",
+  "type": "object",
+  "required": [
+    "type",
+    "risk_level",
+    "explanation",
+    "proposed_change",
+    "requires_review",
+    "blocked",
+    "violations"
+  ],
+  "properties": {
+    "type": { "type": "string", "minLength": 1 },
+    "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+    "explanation": { "type": "string", "minLength": 1 },
+    "proposed_change": {
+      "oneOf": [
+        { "type": "object" },
+        { "type": "array" }
+      ]
+    },
+    "requires_review": { "type": "boolean", "const": true },
+    "blocked": { "type": "boolean" },
+    "violations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}
+

@@ -8,7 +8,7 @@ import os
 import logging
 import boto3
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from botocore.exceptions import ClientError
 from decimal import Decimal
 
@@ -167,6 +167,81 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         logger.info(f"Received event: {json.dumps(event)}")
+
+        # --- Async remediation worker (SQS) ---
+        # This Lambda is primarily used for scan orchestration via API Gateway routes.
+        # When triggered by SQS (eventSource == aws:sqs), we treat it as the remediation worker.
+        if isinstance(event, dict) and isinstance(event.get("Records"), list) and event["Records"]:
+            first = event["Records"][0] or {}
+            if first.get("eventSource") == "aws:sqs":
+                from services.ai.remediation.controller import generate_remediation
+                from services.ai.remediation.job_store import get_job_store
+
+                store = get_job_store()
+                results: List[Dict[str, Any]] = []
+
+                for record in event["Records"]:
+                    try:
+                        job_id_for_error: Optional[str] = None
+                        body_raw = record.get("body", "{}")
+                        body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
+                        job_id = body.get("job_id")
+                        job_id_for_error = job_id
+                        if not job_id:
+                            results.append({"job_id": None, "status": "failed", "error": "Missing job_id"})
+                            continue
+
+                        job = store.get_job(job_id=job_id)
+                        if not job:
+                            results.append({"job_id": job_id, "status": "failed", "error": "Job not found"})
+                            continue
+
+                        attempt_count = int(job.get("attempt_count", 0))
+                        max_attempts = int(job.get("max_attempts", 4))
+                        if attempt_count >= max_attempts:
+                            store.update_job_status(
+                                job_id=job_id,
+                                status="failed",
+                                attempt_count=attempt_count,
+                                last_error="MAX_ATTEMPTS_REACHED",
+                            )
+                            results.append({"job_id": job_id, "status": "failed", "error": "Max attempts"})
+                            continue
+
+                        store.update_job_status(
+                            job_id=job_id,
+                            status="running",
+                            attempt_count=attempt_count + 1,
+                            last_error=None,
+                        )
+
+                        ai2_input = job.get("ai2_input")
+                        if not isinstance(ai2_input, dict):
+                            raise ValueError("Job ai2_input missing or invalid")
+
+                        remediation_response = generate_remediation(ai2_input)
+                        is_blocked = bool(remediation_response.get("blocked"))
+                        store.update_job_status(
+                            job_id=job_id,
+                            status="blocked" if is_blocked else "completed",
+                            result=remediation_response,
+                        )
+                        results.append({"job_id": job_id, "status": "blocked" if is_blocked else "completed"})
+
+                    except Exception as e:
+                        # Mark job as failed for visibility; message retries are handled by SQS/Lambda.
+                        try:
+                            store.update_job_status(
+                                job_id=job_id_for_error,
+                                status="failed",
+                                last_error=str(e)[:2000],
+                            )
+                        except Exception:
+                            pass
+                        results.append({"status": "failed", "error": str(e)[:2000]})
+
+                logger.info(f"Remediation worker processed {len(results)} record(s)")
+                return {"status": "ok", "processed": len(results), "results": results}
         
         # Parse event (API Gateway or direct invocation)
         if 'httpMethod' in event or 'requestContext' in event:
