@@ -191,7 +191,7 @@ def build_session_cookie(session_id: str, max_age: int, secure: bool) -> str:
         f"Max-Age={max_age}",
         "Path=/",
         "HttpOnly",
-        "SameSite=Lax",
+        "SameSite=None",
     ]
     if secure:
         parts.append("Secure")
@@ -205,7 +205,7 @@ def build_clear_cookie(secure: bool) -> str:
         "Max-Age=0",
         "Path=/",
         "HttpOnly",
-        "SameSite=Lax",
+        "SameSite=None",
     ]
     if secure:
         parts.append("Secure")
