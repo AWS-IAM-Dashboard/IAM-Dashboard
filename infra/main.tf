@@ -64,6 +64,8 @@ module "lambda" {
   project_name         = var.project_name
   lambda_function_name = var.lambda_function_name
   dynamodb_table_name  = var.dynamodb_table_name
+  dynamodb_remediation_jobs_table_name       = module.dynamodb.remediation_jobs_table_name
+  dynamodb_remediation_idempotency_table_name = module.dynamodb.remediation_idempotency_table_name
   s3_bucket_name       = var.s3_bucket_name
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 }
@@ -94,4 +96,46 @@ module "github_actions" {
   # So CI can use Terraform backend (state bucket + lock table)
   terraform_state_bucket     = "iam-dashboard-terraform-state"
   terraform_state_lock_table = "terraform-state-lock"
+}
+
+# --- Async AI remediation plumbing (SQS -> Lambda) ---
+
+resource "aws_sqs_queue" "remediation_dlq" {
+  name                       = "iam-dashboard-remediation-dlq"
+  message_retention_seconds = 1209600 # 14 days
+  kms_master_key_id          = data.aws_kms_key.logs.arn
+  sqs_managed_sse_enabled    = false
+
+  tags = {
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_sqs_queue" "remediation_queue" {
+  name                       = "iam-dashboard-remediation-queue"
+  message_retention_seconds = 345600 # 4 days
+  visibility_timeout_seconds = 60
+
+  kms_master_key_id       = data.aws_kms_key.logs.arn
+  sqs_managed_sse_enabled = false
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.remediation_dlq.arn
+    maxReceiveCount     = 5
+  })
+
+  tags = {
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "remediation_sqs_mapping" {
+  event_source_arn = aws_sqs_queue.remediation_queue.arn
+  function_name    = module.lambda.lambda_function_arn
+  batch_size       = 1
+  enabled          = true
 }

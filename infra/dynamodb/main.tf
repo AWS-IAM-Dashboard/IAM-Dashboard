@@ -70,3 +70,57 @@ resource "aws_dynamodb_table" "scan_results" {
     Description = "Stores security scan results from AWS native scanners and custom OPA policies"
   }
 }
+
+# DynamoDB table for remediation job records.
+resource "aws_dynamodb_table" "remediation_jobs" {
+  name         = var.dynamodb_remediation_jobs_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "job_id"
+
+  attribute {
+    name = "job_id"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = var.dynamodb_kms_key_arn
+  }
+
+  deletion_protection_enabled = var.environment == "prod"
+
+  tags = {
+    Name        = var.dynamodb_remediation_jobs_table_name
+    Project     = var.project_name
+    Env         = var.environment
+    ManagedBy   = "terraform"
+    Description = "Stores AI remediation job inputs and fixed AI-3 results"
+  }
+}
+
+# DynamoDB table for idempotency key -> job_id mapping.
+resource "aws_dynamodb_table" "remediation_idempotency" {
+  name         = var.dynamodb_remediation_idempotency_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "idempotency_key"
+
+  attribute {
+    name = "idempotency_key"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = var.dynamodb_kms_key_arn
+  }
+
+  deletion_protection_enabled = var.environment == "prod"
+
+  tags = {
+    Name        = var.dynamodb_remediation_idempotency_table_name
+    Project     = var.project_name
+    Env         = var.environment
+    ManagedBy   = "terraform"
+    Description = "Prevents duplicate remediation job creation"
+  }
+}

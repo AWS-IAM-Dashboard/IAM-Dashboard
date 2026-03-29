@@ -20,6 +20,7 @@ from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.ai.remediation import RemediationResource, RemediationJobResource
 
 # Import services
 from services.aws_service import AWSService
@@ -70,6 +71,8 @@ def create_app():
     api.add_resource(SecurityHubResource, '/aws/security-hub')
     api.add_resource(ConfigResource, '/aws/config')
     api.add_resource(GrafanaResource, '/grafana')
+    api.add_resource(RemediationResource, '/remediation')
+    api.add_resource(RemediationJobResource, '/remediation/<string:job_id>')
 
     # Serve static files (React frontend)
     @app.route('/')
