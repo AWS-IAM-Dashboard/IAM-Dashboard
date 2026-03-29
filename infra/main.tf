@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.14.7"
+  required_version = ">= 1.12.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -67,10 +67,34 @@ module "lambda" {
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region   = var.aws_region
-  environment  = var.environment
-  project_name = var.project_name
-  kms_key_arn  = aws_kms_key.IAM_Dashboard_Key.arn
+  aws_region         = var.aws_region
+  environment        = var.environment
+  project_name       = var.project_name
+  kms_key_arn        = aws_kms_key.IAM_Dashboard_Key.arn
+  cognito_issuer_url = module.cognito.issuer_url
+  cognito_audience   = module.cognito.app_client_id
+}
+
+module "cognito" {
+  source = "./cognito"
+
+  aws_region            = var.aws_region
+  environment           = var.environment
+  project_name          = var.project_name
+  cognito_domain_prefix = var.cognito_domain_prefix
+  callback_urls         = var.cognito_callback_urls
+  logout_urls           = var.cognito_logout_urls
+}
+
+# CloudFront Module (frontend SPA behind S3 website)
+module "cloudfront" {
+  source = "./cloudfront"
+
+  aws_region          = var.aws_region
+  environment         = var.environment
+  project_name        = var.project_name
+  s3_website_endpoint = var.prod_s3_endpoint
+  web_acl_id          = var.cloudfront_web_acl_id
 }
 
 # GitHub Actions OIDC Module

@@ -1,0 +1,17 @@
+.687Z	e844cb29-d1e9-4886-b9a7-1c6a7f6290af	method=POST raw_path=/auth/login normalized_path=/auth/login origin=http://localhost:3001
+[ERROR]	2026-03-27T22:13:33.164Z	e844cb29-d1e9-4886-b9a7-1c6a7f6290af	Failed to list existing sessions for username=testuser
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py", line 304, in list_sessions_for_username
+    response_data = table.query(**query_kwargs)
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/factory.py", line 581, in do_action
+    response = action(self, *args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/boto3/resources/action.py", line 88, in __call__
+    response = getattr(parent.meta.client, operation_name)(*args, **params)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/lang/lib/python3.14/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+  File "/var/lang/lib/python3.14/site-packages/botocore/client.py", line 1078, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.exceptions.ClientError: An error occurred (AccessDeniedException) when calling the Query operation: User: arn:aws:sts::562559071105:assumed-role/BFF-test-role/test-BFF is not authorized to perform: dynamodb:Query on resource: arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-auth-sessions-test/index/username-index because no identity-based policy allows the dynamodb:Query action

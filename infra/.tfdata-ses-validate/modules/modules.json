@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"api_gateway","Source":"./api-gateway","Dir":"api-gateway"},{"Key":"dynamodb","Source":"./dynamodb","Dir":"dynamodb"},{"Key":"github_actions","Source":"./github-actions","Dir":"github-actions"},{"Key":"lambda","Source":"./lambda","Dir":"lambda"},{"Key":"s3","Source":"./s3","Dir":"s3"},{"Key":"ses","Source":"./ses","Dir":"ses"}]}
