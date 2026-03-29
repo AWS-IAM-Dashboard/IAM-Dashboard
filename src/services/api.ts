@@ -3,6 +3,8 @@
  * Handles all communication with the backend API (local Docker) or AWS API Gateway.
  */
 
+import { getMockResponse } from "../mock/apiMock";
+
 // API base URL resolution (priority):
 // 1) VITE_API_URL            -> local/backend URL (e.g. Docker on localhost:3001)
 // 2) VITE_API_GATEWAY_URL    -> deployed AWS API Gateway URL
@@ -11,6 +13,8 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_GATEWAY_URL ||
   'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1';
+
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
 
 export type ScannerType = 
   | 'security-hub'
@@ -53,6 +57,13 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  if (DATA_MODE === "mock") {
+    const mock = getMockResponse(endpoint);
+    if (mock !== undefined) return mock as T;
+    // For endpoints not yet mocked, fail loudly so we know what to add.
+    throw new Error(`Mock mode: no fixture for ${endpoint}`);
+  }
+
   const url = `${API_BASE_URL}${endpoint}`;
   
   const defaultHeaders: HeadersInit = {

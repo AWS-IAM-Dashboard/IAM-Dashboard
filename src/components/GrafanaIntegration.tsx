@@ -1,671 +1,413 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import { Badge } from "./ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Switch } from "./ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { 
-  BarChart3, 
-  Download, 
-  Copy, 
-  CheckCircle, 
-  AlertTriangle, 
-  Settings, 
-  Monitor,
-  Database,
-  Activity,
+import { useState } from "react";
+import {
+  BarChart3,
+  Download,
+  Copy,
+  CheckCircle2,
   Wifi,
-  Key,
-  ExternalLink,
+  WifiOff,
   RefreshCw,
-  Play
+  Play,
+  ExternalLink,
+  Plus,
+  Eye,
+  EyeOff,
+  Activity,
+  Database,
+  Shield,
+  Users,
+  HardDrive,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DemoModeBanner } from "./DemoModeBanner";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface GrafanaConnection {
   id: string;
   name: string;
   url: string;
-  status: 'Connected' | 'Disconnected' | 'Error';
-  last_sync: string;
-  dashboards_count: number;
+  status: "Connected" | "Disconnected" | "Error";
+  lastSync: string;
+  dashboardsCount: number;
 }
 
 interface MetricEndpoint {
   id: string;
   name: string;
   endpoint: string;
-  method: string;
   enabled: boolean;
   description: string;
-  sample_response: any;
+  icon: typeof Shield;
+  sampleKeys: string[];
 }
 
-const mockGrafanaConnections: GrafanaConnection[] = [
-  {
-    id: 'grafana-prod',
-    name: 'Production Grafana',
-    url: 'https://grafana.company.com',
-    status: 'Connected',
-    last_sync: '2 min ago',
-    dashboards_count: 12
-  },
-  {
-    id: 'grafana-dev',
-    name: 'Development Grafana',
-    url: 'https://dev-grafana.company.com',
-    status: 'Disconnected',
-    last_sync: '1 hour ago',
-    dashboards_count: 8
-  }
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const INIT_CONNECTIONS: GrafanaConnection[] = [
+  { id: "grafana-prod", name: "Production Grafana", url: "https://grafana.company.com", status: "Connected", lastSync: "2 min ago", dashboardsCount: 12 },
+  { id: "grafana-dev", name: "Development Grafana", url: "https://dev-grafana.company.com", status: "Disconnected", lastSync: "1 hour ago", dashboardsCount: 8 },
 ];
 
-const mockMetricEndpoints: MetricEndpoint[] = [
-  {
-    id: 'security-overview',
-    name: 'Security Overview Metrics',
-    endpoint: '/api/metrics/security/overview',
-    method: 'GET',
-    enabled: true,
-    description: 'Overall security posture metrics across all AWS services',
-    sample_response: {
-      timestamp: new Date().toISOString(),
-      account_id: '123456789012',
-      critical_findings: 5,
-      high_findings: 12,
-      medium_findings: 28,
-      low_findings: 15,
-      compliance_score: 78,
-      resources_scanned: 1247
-    }
-  },
-  {
-    id: 'iam-metrics',
-    name: 'IAM Security Metrics',
-    endpoint: '/api/metrics/iam',
-    method: 'GET',
-    enabled: true,
-    description: 'IAM users, roles, policies and security findings',
-    sample_response: {
-      timestamp: new Date().toISOString(),
-      total_users: 12,
-      total_roles: 8,
-      total_policies: 15,
-      users_with_mfa: 8,
-      root_access_keys: 1,
-      unused_access_keys: 3,
-      overprivileged_users: 2
-    }
-  },
-  {
-    id: 'ec2-metrics',
-    name: 'EC2 Security Metrics',
-    endpoint: '/api/metrics/ec2',
-    method: 'GET',
-    enabled: true,
-    description: 'EC2 instances security configuration and findings',
-    sample_response: {
-      timestamp: new Date().toISOString(),
-      total_instances: 28,
-      running_instances: 22,
-      publicly_accessible: 8,
-      unencrypted_volumes: 5,
-      unrestricted_ssh: 3,
-      outdated_amis: 7
-    }
-  },
-  {
-    id: 's3-metrics',
-    name: 'S3 Security Metrics',
-    endpoint: '/api/metrics/s3',
-    method: 'GET',
-    enabled: true,
-    description: 'S3 bucket security configuration and findings',
-    sample_response: {
-      timestamp: new Date().toISOString(),
-      total_buckets: 23,
-      public_buckets: 2,
-      unencrypted_buckets: 3,
-      no_versioning: 8,
-      no_logging: 12,
-      total_objects: 73136,
-      total_size_gb: 1632.5
-    }
-  },
-  {
-    id: 'compliance-metrics',
-    name: 'Compliance Metrics',
-    endpoint: '/api/metrics/compliance',
-    method: 'GET',
-    enabled: false,
-    description: 'Compliance framework scores and findings',
-    sample_response: {
-      timestamp: new Date().toISOString(),
-      frameworks: {
-        'CIS': { score: 78, findings: 15 },
-        'SOC2': { score: 85, findings: 8 },
-        'PCI-DSS': { score: 92, findings: 3 },
-        'HIPAA': { score: 88, findings: 5 }
-      }
-    }
-  }
+const METRIC_ENDPOINTS: MetricEndpoint[] = [
+  { id: "security-overview", name: "Security Overview", endpoint: "/api/metrics/security/overview", enabled: true, description: "Overall posture — findings by severity, compliance score, resources scanned", icon: Shield, sampleKeys: ["critical_findings", "high_findings", "compliance_score", "resources_scanned"] },
+  { id: "iam-metrics", name: "IAM Security", endpoint: "/api/metrics/iam", enabled: true, description: "IAM users, roles, policies, MFA coverage, over-privileged entities", icon: Users, sampleKeys: ["total_users", "users_with_mfa", "overprivileged_users", "unused_access_keys"] },
+  { id: "ec2-metrics", name: "EC2 Compute", endpoint: "/api/metrics/ec2", enabled: true, description: "Instance posture, public exposure, unencrypted volumes, patch gaps", icon: Activity, sampleKeys: ["total_instances", "publicly_accessible", "unencrypted_volumes", "unrestricted_ssh"] },
+  { id: "s3-metrics", name: "S3 Storage", endpoint: "/api/metrics/s3", enabled: true, description: "Bucket misconfigurations, public access, versioning, logging coverage", icon: HardDrive, sampleKeys: ["total_buckets", "public_buckets", "unencrypted_buckets", "no_versioning"] },
+  { id: "compliance-metrics", name: "Compliance Frameworks", endpoint: "/api/metrics/compliance", enabled: false, description: "CIS / SOC2 / PCI-DSS / HIPAA framework scores and open controls", icon: Database, sampleKeys: ["cis_score", "soc2_score", "pci_score", "hipaa_score"] },
 ];
 
+const DASHBOARD_TEMPLATES = [
+  { id: "security-overview", name: "AWS Security Overview", description: "Comprehensive posture view — findings by severity, IAM, EC2, S3, compliance scores with drill-down panels.", panels: 12, dataSources: 4, refresh: "1m", tag: "RECOMMENDED", accent: "#00ff88" },
+  { id: "compliance-monitoring", name: "Compliance Monitoring", description: "Framework scores (CIS/SOC2/PCI/HIPAA), control pass/fail ratios, open remediation actions with SLA tracking.", panels: 8, dataSources: 2, refresh: "5m", tag: "AUDITOR", accent: "#38bdf8" },
+  { id: "iam-access", name: "IAM & Access Control", description: "MFA coverage, access key age, over-privileged roles, unused credentials, privilege escalation paths.", panels: 6, dataSources: 1, refresh: "15m", tag: "IAM", accent: "#a78bfa" },
+];
+
+const SETUP_STEPS = [
+  { n: 1, title: "Install JSON API Plugin", body: "In Grafana → Administration → Plugins, search for and install the JSON API data source plugin.", code: null },
+  { n: 2, title: "Add Data Source", body: "Go to Connections → Data Sources → Add. Choose JSON API and set the base URL:", code: `${typeof window !== "undefined" ? window.location.origin : "https://your-dashboard.com"}/api/metrics` },
+  { n: 3, title: "Import Dashboard", body: "Go to Dashboards → Import. Upload the JSON file downloaded from the Dashboard Templates tab, or paste the UID.", code: null },
+  { n: 4, title: "Configure Alerts", body: "In each panel → Alert tab, set thresholds. Recommended minimums:", code: "Critical findings > 0\nCompliance score < 80%\nPublic S3 buckets > 0\nUnrestricted SSH groups > 0" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const statusColor = (s: string) =>
+  s === "Connected" ? "#00ff88" : s === "Error" ? "#ff0040" : "#64748b";
+
+const btn = {
+  base: {
+    display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px",
+    borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
+    border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)",
+    color: "rgba(100,116,139,0.8)", transition: "all 0.15s",
+  } as React.CSSProperties,
+  primary: {
+    display: "flex", alignItems: "center", gap: "8px", padding: "7px 14px",
+    borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer",
+    border: "1px solid rgba(0,255,136,0.25)", background: "rgba(0,255,136,0.1)",
+    color: "#00ff88",
+  } as React.CSSProperties,
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function GrafanaIntegration() {
-  const [activeTab, setActiveTab] = useState('connections');
-  const [connections, setConnections] = useState<GrafanaConnection[]>(mockGrafanaConnections);
-  const [endpoints] = useState<MetricEndpoint[]>(mockMetricEndpoints);
-  const [newConnection, setNewConnection] = useState({ name: '', url: '', apiKey: '' });
-  const [selectedEndpoint, setSelectedEndpoint] = useState<MetricEndpoint | null>(null);
+  const [activeSection, setActiveSection] = useState<"connections" | "endpoints" | "dashboards" | "setup">("connections");
+  const [connections, setConnections] = useState(INIT_CONNECTIONS);
+  const [endpoints, setEndpoints] = useState(METRIC_ENDPOINTS);
+  const [newConn, setNewConn] = useState({ name: "", url: "", apiKey: "" });
+  const [showApiKey, setShowApiKey] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+
+  const connectedCount = connections.filter((c) => c.status === "Connected").length;
+  const activeEndpoints = endpoints.filter((e) => e.enabled).length;
 
   const handleAddConnection = async () => {
-    if (!newConnection.name || !newConnection.url) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
+    if (!newConn.name || !newConn.url) { toast.error("Name and URL are required"); return; }
     setIsConnecting(true);
-    try {
-      // Simulate connection test
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const connection: GrafanaConnection = {
-        id: `grafana-${Date.now()}`,
-        name: newConnection.name,
-        url: newConnection.url,
-        status: 'Connected',
-        last_sync: 'Just now',
-        dashboards_count: 0
-      };
-
-      setConnections([...connections, connection]);
-      setNewConnection({ name: '', url: '', apiKey: '' });
-      toast.success('Grafana connection added successfully!');
-    } catch (error) {
-      toast.error('Failed to connect to Grafana');
-    } finally {
-      setIsConnecting(false);
-    }
+    await new Promise((r) => setTimeout(r, 1800));
+    setConnections((prev) => [...prev, { id: `g-${Date.now()}`, name: newConn.name, url: newConn.url, status: "Connected", lastSync: "Just now", dashboardsCount: 0 }]);
+    setNewConn({ name: "", url: "", apiKey: "" });
+    toast.success("Connection added");
+    setIsConnecting(false);
   };
 
-  const handleTestConnection = async (connectionId: string) => {
-    toast.info('Testing connection...', {
-      description: 'Checking Grafana connectivity'
-    });
-    
-    // Simulate connection test
-    setTimeout(() => {
-      toast.success('Connection test successful!');
-    }, 1500);
+  const handleTest = async (id: string) => {
+    setTestingId(id);
+    await new Promise((r) => setTimeout(r, 1500));
+    toast.success("Connection test passed");
+    setTestingId(null);
   };
 
-  const handleCopyEndpoint = async (endpoint: string) => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${endpoint}`);
-      setCopiedEndpoint(endpoint);
-      toast.success('Endpoint URL copied to clipboard');
-      setTimeout(() => setCopiedEndpoint(null), 2000);
-    } catch (error) {
-      toast.error('Failed to copy endpoint');
-    }
+  const handleCopy = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(`${window.location.origin}${text}`).catch(() => {});
+    setCopied(key);
+    toast.success("Copied to clipboard");
+    setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleExportDashboard = () => {
-    const dashboardConfig = {
-      dashboard: {
-        title: "AWS Cloud Security Overview",
-        panels: endpoints.filter(e => e.enabled).map(endpoint => ({
-          title: endpoint.name,
-          type: "stat",
-          targets: [{
-            url: `${window.location.origin}${endpoint.endpoint}`,
-            refId: "A"
-          }]
-        }))
-      }
-    };
+  const handleToggleEndpoint = (id: string) => {
+    setEndpoints((prev) => prev.map((e) => e.id === id ? { ...e, enabled: !e.enabled } : e));
+  };
 
-    const blob = new Blob([JSON.stringify(dashboardConfig, null, 2)], { 
-      type: 'application/json' 
-    });
+  const handleExportDashboard = (id: string) => {
+    const config = { dashboard: { title: DASHBOARD_TEMPLATES.find((d) => d.id === id)?.name || "AWS Security", panels: endpoints.filter((e) => e.enabled).map((ep) => ({ title: ep.name, type: "stat", targets: [{ url: `${window.location.origin}${ep.endpoint}` }] })) } };
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'aws-security-dashboard.json';
-    a.click();
+    const a = document.createElement("a");
+    a.href = url; a.download = `${id}-dashboard.json`; a.click();
     URL.revokeObjectURL(url);
-    
-    toast.success('Dashboard configuration exported!');
+    toast.success("Dashboard JSON exported");
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Connected': return 'bg-[#00ff88] text-black';
-      case 'Disconnected': return 'bg-[#94a3b8] text-white';
-      case 'Error': return 'bg-[#ff0040] text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
+  const SECTIONS = [
+    { id: "connections", label: "Connections", count: connections.length },
+    { id: "endpoints", label: "API Endpoints", count: activeEndpoints },
+    { id: "dashboards", label: "Dashboard Templates", count: DASHBOARD_TEMPLATES.length },
+    { id: "setup", label: "Setup Guide", count: null },
+  ] as const;
 
   return (
-    <div className="p-6 space-y-6">
-      <DemoModeBanner />
-      
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Grafana Integration Hub
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="connections">Connections</TabsTrigger>
-              <TabsTrigger value="endpoints">API Endpoints</TabsTrigger>
-              <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
-              <TabsTrigger value="setup">Setup Guide</TabsTrigger>
-            </TabsList>
+    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px",  }}>
 
-            <TabsContent value="connections" className="space-y-6">
-              {/* Existing Connections */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Grafana Connections</h3>
-                
-                {connections.map((connection) => (
-                  <div key={connection.id} className="cyber-glass p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Monitor className="h-5 w-5 text-primary" />
-                        <div>
-                          <h4 className="font-medium">{connection.name}</h4>
-                          <p className="text-sm text-muted-foreground">{connection.url}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <Badge className={getStatusColor(connection.status)}>
-                          {connection.status}
-                        </Badge>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleTestConnection(connection.id)}
-                          className="border-border"
-                        >
-                          <Wifi className="h-4 w-4 mr-2" />
-                          Test
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Last sync: {connection.last_sync}</span>
-                      <span>{connection.dashboards_count} dashboards</span>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Add New Connection */}
-                <div className="cyber-glass p-4 rounded-lg">
-                  <h4 className="font-medium mb-4">Add New Grafana Connection</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="connection-name">Connection Name</Label>
-                      <Input
-                        id="connection-name"
-                        placeholder="e.g., Production Grafana"
-                        value={newConnection.name}
-                        onChange={(e) => setNewConnection({...newConnection, name: e.target.value})}
-                        className="bg-input border-border"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="grafana-url">Grafana URL</Label>
-                      <Input
-                        id="grafana-url"
-                        placeholder="https://your-grafana.com"
-                        value={newConnection.url}
-                        onChange={(e) => setNewConnection({...newConnection, url: e.target.value})}
-                        className="bg-input border-border"
-                      />
-                    </div>
-                    
-                    <div className="md:col-span-2">
-                      <Label htmlFor="api-key">API Key (Optional)</Label>
-                      <Input
-                        id="api-key"
-                        type="password"
-                        placeholder="Grafana API Key for automated setup"
-                        value={newConnection.apiKey}
-                        onChange={(e) => setNewConnection({...newConnection, apiKey: e.target.value})}
-                        className="bg-input border-border"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    onClick={handleAddConnection}
-                    disabled={isConnecting}
-                    className="mt-4 bg-primary text-primary-foreground hover:bg-primary/80"
-                  >
-                    {isConnecting ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      <>
-                        <Monitor className="h-4 w-4 mr-2" />
-                        Add Connection
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
+      {/* ── Header ── */}
+      <ScanPageHeader
+        icon={<BarChart3 size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Grafana Integration"
+        subtitle="Pipe security metrics to Grafana dashboards"
+        onRefresh={() => toast.info("Refreshing connections…")}
+      >
+        {/* Status pills */}
+        <div style={{ display: "flex", gap: "8px" }}>
+          {[
+            { label: `${connectedCount} Connected`, color: connectedCount > 0 ? "#00ff88" : "#64748b" },
+            { label: `${activeEndpoints} Endpoints Active`, color: "#38bdf8" },
+          ].map(({ label, color }) => (
+            <span key={label} style={{ fontSize: "11px", fontWeight: 600, color, background: `${color}15`, border: `1px solid ${color}30`, padding: "4px 10px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+          ))}
+        </div>
+      </ScanPageHeader>
 
-            <TabsContent value="endpoints" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Available API Endpoints</h3>
-                <Button variant="outline" className="border-border">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Endpoints
-                </Button>
-              </div>
-              
-              <div className="grid gap-4">
-                {endpoints.map((endpoint) => (
-                  <div key={endpoint.id} className="cyber-glass p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Database className="h-5 w-5 text-primary" />
-                          <h4 className="font-medium">{endpoint.name}</h4>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {endpoint.method}
-                        </Badge>
-                        {endpoint.enabled && (
-                          <Badge className="bg-[#00ff88] text-black text-xs">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCopyEndpoint(endpoint.endpoint)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {copiedEndpoint === endpoint.endpoint ? (
-                            <CheckCircle className="h-4 w-4 text-[#00ff88]" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedEndpoint(endpoint)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {endpoint.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                      <code className="text-xs bg-muted/20 px-2 py-1 rounded">
-                        {endpoint.endpoint}
-                      </code>
-                      <Switch 
-                        checked={endpoint.enabled}
-                        onCheckedChange={() => {
-                          toast.info(`Endpoint ${endpoint.enabled ? 'disabled' : 'enabled'}`);
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Endpoint Details Modal */}
-              {selectedEndpoint && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                  <div className="cyber-card p-6 max-w-2xl w-full max-h-[80vh] overflow-auto">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium">{selectedEndpoint.name}</h3>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setSelectedEndpoint(null)}
-                      >
-                        ✕
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Endpoint URL</Label>
-                        <Input 
-                          value={`${window.location.origin}${selectedEndpoint.endpoint}`}
-                          readOnly
-                          className="bg-input border-border font-mono"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label>Sample Response</Label>
-                        <Textarea
-                          value={JSON.stringify(selectedEndpoint.sample_response, null, 2)}
-                          readOnly
-                          className="bg-input border-border font-mono h-64"
-                        />
-                      </div>
-                      
-                      <Button 
-                        onClick={() => handleCopyEndpoint(selectedEndpoint.endpoint)}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/80"
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy Endpoint URL
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+      {/* ── Section tabs ── */}
+      <div style={{ display: "flex", gap: "2px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "0" }}>
+        {SECTIONS.map((s) => {
+          const active = activeSection === s.id;
+          return (
+            <button
+              key={s.id}
+              onClick={() => setActiveSection(s.id)}
+              style={{
+                padding: "8px 16px",
+                fontSize: "12px",
+                fontWeight: active ? 600 : 400,
+                color: active ? "#e2e8f0" : "rgba(100,116,139,0.6)",
+                background: "transparent",
+                border: "none",
+                borderBottom: active ? "2px solid #00ff88" : "2px solid transparent",
+                cursor: "pointer",
+                marginBottom: "-1px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "color 0.15s",
+              }}
+            >
+              {s.label}
+              {s.count !== null && (
+                <span style={{ fontSize: "10px", background: active ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.06)", color: active ? "#00ff88" : "rgba(100,116,139,0.5)", padding: "1px 6px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {s.count}
+                </span>
               )}
-            </TabsContent>
+            </button>
+          );
+        })}
+      </div>
 
-            <TabsContent value="dashboards" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Pre-built Dashboards</h3>
-                <Button 
-                  onClick={handleExportDashboard}
-                  className="bg-primary text-primary-foreground hover:bg-primary/80"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Dashboard
-                </Button>
-              </div>
-              
-              <div className="grid gap-4">
-                <div className="cyber-glass p-4 rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h4 className="font-medium">AWS Security Overview</h4>
-                    <Badge className="bg-[#00ff88] text-black text-xs">Recommended</Badge>
+      {/* ── Connections ── */}
+      {activeSection === "connections" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {connections.map((conn) => {
+            const sc = statusColor(conn.status);
+            const isTesting = testingId === conn.id;
+            return (
+              <div key={conn.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: `${sc}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {conn.status === "Connected" ? <Wifi style={{ width: 16, height: 16, color: sc }} /> : <WifiOff style={{ width: 16, height: 16, color: sc }} />}
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Comprehensive dashboard showing security metrics across all AWS services including IAM, EC2, S3, and compliance scores.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">12</p>
-                      <p className="text-xs text-muted-foreground">Panels</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">4</p>
-                      <p className="text-xs text-muted-foreground">Data Sources</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">Auto</p>
-                      <p className="text-xs text-muted-foreground">Refresh</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">✓</p>
-                      <p className="text-xs text-muted-foreground">Alerts</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Monitor className="h-4 w-4 mr-2" />
-                      Preview
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download JSON
-                    </Button>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>{conn.name}</div>
+                    <div style={{ fontSize: "11px", color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace", marginTop: "2px" }}>{conn.url}</div>
                   </div>
                 </div>
-                
-                <div className="cyber-glass p-4 rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <h4 className="font-medium">Compliance Monitoring</h4>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: sc, background: `${sc}15`, padding: "2px 8px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace" }}>{conn.status.toUpperCase()}</span>
+                    <div style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginTop: "4px" }}>sync {conn.lastSync} · {conn.dashboardsCount} boards</div>
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Focused dashboard for tracking compliance with various frameworks like CIS, SOC2, PCI-DSS, and HIPAA.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">8</p>
-                      <p className="text-xs text-muted-foreground">Panels</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">2</p>
-                      <p className="text-xs text-muted-foreground">Data Sources</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">Daily</p>
-                      <p className="text-xs text-muted-foreground">Refresh</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-primary">✓</p>
-                      <p className="text-xs text-muted-foreground">Reports</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Monitor className="h-4 w-4 mr-2" />
-                      Preview
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download JSON
-                    </Button>
-                  </div>
+                  <button
+                    onClick={() => handleTest(conn.id)}
+                    style={{ ...btn.base, color: isTesting ? "#00ff88" : undefined }}
+                  >
+                    <RefreshCw style={{ width: 12, height: 12, animation: isTesting ? "spin 1s linear infinite" : "none" }} />
+                    Test
+                  </button>
                 </div>
               </div>
-            </TabsContent>
+            );
+          })}
 
-            <TabsContent value="setup" className="space-y-6">
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium">Grafana Integration Setup Guide</h3>
-                
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    This integration allows you to visualize AWS security metrics in Grafana dashboards with real-time updates.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="space-y-4">
-                  <div className="cyber-glass p-4 rounded-lg">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
-                      Configure Data Source
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      In Grafana, add a new JSON API data source pointing to this dashboard.
-                    </p>
-                    <div className="bg-muted/20 p-3 rounded text-sm font-mono">
-                      URL: {window.location.origin}/api/metrics/*
+          {/* Add new connection */}
+          <div style={{ background: "rgba(15,23,42,0.4)", border: "1px dashed rgba(255,255,255,0.08)", borderRadius: "10px", padding: "16px 20px" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "#94a3b8", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Plus style={{ width: 13, height: 13 }} />
+              Add Grafana Instance
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+              {[
+                { placeholder: "Connection name (e.g. Production)", key: "name", value: newConn.name },
+                { placeholder: "Grafana URL (https://grafana.company.com)", key: "url", value: newConn.url },
+              ].map(({ placeholder, key, value }) => (
+                <input
+                  key={key}
+                  value={value}
+                  onChange={(e) => setNewConn((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={{ padding: "8px 12px", background: "rgba(30,41,59,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "#e2e8f0", fontSize: "12px", outline: "none" }}
+                />
+              ))}
+            </div>
+            <div style={{ position: "relative", marginBottom: "12px" }}>
+              <input
+                type={showApiKey ? "text" : "password"}
+                value={newConn.apiKey}
+                onChange={(e) => setNewConn((p) => ({ ...p, apiKey: e.target.value }))}
+                placeholder="API Key (optional — for automated dashboard provisioning)"
+                style={{ width: "100%", padding: "8px 36px 8px 12px", background: "rgba(30,41,59,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "6px", color: "#e2e8f0", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+              />
+              <button
+                onClick={() => setShowApiKey((v) => !v)}
+                style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(100,116,139,0.5)", cursor: "pointer", padding: 0 }}
+              >
+                {showApiKey ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+              </button>
+            </div>
+            <button onClick={handleAddConnection} disabled={isConnecting} style={btn.primary}>
+              {isConnecting ? <><RefreshCw style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />Connecting…</> : <><Plus style={{ width: 12, height: 12 }} />Add Connection</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── API Endpoints ── */}
+      {activeSection === "endpoints" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "0 0 4px", fontFamily: "'JetBrains Mono', monospace" }}>
+            Base URL: <span style={{ color: "#94a3b8" }}>{window.location.origin}/api/metrics</span>
+          </p>
+          {endpoints.map((ep) => {
+            const Icon = ep.icon;
+            return (
+              <div key={ep.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Icon style={{ width: 14, height: 14, color: ep.enabled ? "#00ff88" : "#475569", flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: ep.enabled ? "#e2e8f0" : "#475569" }}>{ep.name}</div>
+                      <div style={{ fontSize: "11px", color: "rgba(100,116,139,0.5)", marginTop: "2px" }}>{ep.description}</div>
                     </div>
                   </div>
-                  
-                  <div className="cyber-glass p-4 rounded-lg">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
-                      Import Dashboard
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Use the pre-built dashboard configuration or create custom panels.
-                    </p>
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Dashboard JSON
-                    </Button>
-                  </div>
-                  
-                  <div className="cyber-glass p-4 rounded-lg">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
-                      Configure Alerts
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Set up alert rules based on security thresholds and compliance scores.
-                    </p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Critical findings &gt; 0</li>
-                      <li>• Compliance score &lt; 80%</li>
-                      <li>• Public S3 buckets detected</li>
-                      <li>• Unrestricted security groups</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="cyber-glass p-4 rounded-lg">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">4</span>
-                      Test Integration
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Verify that data is flowing correctly and dashboards are updating.
-                    </p>
-                    <Button variant="outline" size="sm" className="border-border">
-                      <Play className="h-4 w-4 mr-2" />
-                      Test Data Flow
-                    </Button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                    <code style={{ fontSize: "10px", color: "rgba(100,116,139,0.6)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", padding: "3px 8px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {ep.endpoint}
+                    </code>
+                    <button onClick={() => handleCopy(ep.endpoint, ep.id)} style={{ ...btn.base, padding: "5px 8px" }}>
+                      {copied === ep.id ? <CheckCircle2 style={{ width: 13, height: 13, color: "#00ff88" }} /> : <Copy style={{ width: 13, height: 13 }} />}
+                    </button>
+                    {/* Toggle */}
+                    <button
+                      onClick={() => handleToggleEndpoint(ep.id)}
+                      style={{
+                        width: "36px", height: "20px", borderRadius: "999px", border: "none", cursor: "pointer",
+                        background: ep.enabled ? "rgba(0,255,136,0.3)" : "rgba(255,255,255,0.08)", position: "relative", flexShrink: 0,
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: "3px", left: ep.enabled ? "18px" : "3px",
+                        width: "14px", height: "14px", borderRadius: "50%",
+                        background: ep.enabled ? "#00ff88" : "#475569", transition: "left 0.15s",
+                      }} />
+                    </button>
                   </div>
                 </div>
+                {/* Sample key pills */}
+                <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                  {ep.sampleKeys.map((k) => (
+                    <span key={k} style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", padding: "2px 7px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace" }}>{k}</span>
+                  ))}
+                </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Dashboard Templates ── */}
+      {activeSection === "dashboards" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {DASHBOARD_TEMPLATES.map((tmpl) => (
+            <div key={tmpl.id} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${tmpl.accent}88, transparent)` }} />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#e2e8f0" }}>{tmpl.name}</span>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: `${tmpl.accent}99`, background: `${tmpl.accent}15`, padding: "2px 7px", borderRadius: "4px", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.1em" }}>{tmpl.tag}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => toast.info("Preview coming soon")} style={btn.base}>
+                      <ExternalLink style={{ width: 12, height: 12 }} />
+                      Preview
+                    </button>
+                    <button onClick={() => handleExportDashboard(tmpl.id)} style={btn.primary}>
+                      <Download style={{ width: 12, height: 12 }} />
+                      Export JSON
+                    </button>
+                  </div>
+                </div>
+                <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.7)", margin: "0 0 12px", lineHeight: 1.5 }}>{tmpl.description}</p>
+                <div style={{ display: "flex", gap: "16px" }}>
+                  {[
+                    { label: "Panels", value: tmpl.panels },
+                    { label: "Data Sources", value: tmpl.dataSources },
+                    { label: "Refresh", value: tmpl.refresh },
+                    { label: "Alerts", value: "✓" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: tmpl.accent, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+                      <div style={{ fontSize: "10px", color: "rgba(100,116,139,0.5)", marginTop: "1px" }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Setup Guide ── */}
+      {activeSection === "setup" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.15)", borderRadius: "8px", padding: "12px 16px", fontSize: "12px", color: "rgba(148,163,184,0.9)", lineHeight: 1.6 }}>
+            This integration exposes AWS security metrics as a JSON API that Grafana polls. No data leaves your environment — Grafana queries this dashboard directly.
+          </div>
+          {SETUP_STEPS.map((step) => (
+            <div key={step.n} style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "16px 20px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,255,136,0.12)", border: "1px solid rgba(0,255,136,0.2)", color: "#00ff88", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "'JetBrains Mono', monospace" }}>{step.n}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0", marginBottom: "5px" }}>{step.title}</div>
+                  <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.7)", margin: 0, lineHeight: 1.6 }}>{step.body}</p>
+                  {step.code && (
+                    <div style={{ marginTop: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px", padding: "10px 12px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                      <code style={{ fontSize: "11px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre", flex: 1 }}>{step.code}</code>
+                      <button onClick={() => { navigator.clipboard.writeText(step.code!); toast.success("Copied"); }} style={{ background: "none", border: "none", color: "rgba(100,116,139,0.5)", cursor: "pointer", flexShrink: 0 }}>
+                        <Copy style={{ width: 13, height: 13 }} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          <button onClick={() => toast.info("Data flow test initiated")} style={{ ...btn.primary, alignSelf: "flex-start" }}>
+            <Play style={{ width: 13, height: 13 }} />
+            Test Data Flow
+          </button>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

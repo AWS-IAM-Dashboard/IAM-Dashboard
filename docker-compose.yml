@@ -11,7 +11,13 @@ services:
       - .:/app
       - /app/node_modules
     environment:
-      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-http://localhost:5001}
+      # Dev-only mode switch for frontend data sources:
+      # - mock: UI uses local fixtures (no backend required)
+      # - live: UI calls backend API (default http://localhost:5001/api/v1)
+      - VITE_DATA_MODE=${VITE_DATA_MODE:-live}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5001/api/v1}
+      # Keep compatibility with older env naming if someone still exports it.
+      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-}
     networks:
       - cybersecurity-network
     stdin_open: true

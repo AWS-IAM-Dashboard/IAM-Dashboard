@@ -26,6 +26,25 @@ from api.aws_ec2 import EC2Resource
 from api.aws_s3 import S3Resource
 from api.aws_security_hub import SecurityHubResource
 from api.aws_config import ConfigResource
+from api.grafana import GrafanaResource
+from api.dashboard import DashboardResource
+from api.health import HealthResource
+from api.metrics import MetricsResource, register_metrics_hooks
+from api.ir import (
+    LLMTriageResource,
+    LLMRootCauseResource,
+    LLMRunbookResource,
+    AutomationContainResource,
+    AutomationRemediateResource,
+    ForensicsCaptureResource,
+    EvidencePreserveResource,
+    IRJobStatusResource,
+    IRJobApproveResource,
+    IRJobRejectResource,
+    IRForensicsResource,
+    IREvidenceResource,
+    IRAuditResource,
+)
 
 
 logging.basicConfig(
@@ -142,6 +161,50 @@ def create_app() -> Flask:
     def aws_config():
         return _normalize_resource_response(ConfigResource().get())
 
+    # Initialize API
+    api = Api(app, prefix='/api/v1')
+
+    # Initialize services
+    aws_service = AWSService()
+    grafana_service = GrafanaService()
+    database_service = DatabaseService()
+
+    # Register API resources
+    api.add_resource(HealthResource, '/health')
+    api.add_resource(MetricsResource, '/metrics')
+    api.add_resource(DashboardResource, '/dashboard')
+    api.add_resource(IAMResource, '/aws/iam')
+    api.add_resource(EC2Resource, '/aws/ec2')
+    api.add_resource(S3Resource, '/aws/s3')
+    api.add_resource(SecurityHubResource, '/aws/security-hub')
+    api.add_resource(ConfigResource, '/aws/config')
+    api.add_resource(GrafanaResource, '/grafana')
+
+    # IR Action Engine routes
+    api.add_resource(LLMTriageResource,           '/llm/triage')
+    api.add_resource(LLMRootCauseResource,        '/llm/root-cause')
+    api.add_resource(LLMRunbookResource,          '/llm/runbook')
+    api.add_resource(AutomationContainResource,   '/automation/contain')
+    api.add_resource(AutomationRemediateResource, '/automation/remediate')
+    api.add_resource(ForensicsCaptureResource,    '/forensics/capture')
+    api.add_resource(EvidencePreserveResource,    '/evidence/preserve')
+    api.add_resource(IRJobStatusResource,         '/ir/actions/<string:job_id>')
+    api.add_resource(IRJobApproveResource,        '/ir/actions/<string:job_id>/approve')
+    api.add_resource(IRJobRejectResource,         '/ir/actions/<string:job_id>/reject')
+    api.add_resource(IRForensicsResource,         '/ir/forensics/<string:finding_id>')
+    api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
+    api.add_resource(IRAuditResource,             '/ir/audit')
+
+    # Serve static files (React frontend)
+    @app.route('/')
+    def serve_frontend():
+        return send_from_directory(app.static_folder, 'index.html')
+
+    @app.route('/<path:path>')
+    def serve_static(path):
+        return send_from_directory(app.static_folder, path)
+
+    # Error handlers
     @app.errorhandler(404)
     def not_found(_: Exception):
         return jsonify({"error": "Not found"}), 404

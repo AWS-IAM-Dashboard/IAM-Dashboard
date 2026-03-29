@@ -7,8 +7,8 @@ WORKDIR /app/frontend
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for build)
-RUN npm install
+# Install dependencies deterministically (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code and config files
 COPY src/ ./src/
