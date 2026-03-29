@@ -3,9 +3,7 @@
  * Handles session-cookie auth calls against the standalone BFF auth API.
  */
 
-const AUTH_API_BASE_URL =
-  import.meta.env.VITE_AUTH_API_URL ||
-  "https://cpjm170lui.execute-api.us-east-1.amazonaws.com/v1";
+const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_API_URL || "";
 
 // Represents the authenticated user information returned by the auth API.
 export interface AuthUser {
