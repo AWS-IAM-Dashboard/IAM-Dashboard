@@ -63,7 +63,7 @@ module "lambda" {
   lambda_kms_key_arn   = aws_kms_key.IAM_Dashboard_Key.arn
 }
 
-# API Gateway Module
+# API Gateway Module for the Scanner APIs
 module "api_gateway" {
   source = "./api-gateway"
 
@@ -75,6 +75,17 @@ module "api_gateway" {
   environment  = var.environment
   project_name = var.project_name
   kms_key_arn  = aws_kms_key.IAM_Dashboard_Key.arn
+}
+
+# API Gateway Module for the Authentication APIs
+module "auth_api_gateway" {
+  source = "./API_Gateway_Auth"
+
+  aws_region          = var.aws_region
+  environment         = var.environment
+  project_name        = var.project_name
+  stage_name          = "v1"
+  lambda_function_arn = var.auth_lambda_arn
 }
 
 module "cognito" {
