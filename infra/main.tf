@@ -31,6 +31,11 @@ data "aws_lambda_function" "auth" {
   function_name = var.auth_lambda_function_name
 }
 
+data "aws_wafv2_web_acl" "cloudfront" {
+  name  = "CreatedByCloudFront-b037e429"
+  scope = "CLOUDFRONT"
+}
+
 # S3 Module
 module "s3" {
   source = "./s3"
@@ -122,7 +127,7 @@ module "cloudfront" {
   environment         = var.environment
   project_name        = var.project_name
   s3_website_endpoint = var.prod_s3_endpoint
-  web_acl_id          = var.cloudfront_web_acl_id
+  web_acl_id          = data.aws_wafv2_web_acl.cloudfront.arn
 }
 
 # GitHub Actions OIDC Module

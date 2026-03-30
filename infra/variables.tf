@@ -71,12 +71,6 @@ variable "kms_key_id" {
   }
 }
 
-variable "cloudfront_web_acl_id" {
-  description = "Optional WAF Web ACL ARN for CloudFront"
-  type        = string
-  default     = "arn:aws:wafv2:us-east-1:562559071105:global/webacl/CreatedByCloudFront-b037e429/f6be343d-057b-4338-b575-12c061f47e05"
-}
-
 variable "cognito_user_pool_name" {
   description = "Cognito User Pool name"
   type        = string
