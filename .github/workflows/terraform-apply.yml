@@ -9,7 +9,7 @@ on:
       - ".github/workflows/devsecops-scan.yml"
 
   push:
-    branches: [ main ]
+    branches: [ main, feature/backend/Add-BFF ]
     paths:
       - "infra/**"
       - ".github/workflows/terraform-apply.yml"
@@ -68,7 +68,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [devsecops_scan, plan]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     env:
       # Use the same KMS key alias/ID for apply as for plan.
