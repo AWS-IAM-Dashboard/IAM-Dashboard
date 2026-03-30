@@ -45,7 +45,7 @@ resource "aws_dynamodb_table" "auth_sessions" {
   # Server-side encryption
   server_side_encryption {
     enabled     = true
-    kms_key_arn = var.dyanmodb_auth_kms_key
+    kms_key_arn = var.dynamodb_kms_key_arn
   }
 
   # Enable deletion protection in production

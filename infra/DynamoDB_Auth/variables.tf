@@ -22,7 +22,7 @@ variable "dynamodb_table_name" {
   default     = "iam-dashboard-auth-sessions-test"
 }
 
-variable "dyanmodb_auth_kms_key" {
+variable "dynamodb_kms_key_arn" {
   description = "KMS key for server side encryption"
   type        = string
 }
