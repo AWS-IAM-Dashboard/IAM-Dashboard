@@ -113,9 +113,9 @@ variable "prod_s3_endpoint" {
   default     = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
 }
 
-variable "auth_lambda_arn" {
+variable "auth_lambda_function_name" {
   description = "ARN of the Authentication lambda function"
   type        = string
-  default     = "arn:aws:lambda:us-east-1:562559071105:function:test-BFF"
+  default     = "test-BFF"
 }
 
