@@ -215,3 +215,8 @@ temp.md
 
 # Local Redis dumps if bound to host
 dump.rdb
+CloudWatch.txt
+lambda.py
+lambda_policy.json
+.tfdata-s3-notify-validate
+.tfdata-ses-validate
