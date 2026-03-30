@@ -54,6 +54,16 @@ module "dynamodb" {
   enable_point_in_time_recovery = true
 }
 
+module "auth_dynamodb" {
+  source = "./DynamoDB_Auth"
+
+  aws_region                    = var.aws_region
+  environment                   = var.environment
+  project_name                  = var.project_name
+  dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
+  enable_point_in_time_recovery = true
+}
+
 # Lambda Module
 module "lambda" {
   source = "./lambda"
