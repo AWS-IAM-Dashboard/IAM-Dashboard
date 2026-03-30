@@ -204,6 +204,7 @@ nul
 
 # File I use to think
 temp.txt
+temp.md
 
 # Merge / patch artifacts
 *.orig
@@ -214,11 +215,3 @@ temp.txt
 
 # Local Redis dumps if bound to host
 dump.rdb
-
-# Files I use to think
-temp.md
-.tfdata-s3-notify-validate
-.tfdata-ses-validate
-CloudWatch.txt
-lambda.py
-lambda_policy.json
