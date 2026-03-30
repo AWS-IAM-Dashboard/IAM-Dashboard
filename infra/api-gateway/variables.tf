@@ -69,18 +69,8 @@ variable "kms_key_arn" {
   type        = string
 }
 
-variable "cognito_issuer_url" {
-  description = "Cognito issuer URL for the API Gateway JWT authorizer."
-  type        = string
-}
-
-variable "cognito_audience" {
-  description = "Cognito app client ID used as the API Gateway JWT audience."
-  type        = string
-}
-
 variable "route_authorization_type" {
-  description = "Authorization type for API Gateway routes. Use NONE until Cognito/JWT authorizer is in place."
+  description = "Authorization type for API Gateway routes. Defaults to NONE for backend-managed session auth."
   type        = string
   default     = "NONE"
   validation {

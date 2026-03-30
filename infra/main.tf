@@ -71,8 +71,10 @@ module "api_gateway" {
   environment        = var.environment
   project_name       = var.project_name
   kms_key_arn        = aws_kms_key.IAM_Dashboard_Key.arn
-  cognito_issuer_url = module.cognito.issuer_url
-  cognito_audience   = module.cognito.app_client_id
+  aws_region   = var.aws_region
+  environment  = var.environment
+  project_name = var.project_name
+  kms_key_arn  = aws_kms_key.IAM_Dashboard_Key.arn
 }
 
 module "cognito" {
