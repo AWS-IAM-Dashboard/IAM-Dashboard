@@ -31,12 +31,6 @@ variable "stage_name" {
 variable "cors_allowed_origins" {
   description = "Allowed browser origins for the auth API"
   type        = list(string)
-  default = [
-    "http://localhost:3001",
-    "http://localhost:5173",
-    "http://localhost:5000",
-    "https://d33ytnxd7i6mo9.cloudfront.net"
-  ]
 }
 
 variable "cors_allowed_methods" {

@@ -95,11 +95,12 @@ module "api_gateway" {
 module "auth_api_gateway" {
   source = "./API_Gateway_Auth"
 
-  aws_region          = var.aws_region
-  environment         = var.environment
-  project_name        = var.project_name
-  stage_name          = "v1"
-  lambda_function_arn = data.aws_lambda_function.auth.arn
+  aws_region           = var.aws_region
+  environment          = var.environment
+  project_name         = var.project_name
+  stage_name           = "v1"
+  lambda_function_arn  = data.aws_lambda_function.auth.arn
+  cors_allowed_origins = var.allowed_urls
 }
 
 module "cognito" {
@@ -109,8 +110,8 @@ module "cognito" {
   environment           = var.environment
   project_name          = var.project_name
   cognito_domain_prefix = var.cognito_domain_prefix
-  callback_urls         = var.cognito_callback_urls
-  logout_urls           = var.cognito_logout_urls
+  callback_urls         = var.cognito_allowed_urls
+  logout_urls           = var.cognito_allowed_urls
 }
 
 # CloudFront Module (frontend SPA behind S3 website)

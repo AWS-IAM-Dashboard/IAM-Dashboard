@@ -64,7 +64,7 @@ variable "cognito_domain_prefix" {
 variable "kms_key_id" {
   description = "ID or alias of the existing KMS key (e.g. alias/iamdash-prod-logs)"
   type        = string
-  default     = ""
+  default     = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
   validation {
     condition     = length(var.kms_key_id) > 0
     error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
@@ -89,16 +89,16 @@ variable "cognito_domain" {
   default     = "iam-dashboard-auth"
 }
 
-variable "cognito_callback_urls" {
+variable "cognito_allowed_urls" {
   description = "Allowed OAuth callback URLs for Cognito app client"
   type        = list(string)
   default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/", "http://localhost:5173/", "http://localhost:5001/"]
 }
 
-variable "cognito_logout_urls" {
+variable "allowed_urls" {
   description = "Allowed sign-out URLs for Cognito app client"
   type        = list(string)
-  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/", "http://localhost:5173/", "http://localhost:5001/"]
+  default     = ["http://localhost:3001", "https://d33ytnxd7i6mo9.cloudfront.net", "http://localhost:5173", "http://localhost:5001"]
 }
 
 variable "test_s3_endpoint" {
@@ -114,7 +114,7 @@ variable "prod_s3_endpoint" {
 }
 
 variable "auth_lambda_function_name" {
-  description = "ARN of the Authentication lambda function"
+  description = "Name of the existing Authentication Lambda function to look up"
   type        = string
   default     = "test-BFF"
 }

@@ -9,12 +9,15 @@ This guide describes the Cognito Terraform module used by the IAM Dashboard. The
 1. **AWS CLI and Terraform installed**
 2. **AWS credentials** configured for the account or role you deploy with
 
-## Current authentication architecture
+## Current authentication Flow
 
-1. **Login UI**: The user signs in through the application's own username/password form.
-2. **Cognito authentication**: The frontend authenticates directly against Cognito and receives ID, Access, and Refresh tokens.
-3. **Session persistence**: The frontend stores the session in browser storage and restores it on reload.
-4. **Protected API routes**: API Gateway validates Cognito JWTs on protected routes before invoking Lambda.
+1. The frontend submits credentials to `POST /auth/login`.
+2. API Gateway routes the request to the auth Lambda.
+3. Lambda authenticates the user against Cognito.
+4. Lambda creates or replaces the server-side session record in DynamoDB.
+5. Lambda returns an HttpOnly session cookie to the browser.
+6. The browser includes that cookie on later `GET /auth/session` and `POST /auth/logout` requests.
+7. Lambda uses the cookie value to load or clear the authoritative session state.
 
 The Cognito Hosted UI domain is still provisioned by Terraform, but it is not the primary login experience for the current SPA.
 
@@ -78,16 +81,10 @@ After apply, use Terraform outputs to set frontend env vars for the current cust
 
 Additional redirect/logout variables may still exist in older env files from the previous Hosted UI redirect flow. They should not be treated as the primary auth path for the current SPA.
 
-See `docs/backend/cognito-infrastructure.md` for the current frontend and API Gateway auth flow.
+See [Authentication Flow](../../docs/backend/Authentication_Flow.md) for the current frontend and API Gateway auth flow.
 
 ## Troubleshooting
-
 - **Domain already exists**: Choose a different `cognito_domain_prefix`.
-- **Manual user verification (dev)**:
-  `aws cognito-idp admin-confirm-sign-up --user-pool-id <id> --username <username>`
-- **Login succeeds but protected API calls return 401**:
-  - Confirm API Gateway is using the Cognito issuer and app client ID from Terraform outputs.
-  - Confirm the frontend is sending `Authorization: Bearer <access_token>`.
 
 ## Cleanup
 
