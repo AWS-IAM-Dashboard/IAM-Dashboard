@@ -37,6 +37,20 @@ resource "aws_dynamodb_table" "auth_sessions" {
     enabled        = true
   }
 
+  # Enable point-in-time recovery for data protection (optional)
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
+  }
+
+  # Server-side encryption
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = var.dyanmodb_auth_kms_key
+  }
+
+  # Enable deletion protection in production
+  deletion_protection_enabled = var.environment == "prod"
+
   tags = {
     Name        = var.dynamodb_table_name
     Project     = var.project_name

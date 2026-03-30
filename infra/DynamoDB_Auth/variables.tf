@@ -21,3 +21,14 @@ variable "dynamodb_table_name" {
   type        = string
   default     = "iam-dashboard-auth-sessions-test"
 }
+
+variable "dyanmodb_auth_kms_key" {
+  description = "KMS key for server side encryption"
+  type        = string
+}
+
+variable "enable_point_in_time_recovery" {
+  description = "Enable point-in-time recovery for DynamoDB table"
+  type        = bool
+  default     = true
+}
