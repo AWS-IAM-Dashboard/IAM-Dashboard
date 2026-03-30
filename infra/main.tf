@@ -27,6 +27,10 @@ resource "aws_kms_key" "IAM_Dashboard_Key" {
   enable_key_rotation = true
 }
 
+data "aws_lambda_function" "auth" {
+  function_name = var.auth_lambda_function_name
+}
+
 # S3 Module
 module "s3" {
   source = "./s3"
@@ -85,7 +89,7 @@ module "auth_api_gateway" {
   environment         = var.environment
   project_name        = var.project_name
   stage_name          = "v1"
-  lambda_function_arn = var.auth_lambda_arn
+  lambda_function_arn = data.aws_lambda_function.auth.arn
 }
 
 module "cognito" {
