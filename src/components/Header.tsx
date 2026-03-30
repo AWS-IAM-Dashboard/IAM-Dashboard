@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
@@ -104,8 +105,13 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
     .join("") || "AU";
 
   const handleSignOut = async () => {
-    await auth.signOut();
-    window.location.assign("/login");
+    try {
+      await auth.signOut();
+      window.location.assign("/login");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to clear session.";
+      toast.error(message);
+    }
   };
 
   const tabSearchItems = useMemo(() => [
@@ -545,7 +551,11 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             </div>
             <DropdownMenuSeparator style={{ background: "rgba(255,255,255,0.06)" }} />
             <div className="p-1.5">
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm gap-2.5" style={{ color: "#ff0040" }} onClick={() => void handleSignOut()}>
+              <DropdownMenuItem
+                className="rounded-lg cursor-pointer text-sm gap-2.5"
+                style={{ color: "#ff0040" }}
+                onClick={() => void handleSignOut()}
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

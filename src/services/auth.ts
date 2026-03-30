@@ -74,9 +74,11 @@ export async function login(username: string, password: string): Promise<LoginRe
 
 // Ends the current session-cookie login state on the server and in the browser.
 export async function logout(): Promise<LogoutResponse> {
-  return authRequest<LogoutResponse>("/auth/logout", {
+  const response = await authRequest<LogoutResponse>("/auth/logout", {
     method: "POST",
   });
+
+  return response;
 }
 
 // Checks whether the current browser session cookie maps to an authenticated user.

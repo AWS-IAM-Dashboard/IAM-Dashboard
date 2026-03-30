@@ -66,12 +66,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signOut: async () => {
         try {
-          await logout();
-        } catch {
-          // Clear local auth state even if the server session is already missing.
-        } finally {
+          const response = await logout();
+          if (!response.session_cleared) {
+            throw new Error("Failed to clear session.");
+          }
+
           setUser(null);
           setError(null);
+        } catch {
+          setError("Failed to clear session.");
+          throw new Error("Failed to clear session.");
         }
       },
     }),
