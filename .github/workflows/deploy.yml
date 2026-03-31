@@ -55,6 +55,9 @@ jobs:
         cache: 'npm'
 
     - name: Build and Deploy Frontend
+      env:
+        VITE_AUTH_API_URL: ${{ secrets.VITE_AUTH_API_URL }}
+        VITE_API_URL: ${{ secrets.VITE_API_URL }}
       run: |
         npm ci
         npm run build
