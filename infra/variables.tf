@@ -77,12 +77,6 @@ variable "cognito_user_pool_name" {
   default     = "iam-dashboard-user-pool"
 }
 
-variable "cognito_domain" {
-  description = "Cognito Hosted UI domain prefix (globally unique)"
-  type        = string
-  default     = "iam-dashboard-auth"
-}
-
 variable "cognito_allowed_urls" {
   description = "Allowed OAuth callback URLs for Cognito app client"
   type        = list(string)
