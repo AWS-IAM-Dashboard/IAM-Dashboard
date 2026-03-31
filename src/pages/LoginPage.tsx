@@ -1,18 +1,37 @@
 import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+<<<<<<< HEAD
 import { useNavigate, Link } from "react-router-dom";
+=======
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+>>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
 import logoImage from "@/assets/logo.png";
 
 export function LoginPage() {
+  const auth = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    navigate("/app");
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await auth.signIn(username, password);
+      navigate("/app", { replace: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to sign in.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -69,8 +88,13 @@ export function LoginPage() {
           <div className="mb-6 space-y-3">
             <button
               type="button"
+<<<<<<< HEAD
               className="group relative flex w-full min-h-[44px] items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
               aria-label="Continue with Google"
+=======
+              disabled
+              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+>>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
               <svg className="relative z-10 h-5 w-5" viewBox="0 0 24 24">
@@ -96,8 +120,13 @@ export function LoginPage() {
 
             <button
               type="button"
+<<<<<<< HEAD
               className="group relative flex w-full min-h-[44px] items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
               aria-label="Continue with GitHub"
+=======
+              disabled
+              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+>>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
               <Github className="relative z-10 h-5 w-5" aria-hidden />
@@ -116,17 +145,17 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-300">
-                Email Address
+              <label htmlFor="username" className="mb-2 block text-sm font-medium text-gray-300">
+                Username
               </label>
               <div className="group relative">
                 <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-green-400" />
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@company.com"
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="Enter your username"
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-white placeholder-gray-500 backdrop-blur-sm transition-all focus:border-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50"
                   required
                   autoComplete="email"
@@ -161,6 +190,12 @@ export function LoginPage() {
               </div>
             </div>
 
+            {errorMessage ? (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                {errorMessage}
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between text-sm">
               <label className="group flex cursor-pointer items-center gap-2 text-gray-400">
                 <input
@@ -177,9 +212,14 @@ export function LoginPage() {
 
             <button
               type="submit"
+<<<<<<< HEAD
               className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
+=======
+              disabled={isSubmitting}
+              className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
+>>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
             >
-              <span className="relative z-10">Sign In</span>
+              <span className="relative z-10">{isSubmitting ? "Signing In..." : "Sign In"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           </form>

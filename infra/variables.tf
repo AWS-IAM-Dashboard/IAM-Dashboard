@@ -52,6 +52,12 @@ variable "lambda_function_name" {
   default     = "iam-dashboard-scanner"
 }
 
+variable "cognito_domain_prefix" {
+  description = "Hosted UI domain prefix for the Cognito user pool"
+  type        = string
+  default     = "iam-dashboard-project-test"
+}
+
 # Existing KMS key: alias or key ID. Use so Terraform does not create a key (CI has no kms:CreateKey).
 # IMPORTANT: Do not hard-code real key IDs or aliases in code; set per-environment via
 # TF_VAR_kms_key_id, terraform.tfvars (not committed), or CI environment/secrets.
@@ -63,5 +69,41 @@ variable "kms_key_id" {
     condition     = length(var.kms_key_id) > 0
     error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
   }
+}
+
+variable "cognito_user_pool_name" {
+  description = "Cognito User Pool name"
+  type        = string
+  default     = "iam-dashboard-user-pool"
+}
+
+variable "cognito_allowed_urls" {
+  description = "Allowed OAuth callback URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:3001/", "https://d33ytnxd7i6mo9.cloudfront.net/", "http://localhost:5173/", "http://localhost:5001/"]
+}
+
+variable "allowed_urls" {
+  description = "Allowed sign-out URLs for Cognito app client"
+  type        = list(string)
+  default     = ["http://localhost:3001", "https://d33ytnxd7i6mo9.cloudfront.net", "http://localhost:5173", "http://localhost:5001"]
+}
+
+variable "test_s3_endpoint" {
+  description = "S3 endpoint for test s3 bucket"
+  type        = string
+  default     = "test-562559071105-us-east-1-an.s3-website-us-east-1.amazonaws.com"
+}
+
+variable "prod_s3_endpoint" {
+  description = "S3 endpoint for production S3 bucket"
+  type        = string
+  default     = "iam-dashboard-project.s3-website-us-east-1.amazonaws.com"
+}
+
+variable "auth_lambda_function_name" {
+  description = "Name of the existing Authentication Lambda function to look up"
+  type        = string
+  default     = "test-BFF"
 }
 

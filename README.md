@@ -22,10 +22,6 @@ cd IAM-Dashboard
 docker-compose up -d
 ```
 
-# 2. Start the application
-
-docker-compose up -d
-
 ### Full-Stack Development
 
 New contributors only need Docker. No need to install Node.js or run `npm install` locally.
@@ -42,6 +38,23 @@ docker-compose down
 ```
 
 The **frontend** runs the Vite dev server in a container at http://localhost:3001 with hot reload; edit `src/` and the browser updates automatically.
+
+### Frontend data mode (dev-only)
+
+The frontend supports two dev modes:
+
+- **live** (default): calls the backend API at `http://localhost:5001/api/v1`
+- **mock**: uses local mock fixtures (no backend required for UI work)
+
+Switch modes by setting `VITE_DATA_MODE` before starting the frontend container:
+
+```bash
+# Mock mode (UI/UX work)
+VITE_DATA_MODE=mock docker-compose up -d frontend
+
+# Live mode (real backend)
+VITE_DATA_MODE=live docker-compose up -d frontend
+```
 
 ## 🌐 Access Points
 
@@ -210,9 +223,14 @@ npm run build
 ```
 
 ### Backend Development
+Use a single project virtualenv at `.venv` (not committed):
+
 ```bash
-# Install Python dependencies
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+# Optional — PostgreSQL driver for Docker/Postgres workflows:
+# pip install -r requirements-postgres.txt
 
 # Run Flask development server
 python backend/app.py

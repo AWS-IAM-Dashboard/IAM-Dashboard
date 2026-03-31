@@ -70,12 +70,24 @@ variable "kms_key_arn" {
 }
 
 variable "route_authorization_type" {
-  description = "Authorization type for API Gateway routes. Use NONE until Cognito/JWT authorizer is in place."
+  description = "Authorization type for API Gateway routes. Defaults to NONE for backend-managed session auth."
   type        = string
   default     = "NONE"
   validation {
     condition     = contains(["NONE", "JWT", "AWS_IAM", "CUSTOM"], var.route_authorization_type)
     error_message = "route_authorization_type must be one of NONE, JWT, AWS_IAM, CUSTOM."
   }
+}
+
+variable "cognito_issuer_url" {
+  description = "Cognito OIDC issuer URL used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
+}
+
+variable "cognito_app_client_id" {
+  description = "Cognito app client ID (audience) used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
 }
 

@@ -20,7 +20,7 @@
   --accent-foreground: #000814;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 255, 136, 0.2);
+  --border: rgba(255, 255, 255, 0.07);
   --input: rgba(30, 41, 59, 0.8);
   --input-background: rgba(30, 41, 59, 0.8);
   --switch-background: #334155;
@@ -30,7 +30,7 @@
   --sidebar-foreground: #e2e8f0;
   --sidebar-accent: rgba(30, 41, 59, 0.8);
   --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: rgba(0, 255, 136, 0.2);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {
@@ -73,6 +73,7 @@
 
   html {
     font-size: var(--font-size);
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   }
 
   body {
@@ -80,6 +81,11 @@
     margin: 0;
     min-height: 100vh;
     background: linear-gradient(135deg, #000814 0%, #001d3d 100%);
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  code, kbd, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
 }
 
