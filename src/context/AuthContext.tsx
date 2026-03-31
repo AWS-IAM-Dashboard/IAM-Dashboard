@@ -13,8 +13,8 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const DATA_MODE = (((import.meta as any).env?.VITE_DATA_MODE as string | undefined) || "live").toLowerCase();
-const IS_MOCK_MODE = DATA_MODE === "mock";
+const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
+const IS_MOCK_MODE = import.meta.env.DEV && DATA_MODE === "mock";
 
 // Loads the browser-backed session once on app startup and exposes shared auth state.
 export function AuthProvider({ children }: { children: ReactNode }) {
