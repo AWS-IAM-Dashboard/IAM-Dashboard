@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSession, login, logout, type AuthUser } from "../services/auth";
 
 // Shared auth state exposed to the rest of the application.
@@ -13,13 +13,23 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const DATA_MODE = (((import.meta as any).env?.VITE_DATA_MODE as string | undefined) || "live").toLowerCase();
+const IS_MOCK_MODE = DATA_MODE === "mock";
+
 // Loads the browser-backed session once on app startup and exposes shared auth state.
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (IS_MOCK_MODE) {
+      setUser({ username: "mock-user", groups: ["admin"] });
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     // Restore app auth state from the server-side session cookie if one exists.
     const restoreSession = async () => {
       try {
