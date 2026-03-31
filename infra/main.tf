@@ -65,7 +65,7 @@ module "auth_dynamodb" {
   aws_region                    = var.aws_region
   environment                   = var.environment
   project_name                  = var.project_name
-  dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
+  dynamodb_kms_key_arn          = aws_kms_key.IAM_Dashboard_Key.arn
   enable_point_in_time_recovery = true
 }
 
@@ -86,10 +86,6 @@ module "lambda" {
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region         = var.aws_region
-  environment        = var.environment
-  project_name       = var.project_name
-  kms_key_arn        = aws_kms_key.IAM_Dashboard_Key.arn
   aws_region   = var.aws_region
   environment  = var.environment
   project_name = var.project_name
