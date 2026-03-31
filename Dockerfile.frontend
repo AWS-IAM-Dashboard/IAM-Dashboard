@@ -11,13 +11,6 @@ RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app \
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci
-
-COPY . .
-# Ensure app user owns sources
-RUN chown -R app:app /app
-
 # Entrypoint runs as root so it can npm ci into the node_modules volume, then runs dev server as app
 COPY docker-frontend-entrypoint.sh /docker-frontend-entrypoint.sh
 # Strip CRLF (Windows line endings) so script executes on Linux

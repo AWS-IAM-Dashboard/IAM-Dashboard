@@ -23,3 +23,23 @@ output "github_actions_role_arn" {
   value       = module.github_actions.github_actions_role_arn
 }
 
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  value       = module.cognito.user_pool_id
+}
+
+output "cognito_app_client_id" {
+  description = "Cognito User Pool App Client ID"
+  value       = module.cognito.app_client_id
+}
+
+output "cognito_issuer_url" {
+  description = "Cognito issuer URL"
+  value       = module.cognito.issuer_url
+}
+
+output "cognito_hosted_ui_domain" {
+  description = "Cognito Hosted UI domain"
+  value       = module.cognito.hosted_ui_domain
+}
+
