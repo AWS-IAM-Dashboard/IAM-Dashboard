@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.14.7"
+  required_version = ">= 1.12.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -31,6 +31,15 @@ data "aws_kms_key" "logs" {
   key_id = var.kms_key_id
 }
 
+data "aws_lambda_function" "auth" {
+  function_name = var.auth_lambda_function_name
+}
+
+data "aws_wafv2_web_acl" "cloudfront" {
+  name  = "CreatedByCloudFront-b037e429"
+  scope = "CLOUDFRONT"
+}
+
 # S3 Module
 module "s3" {
   source = "./s3"
@@ -55,6 +64,16 @@ module "dynamodb" {
   enable_point_in_time_recovery = true
 }
 
+module "auth_dynamodb" {
+  source = "./DynamoDB_Auth"
+
+  aws_region                    = var.aws_region
+  environment                   = var.environment
+  project_name                  = var.project_name
+  dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
+  enable_point_in_time_recovery = true
+}
+
 # Lambda Module
 module "lambda" {
   source = "./lambda"
@@ -70,7 +89,7 @@ module "lambda" {
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 }
 
-# API Gateway Module
+# API Gateway Module for the Scanner APIs
 module "api_gateway" {
   source = "./api-gateway"
 
@@ -78,6 +97,40 @@ module "api_gateway" {
   environment  = var.environment
   project_name = var.project_name
   kms_key_arn  = data.aws_kms_key.logs.arn
+}
+
+# API Gateway Module for the Authentication APIs
+module "auth_api_gateway" {
+  source = "./API_Gateway_Auth"
+
+  aws_region           = var.aws_region
+  environment          = var.environment
+  project_name         = var.project_name
+  stage_name           = "v1"
+  lambda_function_arn  = data.aws_lambda_function.auth.arn
+  cors_allowed_origins = var.allowed_urls
+}
+
+module "cognito" {
+  source = "./cognito"
+
+  aws_region            = var.aws_region
+  environment           = var.environment
+  project_name          = var.project_name
+  cognito_domain_prefix = var.cognito_domain_prefix
+  callback_urls         = var.cognito_allowed_urls
+  logout_urls           = var.cognito_allowed_urls
+}
+
+# CloudFront Module (frontend SPA behind S3 website)
+module "cloudfront" {
+  source = "./cloudfront"
+
+  aws_region          = var.aws_region
+  environment         = var.environment
+  project_name        = var.project_name
+  s3_website_endpoint = var.prod_s3_endpoint
+  web_acl_id          = data.aws_wafv2_web_acl.cloudfront.arn
 }
 
 # GitHub Actions OIDC Module

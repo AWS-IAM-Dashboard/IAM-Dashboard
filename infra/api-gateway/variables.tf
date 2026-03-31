@@ -70,7 +70,7 @@ variable "kms_key_arn" {
 }
 
 variable "route_authorization_type" {
-  description = "Authorization type for API Gateway routes. Use NONE until Cognito/JWT authorizer is in place."
+  description = "Authorization type for API Gateway routes. Defaults to NONE for backend-managed session auth."
   type        = string
   default     = "NONE"
   validation {
