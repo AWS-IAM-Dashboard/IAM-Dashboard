@@ -64,7 +64,7 @@ variable "cognito_domain_prefix" {
 variable "kms_key_id" {
   description = "ID or alias of the existing KMS key (e.g. alias/iamdash-prod-logs)"
   type        = string
-  default     = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
+  default     = ""
   validation {
     condition     = length(var.kms_key_id) > 0
     error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
