@@ -79,3 +79,15 @@ variable "route_authorization_type" {
   }
 }
 
+variable "cognito_issuer_url" {
+  description = "Cognito OIDC issuer URL used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
+}
+
+variable "cognito_app_client_id" {
+  description = "Cognito app client ID (audience) used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
+}
+
