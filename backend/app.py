@@ -19,6 +19,7 @@ from api.aws_config import ConfigResource
 from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
+from api.scan_history import ScanHistoryResource
 from api.metrics import MetricsResource, register_metrics_hooks
 from api.ir import (
     LLMTriageResource,
@@ -77,6 +78,7 @@ def create_app():
 
     # Register API resources
     api.add_resource(HealthResource, '/health')
+    api.add_resource(ScanHistoryResource, '/scan-history')
     api.add_resource(MetricsResource, '/metrics')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')

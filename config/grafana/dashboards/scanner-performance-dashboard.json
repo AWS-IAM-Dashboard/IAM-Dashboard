@@ -1,0 +1,73 @@
+{
+  "title": "Scanner Performance Dashboard",
+  "uid": "scanner-performance-a11",
+  "panels": [
+    {
+      "title": "Recent Scans",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT timestamp AS time, scan_id, scanner_type, status, duration_sec FROM scan_history ORDER BY timestamp DESC LIMIT 100",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Scan Duration by Scanner Type",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT timestamp AS time, duration_sec, scanner_type FROM scan_history ORDER BY timestamp",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "title": "Scan Success Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16},
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT NOW() AS time, ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'completed') / NULLIF(COUNT(*), 0), 1) AS success_rate FROM scan_history",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Scan Failure Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT NOW() AS time, ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'failed') / NULLIF(COUNT(*), 0), 1) AS failure_rate FROM scan_history",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Scanner Service Health",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16},
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "up{job=\"cybersecurity-dashboard\"}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-24h", "to": "now"}
+}
