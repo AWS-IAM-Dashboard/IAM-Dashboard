@@ -1,0 +1,2 @@
+"""Shared AI service schemas."""
+
