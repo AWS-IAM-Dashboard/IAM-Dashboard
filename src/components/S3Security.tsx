@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { scanS3, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -671,7 +671,7 @@ export function S3Security() {
   const [activeTab, setActiveTab] = useState<Record<string, string>>({});
   const [workflows, setWorkflows] = useState<Record<string, FindingWorkflow>>(S3_WORKFLOWS);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   useEffect(() => {
     setScanResult({

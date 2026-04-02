@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { Switch } from "./ui/switch";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { AwsAccountConnectionStatus } from "./AwsAccountConnectionStatus";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TeamMember { id: number; name: string; email: string; role: "Admin" | "Analyst" | "Viewer"; status: "Active" | "Inactive"; lastLogin: string; }
@@ -418,6 +419,8 @@ export function Settings() {
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#e2e8f0", margin: 0 }}>Team & Access</h2>
               <p style={{ fontSize: "12px", color: "rgba(100,116,139,0.6)", margin: "4px 0 0" }}>Manage team members and role-based access</p>
             </div>
+
+            <AwsAccountConnectionStatus />
 
             {/* Members table */}
             <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", overflow: "hidden" }}>

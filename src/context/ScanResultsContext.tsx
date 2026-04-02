@@ -1,15 +1,27 @@
 /**
  * Scan Results Context
- * Stores scan results from all scanner components for use in Reports
+ * Stores scan results per AWS account connection for dashboard, reports, and scanners.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  ReactNode,
+} from 'react';
 import type { ScanResponse } from '../services/api';
 import { getMockResponse } from '../mock/apiMock';
 
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || 'live').toLowerCase();
 
-const STORAGE_KEY = 'iam-dashboard-scan-results';
+/** Keep in sync with first mock account id in AwsAccountContext (v1 storage migration). */
+const V1_MIGRATION_ACCOUNT_KEY = 'mock-prod';
+
+const STORAGE_V1_KEY = 'iam-dashboard-scan-results';
+const STORAGE_V2_KEY = 'iam-dashboard-scan-results-by-account';
 
 export interface StoredScanResult {
   scan_id: string;
@@ -33,110 +45,176 @@ export interface StoredScanResult {
 }
 
 interface ScanResultsContextType {
-  scanResults: Map<string, StoredScanResult>;
-  scanResultsVersion: number; // Version counter that increments on every update
-  addScanResult: (result: ScanResponse) => void;
-  getScanResult: (scannerType: string) => StoredScanResult | null;
-  getAllScanResults: () => StoredScanResult[];
-  clearScanResults: () => void;
+  scanResultsVersion: number;
+  addScanResult: (accountKey: string, result: ScanResponse) => void;
+  getScanResult: (
+    accountKey: string,
+    scannerType: string,
+  ) => StoredScanResult | null;
+  getAllScanResultsForAccount: (accountKey: string) => StoredScanResult[];
+  clearScanResultsForAccount: (accountKey: string) => void;
+  /** Seed deterministic mock full-scan data when an account has no scans (demo / until backend is wired). */
+  ensureMockFullScanIfEmpty: (
+    accountKey: string,
+    awsAccountId: string,
+    label: string,
+  ) => void;
 }
 
-const ScanResultsContext = createContext<ScanResultsContextType | undefined>(undefined);
+const ScanResultsContext = createContext<ScanResultsContextType | undefined>(
+  undefined,
+);
 
-function loadFromStorage(): Map<string, StoredScanResult> {
-  // In mock mode always start clean — stale session data has wrong scan_summaries
+function loadFromStorage(): Map<string, Map<string, StoredScanResult>> {
   if (DATA_MODE === 'mock') return new Map();
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Map();
-    const entries: [string, StoredScanResult][] = JSON.parse(raw);
-    return new Map(entries);
+    const v2raw = sessionStorage.getItem(STORAGE_V2_KEY);
+    if (v2raw) {
+      const parsed = JSON.parse(v2raw) as Record<
+        string,
+        [string, StoredScanResult][]
+      >;
+      const out = new Map<string, Map<string, StoredScanResult>>();
+      for (const [acc, entries] of Object.entries(parsed)) {
+        out.set(acc, new Map(entries));
+      }
+      return out;
+    }
+
+    const v1 = sessionStorage.getItem(STORAGE_V1_KEY);
+    if (v1) {
+      const entries: [string, StoredScanResult][] = JSON.parse(v1);
+      const legacy = new Map(entries);
+      const out = new Map<string, Map<string, StoredScanResult>>();
+      out.set(V1_MIGRATION_ACCOUNT_KEY, legacy);
+      return out;
+    }
   } catch {
-    return new Map();
+    /* ignore */
   }
+  return new Map();
 }
 
-function saveToStorage(map: Map<string, StoredScanResult>) {
-  // Don't persist in mock mode — data is always regenerated from fixtures
+function saveToStorage(byAccount: Map<string, Map<string, StoredScanResult>>) {
   if (DATA_MODE === 'mock') return;
   try {
-    const entries = Array.from(map.entries());
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    const obj: Record<string, [string, StoredScanResult][]> = {};
+    for (const [acc, inner] of byAccount) {
+      obj[acc] = Array.from(inner.entries());
+    }
+    sessionStorage.setItem(STORAGE_V2_KEY, JSON.stringify(obj));
   } catch {
-    // storage full or unavailable -- silently degrade
+    /* ignore */
   }
 }
 
 export function ScanResultsProvider({ children }: { children: ReactNode }) {
-  const [scanResults, setScanResults] = useState<Map<string, StoredScanResult>>(() => loadFromStorage());
-  const [scanResultsVersion, setScanResultsVersion] = useState(0); // Version counter
+  const [byAccount, setByAccount] = useState<
+    Map<string, Map<string, StoredScanResult>>
+  >(() => loadFromStorage());
+  const [scanResultsVersion, setScanResultsVersion] = useState(0);
+  const byAccountRef = useRef(byAccount);
+  byAccountRef.current = byAccount;
 
   useEffect(() => {
-    saveToStorage(scanResults);
-  }, [scanResults]);
-
-  // Auto-seed full scan in mock mode so Dashboard IR/Audit tabs are populated on first load
-  useEffect(() => {
-    if (DATA_MODE !== 'mock') return;
-    const mock = getMockResponse('/scan/full') as ScanResponse | undefined;
-    if (mock) addScanResult(mock);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const addScanResult = useCallback((result: ScanResponse) => {
-    // Extract scan summary - try multiple locations
-    let scanSummary = result.results?.scan_summary;
-    if (!scanSummary) {
-      scanSummary = extractScanSummary(result.results);
+    saveToStorage(byAccount);
+    try {
+      sessionStorage.removeItem(STORAGE_V1_KEY);
+    } catch {
+      /* ignore */
     }
-    
-    // Extract findings - try multiple locations
-    let findings = extractFindings(result.results);
-    
-    const storedResult: StoredScanResult = {
-      scan_id: result.scan_id,
-      scanner_type: result.scanner_type,
-      region: result.region,
-      status: result.status,
-      timestamp: result.timestamp,
-      results: result.results,
-      scan_summary: scanSummary,
-      findings: findings
-    };
-    
-    setScanResults((prev: Map<string, StoredScanResult>) => {
-      const newMap = new Map(prev);
-      newMap.set(result.scanner_type, storedResult);
-      return newMap;
+  }, [byAccount]);
+
+  const addScanResult = useCallback(
+    (accountKey: string, result: ScanResponse) => {
+      if (!accountKey || accountKey === '__none__') return;
+
+      let scanSummary = result.results?.scan_summary;
+      if (!scanSummary) {
+        scanSummary = extractScanSummary(result.results);
+      }
+      let findings = extractFindings(result.results);
+
+      const storedResult: StoredScanResult = {
+        scan_id: result.scan_id,
+        scanner_type: result.scanner_type,
+        region: result.region,
+        status: result.status,
+        timestamp: result.timestamp,
+        results: result.results,
+        scan_summary: scanSummary,
+        findings,
+      };
+
+      setByAccount((prev) => {
+        const next = new Map(prev);
+        const inner = new Map(next.get(accountKey) ?? []);
+        inner.set(result.scanner_type, storedResult);
+        next.set(accountKey, inner);
+        return next;
+      });
+      setScanResultsVersion((v) => v + 1);
+    },
+    [],
+  );
+
+  const getScanResult = useCallback(
+    (accountKey: string, scannerType: string): StoredScanResult | null => {
+      return byAccount.get(accountKey)?.get(scannerType) ?? null;
+    },
+    [byAccount],
+  );
+
+  const getAllScanResultsForAccount = useCallback(
+    (accountKey: string): StoredScanResult[] => {
+      const inner = byAccount.get(accountKey);
+      if (!inner) return [];
+      return Array.from(inner.values());
+    },
+    [byAccount],
+  );
+
+  const clearScanResultsForAccount = useCallback((accountKey: string) => {
+    setByAccount((prev) => {
+      const next = new Map(prev);
+      next.delete(accountKey);
+      return next;
     });
-    
-    // Increment version to trigger re-renders in components using this context
-    // This ensures Dashboard updates even when replacing an existing scan result
-    setScanResultsVersion((v: number) => v + 1);
+    setScanResultsVersion((v) => v + 1);
   }, []);
 
-  const getScanResult = useCallback((scannerType: string): StoredScanResult | null => {
-    return scanResults.get(scannerType) || null;
-  }, [scanResults]);
+  const ensureMockFullScanIfEmpty = useCallback(
+    (accountKey: string, awsAccountId: string, label: string) => {
+      if (!accountKey || accountKey === '__none__') return;
 
-  const getAllScanResults = useCallback((): StoredScanResult[] => {
-    return Array.from(scanResults.values());
-  }, [scanResults]);
+      const existing = byAccountRef.current.get(accountKey);
+      if (existing && existing.size > 0) return;
 
-  const clearScanResults = useCallback(() => {
-    setScanResults(new Map());
-    sessionStorage.removeItem(STORAGE_KEY);
-  }, []);
+      setByAccount((prev) => {
+        const inner = prev.get(accountKey);
+        if (inner && inner.size > 0) return prev;
+
+        const mock = buildMockFullScanStored(accountKey, awsAccountId, label);
+        const nextInner = new Map<string, StoredScanResult>();
+        nextInner.set('full', mock);
+        const next = new Map(prev);
+        next.set(accountKey, nextInner);
+        return next;
+      });
+      setScanResultsVersion((v) => v + 1);
+    },
+    [],
+  );
 
   return (
     <ScanResultsContext.Provider
       value={{
-        scanResults,
         scanResultsVersion,
         addScanResult,
         getScanResult,
-        getAllScanResults,
-        clearScanResults
+        getAllScanResultsForAccount,
+        clearScanResultsForAccount,
+        ensureMockFullScanIfEmpty,
       }}
     >
       {children}
@@ -152,13 +230,9 @@ export function useScanResults() {
   return context;
 }
 
-/**
- * Extract scan summary from various result formats
- */
 function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
   if (!results) return undefined;
 
-  // For full scan, use aggregate_summary block if present, otherwise sum sub-scanner summaries
   if (results.scan_type === 'full' || results.iam) {
     if (results.aggregate_summary) {
       return {
@@ -181,73 +255,62 @@ function extractScanSummary(results: any): StoredScanResult['scan_summary'] {
     };
   }
 
-  // Try to find summary in different possible locations
   if (results.scan_summary) {
     return results.scan_summary;
   }
 
-  // For IAM scans
   if (results.users || results.roles) {
     return {
       users: results.users?.total || 0,
       roles: results.roles?.total || 0,
       policies: results.policies?.total || 0,
-      groups: results.groups?.total || 0
+      groups: results.groups?.total || 0,
     };
   }
 
-  // For S3 scans
   if (results.buckets) {
     return {
       critical_findings: results.buckets.public || 0,
-      high_findings: results.buckets.unencrypted || 0
+      high_findings: results.buckets.unencrypted || 0,
     };
   }
 
-  // For EC2 scans
   if (results.instances) {
     return {
       critical_findings: results.instances.public || 0,
-      high_findings: results.instances.without_imdsv2 || 0
+      high_findings: results.instances.without_imdsv2 || 0,
     };
   }
 
-  // Access Analyzer
   if (results.access_analyzer?.scan_summary) {
     return results.access_analyzer.scan_summary;
   }
 
-  // VPC scan
   if (results.vpc?.scan_summary) {
     return results.vpc.scan_summary;
   }
 
-  // DynamoDB scan
   if (results.dynamodb?.scan_summary) {
     return results.dynamodb.scan_summary;
   }
 
-  // For findings-based scans
   if (Array.isArray(results.findings)) {
     const findings = results.findings;
     return {
-      critical_findings: findings.filter((f: any) => f.severity === 'Critical').length,
+      critical_findings: findings.filter((f: any) => f.severity === 'Critical')
+        .length,
       high_findings: findings.filter((f: any) => f.severity === 'High').length,
-      medium_findings: findings.filter((f: any) => f.severity === 'Medium').length,
-      low_findings: findings.filter((f: any) => f.severity === 'Low').length
+      medium_findings: findings.filter((f: any) => f.severity === 'Medium')
+        .length,
+      low_findings: findings.filter((f: any) => f.severity === 'Low').length,
     };
   }
 
   return undefined;
 }
 
-/**
- * Extract findings from various possible locations in scan results
- */
 function extractFindings(results: any): any[] {
   if (!results) return [];
-  
-  // For full scan, aggregate findings from all sub-scanners
   if (results.scan_type === 'full' || results.iam) {
     const allFindings: any[] = [];
     if (Array.isArray(results.iam?.findings)) allFindings.push(...results.iam.findings);
@@ -258,107 +321,223 @@ function extractFindings(results: any): any[] {
       return allFindings;
     }
   }
-  
-  // Direct findings array
+
   if (Array.isArray(results.findings) && results.findings.length > 0) {
     return results.findings;
   }
-  
-  // IAM-specific findings
+
   if (Array.isArray(results.iam_findings) && results.iam_findings.length > 0) {
     return results.iam_findings;
   }
-  
-  // Security Hub findings
-  if (Array.isArray(results.security_hub_findings) && results.security_hub_findings.length > 0) {
+
+  if (
+    Array.isArray(results.security_hub_findings) &&
+    results.security_hub_findings.length > 0
+  ) {
     return results.security_hub_findings;
   }
-  
-  // GuardDuty findings
-  if (Array.isArray(results.guardduty_findings) && results.guardduty_findings.length > 0) {
+
+  if (
+    Array.isArray(results.guardduty_findings) &&
+    results.guardduty_findings.length > 0
+  ) {
     return results.guardduty_findings;
   }
-  
-  // Inspector findings
-  if (Array.isArray(results.inspector_findings) && results.inspector_findings.length > 0) {
+
+  if (
+    Array.isArray(results.inspector_findings) &&
+    results.inspector_findings.length > 0
+  ) {
     return results.inspector_findings;
   }
-  
-  // Config findings
-  if (Array.isArray(results.config_findings) && results.config_findings.length > 0) {
+
+  if (
+    Array.isArray(results.config_findings) &&
+    results.config_findings.length > 0
+  ) {
     return results.config_findings;
   }
-  
-  // Macie findings
-  if (Array.isArray(results.macie_findings) && results.macie_findings.length > 0) {
+
+  if (
+    Array.isArray(results.macie_findings) &&
+    results.macie_findings.length > 0
+  ) {
     return results.macie_findings;
   }
-  
-  // For IAM scans, check if findings are nested in users/roles
+
   if (results.users || results.roles) {
     const iamFindings: any[] = [];
-    
-    // Check users for findings
     if (results.users?.findings && Array.isArray(results.users.findings)) {
       iamFindings.push(...results.users.findings);
     }
-    
-    // Check roles for findings
     if (results.roles?.findings && Array.isArray(results.roles.findings)) {
       iamFindings.push(...results.roles.findings);
     }
-    
-    // Check policies for findings
     if (results.policies?.findings && Array.isArray(results.policies.findings)) {
       iamFindings.push(...results.policies.findings);
     }
-    
     if (iamFindings.length > 0) {
       return iamFindings;
     }
   }
-  
-  // For S3 scans, check buckets for findings
+
   if (results.buckets) {
     const s3Findings: any[] = [];
-    
     if (results.buckets.findings && Array.isArray(results.buckets.findings)) {
       s3Findings.push(...results.buckets.findings);
     }
-    
     if (s3Findings.length > 0) {
       return s3Findings;
     }
   }
-  
-  // For EC2 scans, check instances for findings
+
   if (results.instances) {
     const ec2Findings: any[] = [];
-    
-    if (results.instances.findings && Array.isArray(results.instances.findings)) {
+    if (
+      results.instances.findings &&
+      Array.isArray(results.instances.findings)
+    ) {
       ec2Findings.push(...results.instances.findings);
     }
-    
     if (ec2Findings.length > 0) {
       return ec2Findings;
     }
   }
 
-  // Access Analyzer findings
-  if (results.access_analyzer?.findings && Array.isArray(results.access_analyzer.findings)) {
+  if (
+    results.access_analyzer?.findings &&
+    Array.isArray(results.access_analyzer.findings)
+  ) {
     return results.access_analyzer.findings;
   }
 
-  // VPC scan findings
   if (results.vpc?.findings && Array.isArray(results.vpc.findings)) {
     return results.vpc.findings;
   }
 
-  // DynamoDB scan findings
-  if (results.dynamodb?.findings && Array.isArray(results.dynamodb.findings)) {
+  if (
+    results.dynamodb?.findings &&
+    Array.isArray(results.dynamodb.findings)
+  ) {
     return results.dynamodb.findings;
   }
-  
+
   return [];
 }
 
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+const mockFindingTemplates = [
+  {
+    finding_type: 'Public S3 bucket',
+    description: 'Bucket policy allows public read',
+    baseResource: 'logs-archive',
+  },
+  {
+    finding_type: 'Unrestricted security group',
+    description: 'Security group allows SSH from 0.0.0.0/0',
+    baseResource: 'web-tier-sg',
+  },
+  {
+    finding_type: 'IAM user without MFA',
+    description: 'Console user has no MFA device',
+    baseResource: 'breakglass-admin',
+  },
+  {
+    finding_type: 'Overly permissive role',
+    description: 'Role trust policy may allow unintended principals',
+    baseResource: 'data-pipeline-role',
+  },
+  {
+    finding_type: 'KMS key rotation disabled',
+    description: 'Customer managed key has automatic rotation off',
+    baseResource: 'app-secrets-key',
+  },
+];
+
+function severityForIndex(
+  i: number,
+  critical: number,
+  high: number,
+  medium: number,
+): string {
+  if (i < critical) return 'Critical';
+  if (i < critical + high) return 'High';
+  if (i < critical + high + medium) return 'Medium';
+  return 'Low';
+}
+
+function buildMockFullScanStored(
+  accountKey: string,
+  awsAccountId: string,
+  accountLabel: string,
+): StoredScanResult {
+  const h = hashString(accountKey);
+  const digits = awsAccountId?.replace(/\D/g, '') ?? '';
+  const account =
+    digits.length === 12
+      ? digits
+      : String(100000000000 + (h % 899999999999)).padStart(12, '0');
+  const critical = 1 + (h % 3);
+  const high = 2 + ((h >> 3) % 5);
+  const medium = 2 + ((h >> 6) % 6);
+  const low = 1 + ((h >> 9) % 4);
+  const total = critical + high + medium + low;
+
+  const findings = Array.from({ length: total }, (_, i) => {
+    const tmpl = mockFindingTemplates[i % mockFindingTemplates.length];
+    const severity = severityForIndex(i, critical, high, medium);
+    return {
+      id: `${accountKey}-mock-${i}`,
+      severity,
+      finding_type: tmpl.finding_type,
+      resource_name: `${tmpl.baseResource}-${accountKey.slice(0, 4)}`,
+      resource_arn: `arn:aws:iam::${account}:role/${tmpl.baseResource}`,
+      description: `${tmpl.description} (${accountLabel})`,
+      recommendation: 'Review and remediate per AWS security best practices',
+      created_date: new Date(Date.now() - i * 3600000).toISOString(),
+    };
+  });
+
+  const scan_summary = {
+    critical_findings: critical,
+    high_findings: high,
+    medium_findings: medium,
+    low_findings: low,
+    users: 8 + (h % 12),
+    roles: 15 + (h % 20),
+    policies: 20 + (h % 15),
+    groups: 3 + (h % 5),
+  };
+
+  const results = {
+    scan_type: 'full',
+    status: 'completed',
+    iam: {
+      findings,
+      scan_summary,
+      users: { total: scan_summary.users },
+      roles: { total: scan_summary.roles },
+      policies: { total: scan_summary.policies },
+      groups: { total: scan_summary.groups },
+    },
+  };
+
+  return {
+    scan_id: `mock-full-${accountKey}-${h}`,
+    scanner_type: 'full',
+    region: 'us-east-1',
+    status: 'completed',
+    timestamp: new Date().toISOString(),
+    results,
+    scan_summary,
+    findings,
+  };
+}

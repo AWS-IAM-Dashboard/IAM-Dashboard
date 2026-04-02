@@ -18,7 +18,7 @@ import { StatCard } from "./ui/StatCard";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface AccessAnalyzerFinding {
   id: string;
@@ -170,7 +170,7 @@ export function AccessAnalyzer() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   useEffect(() => {
     const findings = scanResult?.findings ?? [];
