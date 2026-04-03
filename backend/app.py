@@ -61,8 +61,16 @@ def create_app():
     app.config['REDIS_URL'] = os.environ.get(
         'REDIS_URL', 'redis://localhost:6379/0')
 
-    # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3001', 'http://localhost:5173'])
+    # Browser origins allowed to call this Flask API (local Docker + optional prod SPA).
+    # Match infra var.allowed_urls; see docs/security/CORS.md. Override with CORS_ALLOWED_ORIGINS (comma-separated).
+    _cors_default = (
+        'http://localhost:3001,http://localhost:5173,'
+        'https://d33ytnxd7i6mo9.cloudfront.net,http://localhost:5001'
+    )
+    _cors_raw = os.environ.get('CORS_ALLOWED_ORIGINS')
+    _cors_src = _cors_default if not (_cors_raw and _cors_raw.strip()) else _cors_raw
+    _cors_origins = [o.strip() for o in _cors_src.split(',') if o.strip()]
+    CORS(app, origins=_cors_origins, supports_credentials=True)
 
     # Register metrics collection hooks
     register_metrics_hooks(app)

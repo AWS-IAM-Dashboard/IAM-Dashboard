@@ -69,21 +69,6 @@ resource "aws_apigatewayv2_integration" "lambda" {
 }
 ```
 
-## 🔐 CORS Configuration
-
-Default CORS settings:
-- **Allowed Origins**: `["*"]` (configure via variable)
-- **Allowed Methods**: `["GET", "POST", "OPTIONS"]`
-- **Allowed Headers**: `["Content-Type", "Authorization"]`
-- **Max Age**: 3600 seconds
-
-Update via variables for production use:
-```hcl
-variable "cors_allowed_origins" {
-  default = ["https://your-domain.com"]
-}
-```
-
 ## 🏷️ Tags
 
 The API Gateway is tagged with:

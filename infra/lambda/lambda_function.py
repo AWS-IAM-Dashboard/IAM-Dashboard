@@ -108,6 +108,35 @@ PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 
 
+def _cors_allowed_origins_set() -> set:
+    raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+    return {o.strip() for o in raw.split(',') if o.strip()}
+
+
+def _cors_response_headers(event: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """
+    CORS headers for Lambda proxy integration. Reflects Origin only when it is in the allowlist
+    (from CORS_ALLOWED_ORIGINS). Never uses wildcard — required for a consistent security posture
+    alongside API Gateway HTTP API cors_configuration.
+    """
+    allow = _cors_allowed_origins_set()
+    headers: Dict[str, str] = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    }
+    if not allow:
+        return headers
+    origin = None
+    if event:
+        hdrs = event.get('headers') or {}
+        origin = hdrs.get('origin') or hdrs.get('Origin')
+    if origin and origin in allow:
+        headers['Access-Control-Allow-Origin'] = origin
+        headers['Vary'] = 'Origin'
+    return headers
+
+
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
     """Publish a custom CloudWatch metric"""
     try:
@@ -202,7 +231,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             publish_metric('ScanErrors', 1, {'ScannerType': scanner_type, 'ErrorType': 'InvalidScannerType'})
             return create_response(400, {
                 'error': f'Invalid scanner type. Must be one of: {", ".join(valid_scanners)}'
-            })
+            }, event)
         
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
@@ -334,7 +363,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'message': str(scan_error)[:500],
                     'scan_id': scan_id,
                     'scanner_type': scanner_type
-                })
+                }, event)
         
         # Store results (non-blocking - don't fail if storage fails)
         try:
@@ -350,14 +379,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'status': scan_result.get('status', 'completed'),
             'results': scan_result,
             'timestamp': datetime.utcnow().isoformat()
-        })
+        }, event)
         
     except Exception as e:
         logger.error(f"Error in lambda_handler: {str(e)}", exc_info=True)
         return create_response(500, {
             'error': 'Internal server error',
             'message': str(e)
-        })
+        }, event)
 
 
 def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
@@ -1640,19 +1669,18 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
         logger.error(f"Error storing results: {str(e)}")
 
 
-def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
+def create_response(
+    status_code: int,
+    body: Dict[str, Any],
+    event: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Create API Gateway compatible response with proper JSON serialization"""
     try:
         # Use json_serial to handle datetime, Decimal, bytes, etc.
         body_json = json.dumps(body, default=json_serial)
         return {
             'statusCode': status_code,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': _cors_response_headers(event),
             'body': body_json
         }
     except Exception as e:
@@ -1665,11 +1693,6 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
         }
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': _cors_response_headers(event),
             'body': json.dumps(error_body, default=str)
         }

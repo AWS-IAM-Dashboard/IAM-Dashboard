@@ -85,18 +85,23 @@ module "lambda" {
   dynamodb_table_name  = var.dynamodb_table_name
   s3_bucket_name       = var.s3_bucket_name
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+
+  lambda_environment_variables = {
+    CORS_ALLOWED_ORIGINS = join(",", var.allowed_urls)
+  }
 }
 
 # API Gateway Module for the Scanner APIs
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region            = var.aws_region
-  environment           = var.environment
-  project_name          = var.project_name
-  kms_key_arn           = data.aws_kms_key.logs.arn
-  cognito_issuer_url    = module.cognito.issuer_url
-  cognito_app_client_id = module.cognito.app_client_id
+  aws_region             = var.aws_region
+  environment            = var.environment
+  project_name           = var.project_name
+  kms_key_arn            = data.aws_kms_key.logs.arn
+  cognito_issuer_url     = module.cognito.issuer_url
+  cognito_app_client_id  = module.cognito.app_client_id
+  cors_allowed_origins   = var.allowed_urls
 }
 
 # API Gateway Module for the Authentication APIs
