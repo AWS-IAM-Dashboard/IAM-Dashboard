@@ -59,9 +59,16 @@ export default defineConfig(async () => {
       host: true,
       proxy: {
         '/auth': {
-          target: 'https://cpjm170lui.execute-api.us-east-1.amazonaws.com',
+          target: 'https://a99o55140b.execute-api.us-east-1.amazonaws.com',
           changeOrigin: true,
           rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+        '/scan': {
+          target: 'https://a99o55140b.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
         },
       },
       watch: {

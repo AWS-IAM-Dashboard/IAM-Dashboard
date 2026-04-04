@@ -364,12 +364,23 @@ export function SecurityHub() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(msg);
       setIsScanning(false);
-      toast.error("Failed to scan Security Hub", {
-        description:
-          err instanceof Error ? err.message : "Unknown error",
-      });
+      const normalized = msg.toLowerCase();
+      if (normalized.includes('forbidden') ||
++        normalized.includes('unauthorized') ||
++        normalized.includes('permission') ||
++        normalized.includes('accessdenied') ||
+         normalized.includes('authentication required') ) {
+        toast.error('Permission denied', {
+          description: msg,
+          duration: 8000,
+          style: { color: '#ff0040', borderColor: 'rgba(255,0,64,0.4)' },
+        });
+      } else {
+        toast.error("Failed to scan Security Hub", { description: msg });
+      }
     }
   };
 

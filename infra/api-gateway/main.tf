@@ -98,10 +98,15 @@ resource "aws_apigatewayv2_stage" "default" {
 
 # Data source to get Lambda function
 data "aws_lambda_function" "scanner" {
-  function_name = "iam-dashboard-scanner"
+  function_name = var.scanner_lambda_function_name
 }
 
-# Lambda integration
+data "aws_lambda_function" "auth" {
+  function_name = var.auth_lambda_function_name
+}
+
+# ── Integrations ──────────────────────────────────────────────────────────────
+
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id                 = aws_apigatewayv2_api.api.id
   integration_type       = "AWS_PROXY"
@@ -109,6 +114,16 @@ resource "aws_apigatewayv2_integration" "lambda" {
   integration_method     = "POST"
   payload_format_version = "2.0"
 }
+
+resource "aws_apigatewayv2_integration" "auth" {
+  api_id                 = aws_apigatewayv2_api.api.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = data.aws_lambda_function.auth.invoke_arn
+  payload_format_version = "2.0"
+}
+
+# ── Lambda permissions ────────────────────────────────────────────────────────
 
 # Permission for API Gateway to invoke Lambda
 resource "aws_lambda_permission" "api_gateway" {
@@ -118,6 +133,16 @@ resource "aws_lambda_permission" "api_gateway" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
+
+resource "aws_lambda_permission" "auth" {
+  statement_id  = "AllowExecutionFromAPIGatewayAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = data.aws_lambda_function.auth.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# ── Scanner routes ────────────────────────────────────────────────────────────
 
 # Routes for all 9 security scan endpoints
 resource "aws_apigatewayv2_route" "security_hub" {
@@ -181,4 +206,24 @@ resource "aws_apigatewayv2_route" "full" {
   route_key          = "POST /scan/full"
   authorization_type = var.route_authorization_type
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# ── Auth routes ───────────────────────────────────────────────────────────────
+
+resource "aws_apigatewayv2_route" "auth_login" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /auth/login"
+  target    = "integrations/${aws_apigatewayv2_integration.auth.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_logout" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /auth/logout"
+  target    = "integrations/${aws_apigatewayv2_integration.auth.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_session" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /auth/session"
+  target    = "integrations/${aws_apigatewayv2_integration.auth.id}"
 }

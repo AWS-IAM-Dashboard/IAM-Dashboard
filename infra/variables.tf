@@ -84,7 +84,7 @@ variable "cognito_allowed_urls" {
 }
 
 variable "allowed_urls" {
-  description = "Allowed sign-out URLs for Cognito app client"
+  description = "Allowed urls for CORS"
   type        = list(string)
   default     = ["http://localhost:3001", "https://d33ytnxd7i6mo9.cloudfront.net", "http://localhost:5173", "http://localhost:5001"]
 }
@@ -106,4 +106,3 @@ variable "auth_lambda_function_name" {
   type        = string
   default     = "test-BFF"
 }
-

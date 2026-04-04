@@ -205,6 +205,11 @@ nul
 # File I use to think
 temp.txt
 temp.md
+RBAC_Planning.json
+RBAC_Implementing.json
+auth-cookies.txt
+admin-cookies.txt
+Images
 
 # Merge / patch artifacts
 *.orig
@@ -220,3 +225,4 @@ lambda.py
 lambda_policy.json
 .tfdata-s3-notify-validate
 .tfdata-ses-validate
+APIGateway_Auth_and_Scanner

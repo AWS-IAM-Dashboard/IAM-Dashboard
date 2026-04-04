@@ -28,10 +28,19 @@ variable "stage_name" {
   default     = "v1"
 }
 
+variable "auth_lambda_function_name" {
+  description = "Function name of the auth Lambda (looked up via data source)"
+  type        = string
+}
+
+variable "scanner_lambda_function_name" {
+  description = "Function name of the scanner Lambda (looked up via data source)"
+  type        = string
+}
+
 variable "cors_allowed_origins" {
   description = "List of allowed CORS origins"
   type        = list(string)
-  default     = ["*"]
 }
 
 variable "cors_allowed_methods" {
@@ -41,9 +50,9 @@ variable "cors_allowed_methods" {
 }
 
 variable "cors_allowed_headers" {
-  description = "List of allowed CORS headers"
+  description = "Allowed request headers for CORS"
   type        = list(string)
-  default     = ["Content-Type", "Authorization"]
+  default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
 
 variable "throttling_burst_limit" {
