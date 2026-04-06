@@ -41,7 +41,7 @@ python-dotenv==1.0.0
 marshmallow==4.2.3
 
 # Utilities
-click==8.1.7
+click==8.3.2
 python-dateutil==2.8.2
 pytz==2023.3
 psutil==5.9.8
