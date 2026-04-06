@@ -38,7 +38,7 @@ flake8==6.1.0
 python-dotenv==1.0.0
 
 # API documentation
-marshmallow==4.2.3
+marshmallow==4.3.0
 
 # Utilities
 click==8.1.7
