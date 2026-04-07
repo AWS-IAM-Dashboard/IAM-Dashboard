@@ -1,15 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
-import { AlertTriangle, BookOpen, Cloud, LayoutDashboard, ListTree, Play, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpen, Cloud, LayoutDashboard, ListTree, Play, Sparkles, X } from "lucide-react";
 import { cn } from "./ui/utils";
 
 const STEP_COUNT = 5;
@@ -168,138 +160,152 @@ export function OnboardingWizard({ open, onOpenChange, onNavigate }: OnboardingW
     window.open("/about", "_blank", "noopener,noreferrer");
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          "max-h-[min(90vh,640px)] gap-0 overflow-hidden border border-white/10 bg-[rgba(8,12,24,0.98)] p-0 text-slate-100 shadow-xl sm:max-w-xl",
-          "[&_[data-slot=dialog-close]]:text-slate-400 [&_[data-slot=dialog-close]]:hover:text-slate-200",
-        )}
-      >
-        <div className="flex max-h-[min(90vh,640px)] flex-col">
-          <div className="shrink-0 border-b border-white/10 px-6 pb-4 pt-6">
+    <aside
+      className={cn(
+        "fixed bottom-4 right-4 z-50 w-[min(92vw,42rem)] overflow-hidden rounded-xl border border-white/10 bg-[rgba(8,12,24,0.98)] text-slate-100 shadow-2xl",
+        "backdrop-blur-md",
+      )}
+      role="dialog"
+      aria-label="Onboarding wizard"
+      aria-modal="false"
+    >
+      <div className="flex max-h-[min(88vh,680px)] flex-col">
+        <div className="shrink-0 border-b border-white/10 px-6 pb-4 pt-6">
+          <div className="mb-4 flex items-center gap-3">
             <Progress
               value={progress}
-              className="mb-4 h-1 bg-white/10 [&_[data-slot=progress-indicator]]:bg-[#00ff88]"
+              className="h-1 flex-1 bg-white/10 [&_[data-slot=progress-indicator]]:bg-[#00ff88]"
             />
-            <DialogHeader className="gap-3 text-left">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#00ff88]/25 bg-[#00ff88]/10"
-                aria-hidden
-              >
-                <Icon className="h-5 w-5 text-[#00ff88]" />
-              </div>
-              <DialogTitle className="text-lg font-semibold tracking-tight text-slate-100">{def.title}</DialogTitle>
-              <DialogDescription className="text-sm leading-relaxed text-slate-400">{def.description}</DialogDescription>
-            </DialogHeader>
-          </div>
-
-          {def.checklist && def.checklist.length > 0 && (
-            <div className="min-h-0 flex-1 overflow-y-auto border-b border-white/10 px-6 py-4">
-              <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                What to click
-              </p>
-              <ol className="list-decimal space-y-3 pl-4 text-sm leading-relaxed text-slate-300 marker:text-slate-500">
-                {def.checklist.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ol>
-            </div>
-          )}
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 px-6 py-3">
-            {def.goThereTab && def.goThereLabel && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
-                onClick={() => goThere(def.goThereTab)}
-              >
-                {def.goThereTab === "dashboard" ? (
-                  <LayoutDashboard className="size-4" />
-                ) : def.goThereTab === "settings" ? (
-                  <Cloud className="size-4" />
-                ) : def.goThereTab === "alerts" ? (
-                  <AlertTriangle className="size-4" />
-                ) : null}
-                {def.goThereLabel}
-              </Button>
-            )}
-            {def.goThereTab2 && def.goThereLabel2 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
-                onClick={() => goThere(def.goThereTab2)}
-              >
-                {def.goThereTab2 === "alerts" ? <AlertTriangle className="size-4" /> : null}
-                {def.goThereLabel2}
-              </Button>
-            )}
-            {isLast && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
-                onClick={openAbout}
-              >
-                <BookOpen className="size-4" />
-                About &amp; help
-              </Button>
-            )}
-            <span className="ml-auto font-mono text-[11px] text-slate-500">
-              {step + 1} / {STEP_COUNT}
-            </span>
-          </div>
-
-          <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-t border-white/5 bg-black/20 px-6 py-4 sm:justify-between">
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              aria-label="Close onboarding"
+              className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-slate-200"
               onClick={() => onOpenChange(false)}
             >
-              Skip tour
-            </Button>
-            <div className="flex gap-2">
-              {step > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10"
-                  onClick={() => setStep((s) => s - 1)}
-                >
-                  Back
-                </Button>
-              )}
-              {isLast ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-[#00ff88]/15 text-[#00ff88] hover:bg-[#00ff88]/25"
-                  onClick={() => onOpenChange(false)}
-                >
-                  Get started
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-[#00ff88]/15 text-[#00ff88] hover:bg-[#00ff88]/25"
-                  onClick={() => setStep((s) => s + 1)}
-                >
-                  Next
-                </Button>
-              )}
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3 text-left">
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#00ff88]/25 bg-[#00ff88]/10"
+              aria-hidden
+            >
+              <Icon className="h-5 w-5 text-[#00ff88]" />
             </div>
-          </DialogFooter>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-100">{def.title}</h2>
+            <p className="text-sm leading-relaxed text-slate-400">{def.description}</p>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {def.checklist && def.checklist.length > 0 && (
+          <div className="min-h-0 flex-1 overflow-y-auto border-b border-white/10 px-6 py-4">
+            <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              What to click
+            </p>
+            <ol className="list-decimal space-y-3 pl-4 text-sm leading-relaxed text-slate-300 marker:text-slate-500">
+              {def.checklist.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 px-6 py-3">
+          {def.goThereTab && def.goThereLabel && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
+              onClick={() => goThere(def.goThereTab)}
+            >
+              {def.goThereTab === "dashboard" ? (
+                <LayoutDashboard className="size-4" />
+              ) : def.goThereTab === "settings" ? (
+                <Cloud className="size-4" />
+              ) : def.goThereTab === "alerts" ? (
+                <AlertTriangle className="size-4" />
+              ) : null}
+              {def.goThereLabel}
+            </Button>
+          )}
+          {def.goThereTab2 && def.goThereLabel2 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
+              onClick={() => goThere(def.goThereTab2)}
+            >
+              {def.goThereTab2 === "alerts" ? <AlertTriangle className="size-4" /> : null}
+              {def.goThereLabel2}
+            </Button>
+          )}
+          {isLast && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
+              onClick={openAbout}
+            >
+              <BookOpen className="size-4" />
+              About &amp; help
+            </Button>
+          )}
+          <span className="ml-auto font-mono text-[11px] text-slate-500">
+            {step + 1} / {STEP_COUNT}
+          </span>
+        </div>
+
+        <div className="shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-t border-white/5 bg-black/20 px-6 py-4 sm:justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            onClick={() => onOpenChange(false)}
+          >
+            Skip tour
+          </Button>
+          <div className="flex gap-2">
+            {step > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10"
+                onClick={() => setStep((s) => s - 1)}
+              >
+                Back
+              </Button>
+            )}
+            {isLast ? (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-[#00ff88]/15 text-[#00ff88] hover:bg-[#00ff88]/25"
+                onClick={() => onOpenChange(false)}
+              >
+                Get started
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-[#00ff88]/15 text-[#00ff88] hover:bg-[#00ff88]/25"
+                onClick={() => setStep((s) => s + 1)}
+              >
+                Next
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 }

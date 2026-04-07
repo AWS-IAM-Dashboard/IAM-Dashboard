@@ -205,28 +205,13 @@ export function DashboardApp() {
               },
             }}
           />
+          <OnboardingWizard
+            open={showOnboarding}
+            onOpenChange={handleOnboardingOpenChange}
+            onNavigate={setActiveTab}
+          />
         </div>
-<<<<<<< Updated upstream
       </AwsAccountProvider>
-=======
-        <Toaster
-          position="top-right"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "rgba(15, 23, 42, 0.8)",
-              border: "1px solid rgba(0, 255, 136, 0.3)",
-              color: "#e2e8f0",
-            },
-          }}
-        />
-        <OnboardingWizard
-          open={showOnboarding}
-          onOpenChange={handleOnboardingOpenChange}
-          onNavigate={setActiveTab}
-        />
-      </div>
->>>>>>> Stashed changes
     </ScanResultsProvider>
   );
 }
