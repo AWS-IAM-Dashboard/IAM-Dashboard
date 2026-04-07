@@ -78,6 +78,7 @@ import { InfraSecurityCenter } from "../components/infra/InfraSecurityCenter";
 import { GRCCenter } from "../components/grc/GRCCenter";
 import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
+import { AwsAccountProvider } from "../context/AwsAccountContext";
 import type { ReportRecord } from "../types/report";
 
 export function DashboardApp() {
@@ -161,26 +162,28 @@ export function DashboardApp() {
 
   return (
     <ScanResultsProvider>
-      <div className="flex h-screen flex-col bg-background dark">
-        <Header onNavigate={setActiveTab} activeTab={activeTab} />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-          <main className="flex-1 overflow-auto">
-            {renderContent()}
-          </main>
+      <AwsAccountProvider>
+        <div className="flex h-screen flex-col bg-background dark">
+          <Header onNavigate={setActiveTab} activeTab={activeTab} />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+            <main className="flex-1 overflow-auto">
+              {renderContent()}
+            </main>
+          </div>
+          <Toaster
+            position="top-right"
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: "rgba(15, 23, 42, 0.8)",
+                border: "1px solid rgba(0, 255, 136, 0.3)",
+                color: "#e2e8f0",
+              },
+            }}
+          />
         </div>
-        <Toaster
-          position="top-right"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "rgba(15, 23, 42, 0.8)",
-              border: "1px solid rgba(0, 255, 136, 0.3)",
-              color: "#e2e8f0",
-            },
-          }}
-        />
-      </div>
+      </AwsAccountProvider>
     </ScanResultsProvider>
   );
 }

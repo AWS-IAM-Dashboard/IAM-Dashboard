@@ -204,6 +204,7 @@ nul
 
 # File I use to think
 temp.txt
+temp.md
 
 # Merge / patch artifacts
 *.orig
@@ -214,3 +215,14 @@ temp.txt
 
 # Local Redis dumps if bound to host
 dump.rdb
+CloudWatch.txt
+lambda.py
+lambda_policy.json
+.tfdata-s3-notify-validate
+.tfdata-ses-validate
+APIGateway_Auth_and_Scanner
+admin-cookies.txt
+auth-cookies.txt
+Images_Temp
+RBAC_Implementing.json
+RBAC_Planning.json

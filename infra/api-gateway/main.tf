@@ -33,6 +33,21 @@ resource "aws_apigatewayv2_api" "api" {
   }
 }
 
+# Keep the legacy Cognito JWT authorizer resource in-state so CI does not need
+# apigateway:DELETE when auth strategy changes (routes can still use NONE).
+resource "aws_apigatewayv2_authorizer" "cognito_jwt" {
+  api_id          = aws_apigatewayv2_api.api.id
+  name            = "cognito-jwt-authorizer"
+  authorizer_type = "JWT"
+
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    issuer   = var.cognito_issuer_url
+    audience = [var.cognito_app_client_id]
+  }
+}
+
 # CloudWatch log group for API Gateway access logs
 resource "aws_cloudwatch_log_group" "apigw_access" {
   name              = "/aws/apigwv2/${var.api_gateway_name}/${var.stage_name}/access"

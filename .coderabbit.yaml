@@ -1,9 +1,14 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit — https://docs.coderabbit.ai/getting-started/yaml-configuration
 language: en
 reviews:
   profile: chill
   review_status: false
-  finishing_touches: false
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
   path_instructions:
     - path: "infra/**"
       instructions: >

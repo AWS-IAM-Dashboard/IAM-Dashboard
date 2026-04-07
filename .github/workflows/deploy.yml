@@ -92,7 +92,32 @@ jobs:
           LAMBDA_FUNCTION_NAME="iam-dashboard-scanner"
         fi
         echo "Updating Lambda function $LAMBDA_FUNCTION_NAME"
-        aws lambda update-function-code \
-          --function-name "$LAMBDA_FUNCTION_NAME" \
-          --zip-file fileb://lambda-out/lambda_function.zip
-        echo "Lambda function deployed successfully"
+        set +e
+        MAX_ATTEMPTS=8
+        attempt=1
+        while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+          OUT=$(aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --zip-file fileb://lambda-out/lambda_function.zip 2>&1)
+          RC=$?
+          if [ "$RC" -eq 0 ]; then
+            echo "$OUT"
+            echo "Lambda function deployed successfully"
+            exit 0
+          fi
+          echo "$OUT"
+          if echo "$OUT" | grep -q ResourceConflictException; then
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              WAIT=$((attempt * 5))
+              echo "Concurrent Lambda update (ResourceConflictException); retry $attempt/$MAX_ATTEMPTS in ${WAIT}s..."
+              sleep "$WAIT"
+              attempt=$((attempt + 1))
+              continue
+            fi
+            echo "Concurrent Lambda update (ResourceConflictException); no retries left ($attempt/$MAX_ATTEMPTS)."
+            exit "$RC"
+          fi
+          exit "$RC"
+        done
+        echo "Lambda update failed after $MAX_ATTEMPTS attempts (concurrent updates)"
+        exit "${RC:-254}"

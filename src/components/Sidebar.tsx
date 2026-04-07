@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ElementType } from "react";
 import { cn } from "./ui/utils";
+import { AwsAccountSwitcher } from "./AwsAccountSwitcher";
 import {
   LayoutDashboard,
   Shield,
@@ -120,6 +121,16 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <ChevronLeft className="h-3 w-3" />
         )}
       </button>
+
+      {/* Account switcher */}
+      <div
+        style={{
+          padding: collapsed ? "8px 8px 6px" : "8px 10px 6px",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        <AwsAccountSwitcher collapsed={collapsed} />
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none"

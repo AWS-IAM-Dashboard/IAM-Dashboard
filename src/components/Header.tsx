@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
   Search, Bell, Settings, User, LogOut,
@@ -12,7 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { cn } from "./ui/utils";
 
 interface HeaderProps {
@@ -89,10 +91,28 @@ function ShieldMark() {
 }
 
 export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
+  const auth = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
+  const displayName = auth.user?.username || "Authenticated User";
+  const initials = displayName
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AU";
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      window.location.assign("/login");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to clear session.";
+      toast.error(message);
+    }
+  };
 
   const tabSearchItems = useMemo(() => [
     { id: "dashboard", label: "Security Overview", category: "Tab", tab: "dashboard", keywords: ["overview", "dashboard", "home"] },
@@ -257,42 +277,43 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       </div>
 
       {/* ── CENTER: Search ── */}
-      <div ref={searchContainerRef} className="relative flex-1 max-w-[380px] mx-6">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-          style={{ color: "rgba(71,85,105,0.8)" }}
-        />
-        <Input
-          placeholder="Search tabs, findings, resources…"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setSearchDropdownOpen(true);
-          }}
-          onFocus={() => setSearchDropdownOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && searchResults.length > 0) navigateFromSearch(searchResults[0].tab);
-            if (e.key === "Escape") setSearchDropdownOpen(false);
-          }}
-          className="h-9 pl-9 pr-14 text-sm rounded-lg border-0"
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#cbd5e1",
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        />
-        <kbd
-          className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none select-none"
-          style={{
-            fontSize: "10px",
-            color: "rgba(71,85,105,0.7)",
-            fontFamily: "'JetBrains Mono', monospace",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "4px",
-            padding: "4px 4px",
-          }}
+      <div className="flex items-center gap-3 flex-1 justify-center">
+        <div ref={searchContainerRef} className="relative flex-1 max-w-[460px]">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+            style={{ color: "rgba(71,85,105,0.8)" }}
+          />
+          <Input
+            placeholder="Search tabs, findings, resources…"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setSearchDropdownOpen(true);
+            }}
+            onFocus={() => setSearchDropdownOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && searchResults.length > 0) navigateFromSearch(searchResults[0].tab);
+              if (e.key === "Escape") setSearchDropdownOpen(false);
+            }}
+            className="h-9 pl-9 pr-14 text-sm rounded-lg border-0"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#cbd5e1",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          />
+          <kbd
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+            style={{
+              fontSize: "10px",
+              color: "rgba(71,85,105,0.7)",
+              fontFamily: "'JetBrains Mono', monospace",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "4px",
+              padding: "4px 4px",
+            }}
         >
           ⌘K
         </kbd>
@@ -346,7 +367,8 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── RIGHT: Controls ── */}
@@ -492,10 +514,10 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
                   className="text-[11px] font-bold"
                   style={{ background: "rgba(0,255,136,0.1)", color: "#00ff88" }}
                 >
-                  AD
+                  {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden lg:block text-xs text-slate-400">Admin</span>
+              <span className="hidden lg:block text-xs text-slate-400">{displayName}</span>
               <ChevronDown className="hidden lg:block h-3 w-3 text-slate-600" />
             </button>
           </DropdownMenuTrigger>
@@ -509,12 +531,12 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           >
             <div className="px-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div className="flex items-center justify-between mb-0.5">
-                <p className="text-sm font-semibold text-slate-200">Cloud Security Admin</p>
+                <p className="text-sm font-semibold text-slate-200">{displayName}</p>
                 <span style={{ fontSize: 9, fontWeight: 700, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.2)", padding: "0 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
-                  ADMIN
+                  USER
                 </span>
               </div>
-              <p className="text-xs mt-0.5" style={{ color: "rgba(100,116,139,0.8)" }}>admin@cloudsec.com</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(100,116,139,0.8)" }}>{displayName}</p>
             </div>
             <div className="p-1.5">
               <DropdownMenuItem className="rounded-lg cursor-pointer text-slate-400 hover:text-slate-200 text-sm gap-2.5">
@@ -531,7 +553,11 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
             </div>
             <DropdownMenuSeparator style={{ background: "rgba(255,255,255,0.06)" }} />
             <div className="p-1.5">
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm gap-2.5" style={{ color: "#ff0040" }}>
+              <DropdownMenuItem
+                className="rounded-lg cursor-pointer text-sm gap-2.5"
+                style={{ color: "#ff0040" }}
+                onClick={() => void handleSignOut()}
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>
