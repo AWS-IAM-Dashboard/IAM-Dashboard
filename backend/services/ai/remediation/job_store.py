@@ -4,9 +4,11 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
+import time
 
 import boto3
 from botocore.exceptions import ClientError
+
 
 
 def _utc_now_iso() -> str:
@@ -40,7 +42,9 @@ class InMemoryRemediationJobStore:
         if idempotency_key in self._idempotency:
             return self._idempotency[idempotency_key], False
 
-        job_id = f"remediation-{datetime.utcnow().timestamp_ns()}"
+        ##job_id = f"remediation-{datetime.utcnow().timestamp_ns()}"
+
+        job_id = f"remediation-{time.time_ns()}"
         self._idempotency[idempotency_key] = job_id
         self._jobs[job_id] = {
             "job_id": job_id,
@@ -183,11 +187,13 @@ class DynamoDBRemediationJobStore:
             ExpressionAttributeNames=expr_attr_names,
         )
 
+_INMEMORY_STORE = InMemoryRemediationJobStore()
+
 
 def get_job_store():
     # Local/test default: in-memory to avoid hard dependency on AWS.
     use_dynamo = os.environ.get("AI_REMEDIATION_USE_DYNAMODB", "").strip().lower() in {"1", "true", "yes"}
     if use_dynamo:
         return DynamoDBRemediationJobStore()
-    return InMemoryRemediationJobStore()
+    return _INMEMORY_STORE 
 
