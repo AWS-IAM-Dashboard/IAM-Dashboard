@@ -1,5 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
+import { useAuth } from "../context/AuthContext";
+import { OnboardingWizard } from "../components/OnboardingWizard";
+import { isOnboardingCompleted, markOnboardingCompleted } from "../utils/onboardingStorage";
 
 function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
   return (
@@ -82,8 +85,28 @@ import { AwsAccountProvider } from "../context/AwsAccountContext";
 import type { ReportRecord } from "../types/report";
 
 export function DashboardApp() {
+  const auth = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const username = auth.user?.username;
+    if (!username || auth.isLoading) return;
+    if (isOnboardingCompleted(username)) return;
+    const id = requestAnimationFrame(() => setShowOnboarding(true));
+    return () => cancelAnimationFrame(id);
+  }, [auth.user?.username, auth.isLoading]);
+
+  const handleOnboardingOpenChange = useCallback(
+    (open: boolean) => {
+      setShowOnboarding(open);
+      if (!open && auth.user?.username) {
+        markOnboardingCompleted(auth.user.username);
+      }
+    },
+    [auth.user?.username],
+  );
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
@@ -183,7 +206,27 @@ export function DashboardApp() {
             }}
           />
         </div>
+<<<<<<< Updated upstream
       </AwsAccountProvider>
+=======
+        <Toaster
+          position="top-right"
+          theme="dark"
+          toastOptions={{
+            style: {
+              background: "rgba(15, 23, 42, 0.8)",
+              border: "1px solid rgba(0, 255, 136, 0.3)",
+              color: "#e2e8f0",
+            },
+          }}
+        />
+        <OnboardingWizard
+          open={showOnboarding}
+          onOpenChange={handleOnboardingOpenChange}
+          onNavigate={setActiveTab}
+        />
+      </div>
+>>>>>>> Stashed changes
     </ScanResultsProvider>
   );
 }
