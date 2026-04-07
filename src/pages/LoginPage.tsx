@@ -1,7 +1,7 @@
 import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logoImage from "@/assets/logo.png";
 
@@ -31,7 +31,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center overflow-hidden bg-black p-4">
+    <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 sm:py-8" role="main" aria-label="Sign in">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-1/4 top-1/4 -z-10 h-[400px] w-[400px] rounded-full bg-green-500 opacity-20 blur-[120px] animate-pulse-slow"></div>
@@ -39,14 +39,15 @@ export function LoginPage() {
         <div className="absolute right-0 top-0 -z-10 h-full w-full bg-gradient-to-b from-transparent via-slate-950/30 to-black"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md py-4 sm:py-0">
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
           onClick={() => navigate("/")}
-          className="group absolute -top-16 left-0 flex items-center gap-2 text-gray-400 transition-colors hover:text-green-400"
+          className="group absolute left-0 top-0 flex min-h-[44px] min-w-[44px] items-center gap-2 text-gray-400 transition-colors hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black sm:-top-16"
           type="button"
+          aria-label="Back to home"
         >
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           <span>Back to home</span>
@@ -84,7 +85,8 @@ export function LoginPage() {
             <button
               type="button"
               disabled
-              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              className="group relative flex w-full min-h-[44px] cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              aria-label="Continue with Google"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
               <svg className="relative z-10 h-5 w-5" viewBox="0 0 24 24">
@@ -111,10 +113,11 @@ export function LoginPage() {
             <button
               type="button"
               disabled
-              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              className="group relative flex w-full min-h-[44px] cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              aria-label="Continue with GitHub"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
-              <Github className="relative z-10 h-5 w-5" />
+              <Github className="relative z-10 h-5 w-5" aria-hidden />
               <span className="relative z-10">Continue with GitHub</span>
             </button>
           </div>
@@ -143,6 +146,7 @@ export function LoginPage() {
                   placeholder="Enter your username"
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-white placeholder-gray-500 backdrop-blur-sm transition-all focus:border-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50"
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -161,13 +165,15 @@ export function LoginPage() {
                   placeholder="Enter your password"
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-11 pr-11 text-white placeholder-gray-500 backdrop-blur-sm transition-all focus:border-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50"
                   required
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-green-400"
+                  className="absolute right-3 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center text-gray-500 transition-colors hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-5 w-5" aria-hidden /> : <Eye className="h-5 w-5" aria-hidden />}
                 </button>
               </div>
             </div>
@@ -182,19 +188,20 @@ export function LoginPage() {
               <label className="group flex cursor-pointer items-center gap-2 text-gray-400">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 cursor-pointer rounded border-white/20 bg-white/5 text-green-500 focus:ring-green-500/50 focus:ring-offset-0"
+                  className="h-5 w-5 min-h-[20px] min-w-[20px] cursor-pointer rounded border-white/20 bg-white/5 text-green-500 focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
+                  aria-label="Remember me"
                 />
                 <span className="transition-colors group-hover:text-gray-300">Remember me</span>
               </label>
-              <a href="#" className="text-green-400 transition-colors hover:text-green-300">
+              <Link to="/forgot-password" className="text-green-400 transition-colors hover:text-green-300">
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
+              className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
             >
               <span className="relative z-10">{isSubmitting ? "Signing In..." : "Sign In"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -203,9 +210,9 @@ export function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-400">
             Don&apos;t have an account?{" "}
-            <a href="#" className="font-semibold text-green-400 transition-colors hover:text-green-300">
+            <Link to="/signup" className="font-semibold text-green-400 transition-colors hover:text-green-300">
               Sign up
-            </a>
+            </Link>
           </div>
 
           <div className="mt-8 border-t border-white/10 pt-6">

@@ -14,7 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { cn } from "./ui/utils";
 
 interface HeaderProps {
@@ -95,7 +95,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
   const displayName = auth.user?.username || "Authenticated User";
   const initials = displayName
     .split(/[\s@._-]+/)
@@ -277,42 +277,43 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       </div>
 
       {/* ── CENTER: Search ── */}
-      <div ref={searchContainerRef} className="relative flex-1 max-w-[380px] mx-6">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-          style={{ color: "rgba(71,85,105,0.8)" }}
-        />
-        <Input
-          placeholder="Search tabs, findings, resources…"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setSearchDropdownOpen(true);
-          }}
-          onFocus={() => setSearchDropdownOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && searchResults.length > 0) navigateFromSearch(searchResults[0].tab);
-            if (e.key === "Escape") setSearchDropdownOpen(false);
-          }}
-          className="h-9 pl-9 pr-14 text-sm rounded-lg border-0"
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#cbd5e1",
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        />
-        <kbd
-          className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none select-none"
-          style={{
-            fontSize: "10px",
-            color: "rgba(71,85,105,0.7)",
-            fontFamily: "'JetBrains Mono', monospace",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: "4px",
-            padding: "4px 4px",
-          }}
+      <div className="flex items-center gap-3 flex-1 justify-center">
+        <div ref={searchContainerRef} className="relative flex-1 max-w-[460px]">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+            style={{ color: "rgba(71,85,105,0.8)" }}
+          />
+          <Input
+            placeholder="Search tabs, findings, resources…"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setSearchDropdownOpen(true);
+            }}
+            onFocus={() => setSearchDropdownOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && searchResults.length > 0) navigateFromSearch(searchResults[0].tab);
+              if (e.key === "Escape") setSearchDropdownOpen(false);
+            }}
+            className="h-9 pl-9 pr-14 text-sm rounded-lg border-0"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#cbd5e1",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          />
+          <kbd
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+            style={{
+              fontSize: "10px",
+              color: "rgba(71,85,105,0.7)",
+              fontFamily: "'JetBrains Mono', monospace",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: "4px",
+              padding: "4px 4px",
+            }}
         >
           ⌘K
         </kbd>
@@ -366,7 +367,8 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── RIGHT: Controls ── */}

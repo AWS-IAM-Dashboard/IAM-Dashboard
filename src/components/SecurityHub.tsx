@@ -16,7 +16,7 @@ import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard as SharedStatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface SecurityHubFinding {
   id: string;
@@ -156,7 +156,7 @@ export function SecurityHub() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
-  const { addScanResult, getScanResult } = useScanResults();
+  const { addScanResult, getScanResult } = useActiveScanResults();
 
   // Animate scan progress bar
   useEffect(() => {

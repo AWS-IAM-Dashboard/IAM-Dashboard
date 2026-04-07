@@ -16,7 +16,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
 import { toast } from "sonner";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import type { ReportRecord } from "../types/report";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ export function Reports({ reports }: ReportsProps) {
   const [builderName, setBuilderName] = useState("");
   const [formats, setFormats] = useState({ pdf: true, csv: false, json: false });
   const [historySearch, setHistorySearch] = useState("");
-  const { getScanResult, getAllScanResults } = useScanResults();
+  const { getScanResult, getAllScanResults } = useActiveScanResults();
 
   // ── Shared data helpers ──────────────────────────────────────────────────
   const extractFindingsFromResult = (scanResult: any): any[] => {

@@ -12,7 +12,7 @@ import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { maskSensitiveData } from "../utils/security";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
@@ -185,7 +185,7 @@ function Chip({
 
 /* ─── Main Component ──────────────────────────────────────────────────────── */
 export function CloudSecurityAlerts() {
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
 
   /* ── Filter / sort state ── */
   const [search,        setSearch]        = useState("");
