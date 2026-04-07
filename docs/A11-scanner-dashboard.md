@@ -8,11 +8,13 @@ Adds a Grafana dashboard that shows:
 - Scanner service health
 
 ## Data Sources
-- **Primary**: DynamoDB (requires AWS credentials)
-- **Fallback**: PostgreSQL (used automatically when AWS is unavailable)
+- **Grafana dashboard panels** (`scanner-performance-dashboard.json`): Query PostgreSQL directly — DynamoDB is not used by the dashboard itself.
+- **API endpoint** (`/api/v1/scan-history`): Follows a DynamoDB-primary / PostgreSQL-fallback pattern. DynamoDB is tried first; PostgreSQL is used automatically when AWS is unavailable.
 - **Health panel**: Prometheus (`job="backend"`)
 
 ## Environment Variables Required
+
+
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL DSN e.g. `postgresql://user:pass@db:5432/cybersecurity_db` |

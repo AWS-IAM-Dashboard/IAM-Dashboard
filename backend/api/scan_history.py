@@ -58,7 +58,7 @@ class ScanHistoryResource(Resource):
         except Exception as error:
             # FIX #2: All other exceptions return 500, never masked as empty data.
             logger.error("Unexpected error in scan history: %s", str(error), exc_info=True)
-            raise InternalServerError("Unexpected error fetching scan history.")
+            raise InternalServerError("Unexpected error fetching scan history.") from error
 
     def _get_from_postgres(self, limit, scanner_type_filter=None, status_filter=None):
         """Fallback to PostgreSQL for scan history."""
@@ -107,12 +107,12 @@ class ScanHistoryResource(Resource):
 
             cols = ["scan_id", "scanner_type", "status", "timestamp",
                     "started_at", "completed_at", "duration_sec"]
-            items = [dict(zip(cols, row)) for row in rows]
+            items = [dict(zip(cols, row, strict=True)) for row in rows]
             return {"items": items, "total": total}, 200
 
         except Exception as db_error:
             logger.error("PostgreSQL fallback failed: %s", str(db_error), exc_info=True)
-            raise InternalServerError("Database fallback failed.")
+            raise InternalServerError("Database fallback failed.") from db_error
 
     def _normalize_record(self, item):
         """Normalize scan record shape for dashboard consumption."""

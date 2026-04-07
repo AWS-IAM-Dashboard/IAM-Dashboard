@@ -1,3 +1,4 @@
+
 """
 DynamoDB Service for data persistence and management
 """
@@ -73,11 +74,20 @@ class DynamoDBService:
             logger.error(f"DynamoDB error getting scan record: {str(e)}")
             return None
 
-    def list_scan_records(self, limit: int = 100) -> List[Dict]:
-        """List recent scan records"""
+    def list_scan_records(self) -> List[Dict]:
+        """List all scan records using paginated DynamoDB scan"""
         try:
-            response = self.scan_results.scan(Limit=limit)
-            return response.get('Items', [])
+            items = []
+            response = self.scan_results.scan()
+            items.extend(response.get('Items', []))
+
+            while 'LastEvaluatedKey' in response:
+                response = self.scan_results.scan(
+                    ExclusiveStartKey=response['LastEvaluatedKey']
+                )
+                items.extend(response.get('Items', []))
+
+            return items
         except ClientError as e:
             logger.error(f"DynamoDB error listing scan records: {str(e)}")
             return []
@@ -251,4 +261,3 @@ class DynamoDBService:
         except ClientError as e:
             logger.error(f"DynamoDB error deleting old records: {str(e)}")
             return 0
-
