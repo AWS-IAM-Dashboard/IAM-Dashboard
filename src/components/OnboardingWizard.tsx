@@ -262,7 +262,7 @@ export function OnboardingWizard({ open, onOpenChange, onNavigate }: OnboardingW
           </span>
         </div>
 
-        <div className="shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-t border-white/5 bg-black/20 px-6 py-4 sm:justify-between">
+        <div className="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-t border-white/5 bg-black/20 px-6 py-4 sm:justify-between">
           <Button
             type="button"
             variant="ghost"

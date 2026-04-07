@@ -10,7 +10,7 @@ export function isOnboardingCompleted(username: string): boolean {
   try {
     return localStorage.getItem(storageKey(username)) != null;
   } catch {
-    return true;
+    return false;
   }
 }
 

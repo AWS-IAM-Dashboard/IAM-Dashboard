@@ -92,8 +92,14 @@ export function DashboardApp() {
 
   useEffect(() => {
     const username = auth.user?.username;
-    if (!username || auth.isLoading) return;
-    if (isOnboardingCompleted(username)) return;
+    if (!username || auth.isLoading) {
+      setShowOnboarding(false);
+      return;
+    }
+    if (isOnboardingCompleted(username)) {
+      setShowOnboarding(false);
+      return;
+    }
     const id = requestAnimationFrame(() => setShowOnboarding(true));
     return () => cancelAnimationFrame(id);
   }, [auth.user?.username, auth.isLoading]);
