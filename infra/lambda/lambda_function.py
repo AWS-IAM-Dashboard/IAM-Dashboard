@@ -179,8 +179,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
                 store = get_job_store()
                 results: List[Dict[str, Any]] = []
+                batchItemFailures = []
 
                 for record in event["Records"]:
+                    msg_id = record.get("messageId")
                     try:
                         job_id_for_error: Optional[str] = None
                         body_raw = record.get("body", "{}")
@@ -189,11 +191,15 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         job_id_for_error = job_id
                         if not job_id:
                             results.append({"job_id": None, "status": "failed", "error": "Missing job_id"})
+                            if msg_id:
+                                batchItemFailures.append({"itemIdentifier": msg_id})
                             continue
 
                         job = store.get_job(job_id=job_id)
                         if not job:
                             results.append({"job_id": job_id, "status": "failed", "error": "Job not found"})
+                            if msg_id:
+                                batchItemFailures.append({"itemIdentifier": msg_id})
                             continue
 
                         attempt_count = int(job.get("attempt_count", 0))
@@ -206,6 +212,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 last_error="MAX_ATTEMPTS_REACHED",
                             )
                             results.append({"job_id": job_id, "status": "failed", "error": "Max attempts"})
+                            if msg_id:
+                                batchItemFailures.append({"itemIdentifier": msg_id})
                             continue
 
                         store.update_job_status(
@@ -242,9 +250,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         except Exception:
                             pass
                         results.append({"status": "failed", "error": str(e)[:2000]})
+                        if msg_id:
+                            batchItemFailures.append({"itemIdentifier": msg_id})
 
-                logger.info(f"Remediation worker processed {len(results)} record(s)")
-                return {"status": "ok", "processed": len(results), "results": results}
+                logger.info(f"Remediation worker processed {len(results)} record(s) with {len(batchItemFailures)} failures")
+                return {"batchItemFailures": batchItemFailures}
         
         # Parse event (API Gateway or direct invocation)
         if 'httpMethod' in event or 'requestContext' in event:

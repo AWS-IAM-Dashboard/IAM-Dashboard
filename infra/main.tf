@@ -171,7 +171,7 @@ resource "aws_sqs_queue" "remediation_dlq" {
 resource "aws_sqs_queue" "remediation_queue" {
   name                       = "iam-dashboard-remediation-queue"
   message_retention_seconds = 345600 # 4 days
-  visibility_timeout_seconds = 60
+  visibility_timeout_seconds = 300
 
   kms_master_key_id       = data.aws_kms_key.logs.arn
   sqs_managed_sse_enabled = false
@@ -189,8 +189,9 @@ resource "aws_sqs_queue" "remediation_queue" {
 }
 
 resource "aws_lambda_event_source_mapping" "remediation_sqs_mapping" {
-  event_source_arn = aws_sqs_queue.remediation_queue.arn
-  function_name    = module.lambda.lambda_function_arn
-  batch_size       = 1
-  enabled          = true
+  event_source_arn        = aws_sqs_queue.remediation_queue.arn
+  function_name           = module.lambda.lambda_function_arn
+  batch_size              = 1
+  enabled                 = true
+  function_response_types = ["ReportBatchItemFailures"]
 }
