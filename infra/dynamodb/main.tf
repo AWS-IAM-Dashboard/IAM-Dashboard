@@ -82,6 +82,10 @@ resource "aws_dynamodb_table" "remediation_jobs" {
     type = "S"
   }
 
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
+  }
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = var.dynamodb_kms_key_arn
@@ -107,6 +111,10 @@ resource "aws_dynamodb_table" "remediation_idempotency" {
   attribute {
     name = "idempotency_key"
     type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
   }
 
   server_side_encryption {

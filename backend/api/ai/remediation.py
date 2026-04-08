@@ -66,7 +66,12 @@ class RemediationResource(Resource):
                 )
             except Exception:
                 # If enqueue fails, mark job as failed so the UI doesn't wait forever.
-                store.update_job_status(job_id=job_id, status="failed", last_error="SQS_ENQUEUE_FAILED")
+                store.update_job_status(
+                    job_id=job_id,
+                    status="failed",
+                    last_error="SQS_ENQUEUE_FAILED",
+                    result=None,
+                )
                 return {"error": "Failed to enqueue remediation job."}, 500
         else:
             # Local/dev fallback: if no queue is configured, process immediately.
@@ -77,10 +82,16 @@ class RemediationResource(Resource):
                     store.update_job_status(
                         job_id=job_id,
                         status="blocked" if result.get("blocked") else "completed",
+                        last_error=None,
                         result=result,
                     )
                 except Exception as e:
-                    store.update_job_status(job_id=job_id, status="failed", last_error=str(e)[:2000])
+                    store.update_job_status(
+                        job_id=job_id,
+                        status="failed",
+                        last_error=str(e)[:2000],
+                        result=None,
+                    )
 
         return {"remediation_job_id": job_id}, 202
 

@@ -26,12 +26,20 @@ variable "dynamodb_remediation_jobs_table_name" {
   description = "Name of the DynamoDB table for remediation job persistence"
   type        = string
   default     = "iam-dashboard-remediation-jobs"
+  validation {
+    condition     = startswith(var.dynamodb_remediation_jobs_table_name, "iam-dashboard-")
+    error_message = "dynamodb_remediation_jobs_table_name must start with 'iam-dashboard-' to match Lambda IAM policy scope."
+  }
 }
 
 variable "dynamodb_remediation_idempotency_table_name" {
   description = "Name of the DynamoDB table for remediation idempotency key mapping"
   type        = string
   default     = "iam-dashboard-remediation-idempotency"
+  validation {
+    condition     = startswith(var.dynamodb_remediation_idempotency_table_name, "iam-dashboard-")
+    error_message = "dynamodb_remediation_idempotency_table_name must start with 'iam-dashboard-' to match Lambda IAM policy scope."
+  }
 }
 
 variable "enable_scanner_type_index" {

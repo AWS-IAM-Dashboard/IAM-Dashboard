@@ -49,6 +49,8 @@ All 4 stages implemented in code:
 3. **Safety filter** — blocks wildcards, `AdministratorAccess`, broad principals, etc.
 4. **Blocked fallback** — explicit `violations` list returned if anything fires
 
+Violation reporting includes backward-compatible coarse IDs and field-context IDs so a `Principal: "*"` finding is labeled as principal-specific instead of being conflated with action/resource wildcard rules.
+
 > Policy is enforced in code, not just in the prompt.
 
 ---
@@ -175,10 +177,11 @@ GET http://localhost:<port>/api/v1/remediation/<job_id>
 
 **Blocked response (if guardrails fired):**
 ```json
-{ "status": "blocked", "violations": ["..."] }
+{ "status": "blocked", "result": { "violations": ["..."] } }
 ```
 
 > **Testing the safety filter:** Send a finding payload containing `Action: "*"` or `AdministratorAccess` in the policy snippet. The response should come back `blocked: true` with the matching violation rule ID.
+> The response may include both coarse IDs (for compatibility) and field-context IDs (for precision), for example `BANNED_WILDCARD_ACTION` plus `BANNED_WILDCARD_ACTION_FIELD`.
 
 
 # Script used to test (copy paste version)

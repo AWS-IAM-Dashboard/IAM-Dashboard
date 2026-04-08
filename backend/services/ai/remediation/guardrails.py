@@ -25,6 +25,9 @@ BANNED_WILDCARD_ACTION = "BANNED_WILDCARD_ACTION"
 BANNED_WILDCARD_RESOURCE = "BANNED_WILDCARD_RESOURCE"
 BANNED_ADMINISTRATORACCESS = "BANNED_ADMINISTRATORACCESS"
 BANNED_PRINCIPAL_STAR = "BANNED_PRINCIPAL_STAR"
+BANNED_WILDCARD_ACTION_FIELD = "BANNED_WILDCARD_ACTION_FIELD"
+BANNED_WILDCARD_RESOURCE_FIELD = "BANNED_WILDCARD_RESOURCE_FIELD"
+BANNED_PRINCIPAL_STAR_FIELD = "BANNED_PRINCIPAL_STAR_FIELD"
 
 
 _PROMPT_INJECTION_PATTERNS = [
@@ -106,6 +109,59 @@ def _contains_wildcard_string(value: Any) -> bool:
     )
 
 
+def _contains_broad_resource_wildcard(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+
+    normalized = value.strip()
+    if not normalized:
+        return False
+
+    # Keep parity with existing broad wildcard forms.
+    if _contains_wildcard_string(normalized):
+        return True
+
+    # Match account-wide wildcard in ARN account segment: arn:partition:service:region:*:...
+    # and path/object globs like .../*.
+    return (
+        bool(re.search(r"^arn:[^:]+:[^:]*:[^:]*:\*:", normalized, re.IGNORECASE))
+        or "/*" in normalized
+    )
+
+
+def _contains_wildcard_in_policy_field(statement: Any, field_name: str, matcher: Any) -> bool:
+    if not isinstance(statement, dict):
+        return False
+
+    value = statement.get(field_name)
+    if value is None:
+        return False
+
+    if isinstance(value, list):
+        return any(matcher(item) for item in value)
+
+    return matcher(value)
+
+
+def _extract_statement_list(proposed_change: Dict[str, Any]) -> List[Any]:
+    statements = proposed_change.get("Statement")
+    if isinstance(statements, dict):
+        return [statements]
+    if isinstance(statements, list):
+        return statements
+    return []
+
+
+def _principal_contains_star(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip() == "*"
+    if isinstance(value, list):
+        return any(_principal_contains_star(item) for item in value)
+    if isinstance(value, dict):
+        return any(_principal_contains_star(v) for v in value.values())
+    return False
+
+
 def safety_filter(candidate_response: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """
     Stage 4: safety filter (banned recommendation detection).
@@ -116,6 +172,7 @@ def safety_filter(candidate_response: Dict[str, Any]) -> Tuple[bool, List[str]]:
     - trust policies with Principal == "*"
     """
     violations: List[str] = []
+    granular_violations: List[str] = []
 
     proposed_change = candidate_response.get("proposed_change")
     if isinstance(proposed_change, dict):
@@ -126,18 +183,35 @@ def safety_filter(candidate_response: Dict[str, Any]) -> Tuple[bool, List[str]]:
         if any(isinstance(v, str) and "AdministratorAccess" in v for v in values):
             violations.append(BANNED_ADMINISTRATORACCESS)
 
-        # Wildcards in Action/NotAction or Resource/NotResource.
-        if any(_contains_wildcard_string(v) for v in values):
-            # We distinguish action vs resource by key, but for a conservative MVP
-            # we add both when any wildcard-like string is present.
-            # (This can be refined later if needed.)
-            violations.append(BANNED_WILDCARD_ACTION)
-            violations.append(BANNED_WILDCARD_RESOURCE)
+        # Wildcards in Action/NotAction.
+        statement_list = _extract_statement_list(proposed_change)
 
-        # Principal: "*" is banned.
-        # We specifically check for string "*" occurrences, which are commonly used as Principal/AWS.
-        if any(v == "*" for v in values if isinstance(v, str)):
+        has_action_wildcard = any(
+            _contains_wildcard_in_policy_field(stmt, "Action", _contains_wildcard_string)
+            or _contains_wildcard_in_policy_field(stmt, "NotAction", _contains_wildcard_string)
+            for stmt in statement_list
+        )
+        if has_action_wildcard:
+            violations.append(BANNED_WILDCARD_ACTION)
+            granular_violations.append(BANNED_WILDCARD_ACTION_FIELD)
+
+        # Broad wildcards in Resource/NotResource, including ARN account/path globs.
+        has_resource_wildcard = any(
+            _contains_wildcard_in_policy_field(stmt, "Resource", _contains_broad_resource_wildcard)
+            or _contains_wildcard_in_policy_field(stmt, "NotResource", _contains_broad_resource_wildcard)
+            for stmt in statement_list
+        )
+        if has_resource_wildcard:
+            violations.append(BANNED_WILDCARD_RESOURCE)
+            granular_violations.append(BANNED_WILDCARD_RESOURCE_FIELD)
+
+        # Principal: "*" is banned in trust policy fields only.
+        has_principal_star = any(
+            _principal_contains_star(stmt.get("Principal")) for stmt in statement_list if isinstance(stmt, dict)
+        )
+        if has_principal_star:
             violations.append(BANNED_PRINCIPAL_STAR)
+            granular_violations.append(BANNED_PRINCIPAL_STAR_FIELD)
 
     # If proposed_change is a list (operational steps), we keep it simple:
     # disallow disabling security controls by searching for common phrases.
@@ -146,8 +220,8 @@ def safety_filter(candidate_response: Dict[str, Any]) -> Tuple[bool, List[str]]:
         if "disable mfa" in joined or "turn off mfa" in joined:
             violations.append("BANNED_WEAKEN_MFA")
 
-    if violations:
-        return False, sorted(set(violations))
+    if violations or granular_violations:
+        return False, sorted(set(violations + granular_violations))
     return True, []
 
 

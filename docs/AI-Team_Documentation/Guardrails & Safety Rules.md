@@ -36,6 +36,7 @@ These rules are **non‑negotiable**. If a suggestion hits any of these, it is b
 
 - `Action: "*"` or anything as broad as `iam:*` when a narrower set is possible
 - `Resource: "*"` when a specific ARN (or tightly scoped pattern) should be used
+- Broad resource wildcard ARN/glob shapes like `arn:aws:iam::*:role/*` or `arn:aws:s3:::bucket/*`
 - Recommending `AdministratorAccess` or any full‑access policy as a “fix”
 - Trusting `Principal: "*"` or overly broad cross‑account trust without conditions
 - Removing `ExternalId` or other critical trust conditions just to “make something work”
@@ -65,6 +66,10 @@ Every remediation response is a **single JSON object** with a **fixed structure*
 | `requires_review`| Always `true`. The AI never auto‑applies anything                                            |
 | `blocked`        | `true` if a guardrail fired and the suggestion was intentionally blocked                     |
 | `violations`     | Which rules triggered, e.g. `["BANNED_WILDCARD_ACTION"]`                                     |
+
+`violations` now includes both:
+- **Coarse compatibility IDs** (for existing consumers), e.g. `BANNED_WILDCARD_ACTION`
+- **Field-context IDs** (for explicit labeling), e.g. `BANNED_WILDCARD_ACTION_FIELD`, `BANNED_WILDCARD_RESOURCE_FIELD`, `BANNED_PRINCIPAL_STAR_FIELD`
 
 ### Type‑Specific Behavior
 
@@ -135,13 +140,14 @@ If schema validation fails:
 The parsed `proposed_change` is scanned for **banned recommendations**:
 
 - Wildcards and over‑broad access
+- ARN account/path wildcard resources (for example account `*` in ARN segments or `/*` globs)
 - Dangerous principals and trust policies
 - Steps that weaken or disable security controls
 
 If any banned recommendation is detected:
 
 - `blocked` is set to `true`
-- `violations` is populated with the relevant rule IDs
+- `violations` is populated with both coarse and field-context rule IDs
 - The unsafe suggestion **never surfaces** to the user as an approved remediation
 
 ### Stage 5 — Human Review Gate

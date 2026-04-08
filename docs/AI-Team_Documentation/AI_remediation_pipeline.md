@@ -18,9 +18,9 @@ Why external Gemini API instead of hosting our own model? Fastest integration pa
 
 ## API Shape
 
-POST /remediation → 202 Accepted { remediation_job_id }
+POST /api/v1/remediation (requires `Idempotency-Key` header) → 202 Accepted { remediation_job_id }
 
-GET /remediation/{job_id} → { status: queued | running | completed | blocked | failed, result? }
+GET /api/v1/remediation/{job_id} → { status: queued | running | completed | blocked | failed, result? }
 
 Frontend polls on that GET endpoint. Simple, works in any browser or static frontend — no webhook complexity to deal with.
 
@@ -37,12 +37,13 @@ Every job gets its own record. A separate table is the move, but it can share th
 | Field | What it holds |
 |---|---|
 | `job_id` | Partition key |
-| `user_id` / `account_id` | Who kicked this off |
-| `finding_id` | What finding it's tied to |
+| `account_id` | Who kicked this off (currently stored from `environment_context.account_id`) |
+| `user_id` | Planned: add explicit user scoping field in job records |
+| `finding_id` | Planned: persist finding linkage per job for cross-job regenerate controls |
 | `created_at` | Timestamp |
 | `status` | `queued`, `running`, `completed`, `blocked`, `failed` |
-| `attempt_count` | How many regenerates so far |
-| `max_attempts` | Capped at 4 |
+| `attempt_count` | Current implementation: attempts for that single job lifecycle (worker retries), not cross-job per-finding regenerates |
+| `max_attempts` | Current implementation: per-job cap (currently 4) for worker attempts |
 | `last_error` | What went wrong if it failed |
 | `result fields` | `type`, `risk_level`, `explanation`, `proposed_change`, `requires_review`, `blocked`, `violations` |
 
@@ -52,13 +53,14 @@ This is what makes refresh and account switching work — the result lives in Dy
 
 ## Regenerate Policy 
 
-Users can hit Regenerate up to 4 times per finding, scoped to their user/account.
+Planned behavior: users can hit Regenerate up to 4 times per finding, scoped to their user/account.
 
 `A few things to lock in here:`
 
 - Each regenerate creates a new job_id but links back to the same finding_id. This keeps the audit trail clean and avoids overwriting prior suggestions.
+  - Status today: this finding linkage is not yet enforced/persisted in remediation job records.
 
-- `Enforce the limit server-side.` Don't trust the UI to gate this — the backend has to check attempt_count against max_attempts before spinning up a new job.
+- `Enforce the limit server-side.` Don't trust the UI to gate this — the backend must perform a per-finding lookup and enforce the 4-attempt cap across jobs before this contract is considered active.
 
 ---
 
@@ -66,7 +68,7 @@ Users can hit Regenerate up to 4 times per finding, scoped to their user/account
 
 Even with regenerate allowed, a single click should never create duplicate jobs. Here's how:
 
-- Client sends an idempotency key on every POST /remediation
+- Client sends an `Idempotency-Key` header on every POST /api/v1/remediation
 
 - If the server already created a job for that key, it returns the existing job_id — no new job created
 This covers refresh, double-clicks, and any other "user clicked twice" scenarios.

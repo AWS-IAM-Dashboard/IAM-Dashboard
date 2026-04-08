@@ -213,6 +213,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             status="running",
                             attempt_count=attempt_count + 1,
                             last_error=None,
+                            result=None,
                         )
 
                         ai2_input = job.get("ai2_input")
@@ -224,6 +225,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         store.update_job_status(
                             job_id=job_id,
                             status="blocked" if is_blocked else "completed",
+                            last_error=None,
                             result=remediation_response,
                         )
                         results.append({"job_id": job_id, "status": "blocked" if is_blocked else "completed"})
@@ -235,6 +237,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 job_id=job_id_for_error,
                                 status="failed",
                                 last_error=str(e)[:2000],
+                                result=None,
                             )
                         except Exception:
                             pass
