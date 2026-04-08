@@ -86,7 +86,8 @@ module "lambda" {
   dynamodb_remediation_jobs_table_name       = module.dynamodb.remediation_jobs_table_name
   dynamodb_remediation_idempotency_table_name = module.dynamodb.remediation_idempotency_table_name
   s3_bucket_name       = var.s3_bucket_name
-  lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+  lambda_kms_key_arn          = data.aws_kms_key.logs.arn
+  remediation_sqs_queue_url   = aws_sqs_queue.remediation_queue.url
 }
 
 # API Gateway Module for the Scanner APIs

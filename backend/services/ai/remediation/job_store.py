@@ -10,6 +10,9 @@ import uuid
 import boto3
 from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
+import logging
+
+logger = logging.getLogger(__name__)
 
 _UNSET = object()
 
@@ -79,6 +82,7 @@ class InMemoryRemediationJobStore:
         result: Any = _UNSET,
     ) -> None:
         if job_id not in self._jobs:
+            logger.warning(f"missing job: {job_id} in update_job_status")
             return
         job = self._jobs[job_id]
         job["status"] = status
@@ -206,12 +210,15 @@ class DynamoDBRemediationJobStore:
         )
 
 _INMEMORY_STORE = InMemoryRemediationJobStore()
-
+_DYNAMO_STORE = None
 
 def get_job_store():
+    global _DYNAMO_STORE
     # Local/test default: in-memory to avoid hard dependency on AWS.
     use_dynamo = os.environ.get("AI_REMEDIATION_USE_DYNAMODB", "").strip().lower() in {"1", "true", "yes"}
     if use_dynamo:
-        return DynamoDBRemediationJobStore()
+        if _DYNAMO_STORE is None:
+            _DYNAMO_STORE = DynamoDBRemediationJobStore()
+        return _DYNAMO_STORE
     return _INMEMORY_STORE 
 

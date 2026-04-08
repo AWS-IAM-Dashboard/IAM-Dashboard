@@ -1,5 +1,5 @@
 # Build Lambda deployment package (zip) with deps. Use from repo root:
-#   docker build -f infra/lambda/Dockerfile.build -o out infra/lambda
+#   docker build -f infra/lambda/Dockerfile.build -o out .
 #checkov:skip=CKV_DOCKER_2:Build-only image with no runtime process; HEALTHCHECK is not applicable
 #checkov:skip=CKV_DOCKER_3:Build-only image with no CMD/ENTRYPOINT; non-root user is not applicable
 FROM python:3.13-slim
@@ -10,10 +10,10 @@ WORKDIR /build
 RUN apt-get update -qq && apt-get install -y --no-install-recommends zip && rm -rf /var/lib/apt/lists/*
 
 # Copy only what's needed for the package
-COPY requirements.txt ./
+COPY infra/lambda/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -t .
 
-COPY lambda_function.py ./
+COPY infra/lambda/lambda_function.py ./
 # Include the deterministic remediation engine + guardrails used by the SQS worker mode.
 COPY backend/services/ai ./services/ai
 

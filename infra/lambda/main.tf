@@ -40,12 +40,17 @@ resource "aws_iam_role" "lambda_role" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 # IAM policy for Lambda function
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "${var.lambda_role_name}-policy"
   role = aws_iam_role.lambda_role.id
 
-  policy = file("${path.module}/lambda-role-policy.json")
+  policy = templatefile("${path.module}/lambda-role-policy.json", {
+    region     = var.aws_region
+    account_id = data.aws_caller_identity.current.account_id
+  })
 }
 
 # Package Lambda function code
@@ -83,6 +88,7 @@ resource "aws_lambda_function" "scanner" {
         AI_REMEDIATION_USE_DYNAMODB = "true"
         DYNAMODB_REMEDIATION_JOBS_TABLE = var.dynamodb_remediation_jobs_table_name
         DYNAMODB_REMEDIATION_IDEMPOTENCY_TABLE = var.dynamodb_remediation_idempotency_table_name
+        REMEDIATION_SQS_QUEUE_URL = var.remediation_sqs_queue_url
       }
     )
   }

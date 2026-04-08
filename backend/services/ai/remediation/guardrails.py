@@ -104,8 +104,8 @@ def _walk_values(x: Any) -> List[Any]:
 
 
 def _contains_wildcard_string(value: Any) -> bool:
-    return isinstance(value, str) and value.strip() in {"*", "*:*"} or (
-        isinstance(value, str) and re.match(r"^[a-z0-9-]+:\*$", value.strip(), re.IGNORECASE)
+    return (isinstance(value, str) and value.strip() in {"*", "*:*"}) or (
+        isinstance(value, str) and bool(re.match(r"^[a-z0-9-]+:\*$", value.strip(), re.IGNORECASE))
     )
 
 

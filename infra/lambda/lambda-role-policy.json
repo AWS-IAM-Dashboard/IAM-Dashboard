@@ -48,7 +48,10 @@
         "sqs:GetQueueAttributes",
         "sqs:ChangeMessageVisibility"
       ],
-      "Resource": "arn:aws:sqs:*:*:iam-dashboard-remediation-queue*"
+      "Resource": [
+        "arn:aws:sqs:${region}:${account_id}:iam-dashboard-remediation-queue",
+        "arn:aws:sqs:${region}:${account_id}:iam-dashboard-remediation-dlq"
+      ]
     },
     {
       "Effect": "Allow",

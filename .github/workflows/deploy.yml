@@ -80,7 +80,7 @@ jobs:
       run: |
         echo "Building Lambda deployment package in Docker..."
         docker buildx create --use --name lambda-builder 2>/dev/null || true
-        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out infra/lambda
+        docker buildx build -f infra/lambda/Dockerfile.build --output type=local,dest=./lambda-out .
         docker buildx rm lambda-builder 2>/dev/null || true
         echo "Lambda package: lambda-out/lambda_function.zip"
 

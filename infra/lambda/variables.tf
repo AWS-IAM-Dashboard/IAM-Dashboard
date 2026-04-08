@@ -112,3 +112,8 @@ variable "dynamodb_remediation_idempotency_table_name" {
   type        = string
   default     = "iam-dashboard-remediation-idempotency"
 }
+
+variable "remediation_sqs_queue_url" {
+  description = "URL of the SQS queue for async remediation jobs"
+  type        = string
+}

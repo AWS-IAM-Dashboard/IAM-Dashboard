@@ -64,7 +64,8 @@ class RemediationResource(Resource):
                     QueueUrl=queue_url,
                     MessageBody=json.dumps({"job_id": job_id}),
                 )
-            except Exception:
+            except Exception as e:
+                logger.exception(f"Failed to enqueue remediation job to SQS for job_id={job_id}: {str(e)}")
                 # If enqueue fails, mark job as failed so the UI doesn't wait forever.
                 store.update_job_status(
                     job_id=job_id,

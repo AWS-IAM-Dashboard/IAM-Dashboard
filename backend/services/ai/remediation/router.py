@@ -96,7 +96,7 @@ def route_remediation(input_: NormalizedAi2Input) -> Dict[str, Any]:
     return make_response(
         fix_type="out_of_scope",
         risk_level="low",
-        explanation=f"Unsupported finding_type: {input_.finding_type}. Only the project’s top 10 IAM finding types are handled in this sprint.",
+        explanation=f"Unsupported finding_type: {input_.finding_type}. Only the project's top 10 IAM finding types are handled in this sprint.",
         proposed_change=[],
         blocked=True,
         violations=["UNSUPPORTED_FINDING_TYPE"],
