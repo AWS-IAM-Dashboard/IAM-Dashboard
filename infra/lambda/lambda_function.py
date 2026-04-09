@@ -7,9 +7,11 @@ import json
 import os
 import logging
 import boto3
+import time
 from datetime import datetime
+from http import cookies
 from typing import Dict, Any, Optional
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from decimal import Decimal
 
 # Configure logging
@@ -88,6 +90,22 @@ def mask_sensitive_data(text: str) -> str:
     masked = mask_access_key(masked)
     return masked
 
+def mask_session_id(session_id: str) -> str:
+    """Return a truncated session ID safe for logging."""
+    return session_id[:10] + '...' if session_id and len(session_id) > 10 else '***'
+
+
+def sanitize_event_for_logging(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of the Lambda event with sensitive headers and cookies redacted."""
+    sanitized = json.loads(json.dumps(event, default=str))
+    headers = sanitized.get('headers') or {}
+    for key in ('cookie', 'Cookie', 'authorization', 'Authorization'):
+        if key in headers:
+            headers[key] = '***redacted***'
+    if sanitized.get('cookies'):
+        sanitized['cookies'] = ['***redacted***']
+    return sanitized
+
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
@@ -106,6 +124,73 @@ DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'iam-dashboard-scan-
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'iam-dashboard-project')
 PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+COOKIE_NAME = 'iamdash_session'
+SESSION_TABLE_NAME = os.environ.get('SESSION_TABLE_NAME', 'iam-dashboard-auth-sessions-test')
+SCANNER_GROUP_MAP = {
+    'admin':       None,  # admin is handled separately — allowed all non-full types
+    'iam':         'iam',
+    'ec2':         'ec2',
+    's3':          's3',
+    'securityhub': 'security-hub',
+    'guardduty':   'guardduty',
+    'config':      'config',
+    'inspector':   'inspector',
+    'macie':       'macie',
+}
+
+
+class UnauthorizedError(Exception):
+    """Raised when the request does not have a valid authenticated session."""
+
+
+class ForbiddenError(Exception):
+    """Raised when the authenticated session lacks required groups."""
+
+
+class SessionStoreError(Exception):
+    """Raised when session storage cannot be read safely."""
+
+
+def _cors_allowed_origins_set() -> set:
+    raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+    return {o.strip() for o in raw.split(',') if o.strip()}
+
+
+def _get_header_case_insensitive(headers: Optional[Dict[str, Any]], name: str) -> Optional[str]:
+    """Resolve a header value when API Gateway may use arbitrary key casing."""
+    if not headers:
+        return None
+    target = name.lower()
+    for key, value in headers.items():
+        if key is not None and str(key).lower() == target:
+            if value is None:
+                return None
+            return value if isinstance(value, str) else str(value)
+    return None
+
+
+def _cors_response_headers(event: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """
+    CORS headers for Lambda proxy integration. Reflects Origin only when it is in the allowlist
+    (from CORS_ALLOWED_ORIGINS). Never uses wildcard — required for a consistent security posture
+    alongside API Gateway HTTP API cors_configuration.
+    """
+    allow = _cors_allowed_origins_set()
+    headers: Dict[str, str] = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    }
+    if not allow:
+        return headers
+    origin = None
+    if event:
+        hdrs = event.get('headers') or {}
+        origin = _get_header_case_insensitive(hdrs, 'Origin')
+    if origin and origin in allow:
+        headers['Access-Control-Allow-Origin'] = origin
+        headers['Vary'] = 'Origin'
+    return headers
 
 
 def publish_metric(metric_name: str, value: float, dimensions: Dict[str, str] = None):
@@ -141,6 +226,118 @@ def json_serial(obj):
         return None
 
 
+def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
+    """Extract request cookies from both HTTP API and header-based formats."""
+    parsed: Dict[str, str] = {}
+
+    for raw_cookie in event.get('cookies') or []:
+        morsel = cookies.SimpleCookie()
+        try:
+            morsel.load(raw_cookie)
+        except cookies.CookieError:
+            continue
+        for key, value in morsel.items():
+            parsed[key] = value.value
+
+    headers = event.get('headers') or {}
+    cookie_header = headers.get('cookie') or headers.get('Cookie')
+    if cookie_header:
+        morsel = cookies.SimpleCookie()
+        try:
+            morsel.load(cookie_header)
+        except cookies.CookieError:
+            return parsed
+        for key, value in morsel.items():
+            parsed[key] = value.value
+
+    return parsed
+
+
+def get_session_table():
+    """Resolve the DynamoDB session table from the configured environment."""
+    table_name = SESSION_TABLE_NAME
+    return dynamodb.Table(table_name)
+
+
+def delete_session(session_id: str) -> None:
+    """Delete a session record from DynamoDB."""
+    try:
+        get_session_table().delete_item(Key={'session_id': session_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception('Failed to delete expired session_id=%s', mask_session_id(session_id))
+        raise SessionStoreError('Unable to process request.') from exc
+
+
+def normalize_groups(groups: Any) -> list[str]:
+    """Normalize session groups into a list of strings."""
+    if isinstance(groups, str):
+        groups = [groups]
+    if not isinstance(groups, list):
+        return []
+    return [str(group) for group in groups if str(group).strip()]
+
+
+def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Load a session record and treat expired data as invalid."""
+    try:
+        result = get_session_table().get_item(Key={'session_id': session_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception('Failed to read session_id=%s', mask_session_id(session_id))
+        raise SessionStoreError('Unable to process request.') from exc
+
+    item = result.get('Item')
+    if not item:
+        return None
+
+    try:
+        expires_at = int(item.get('expires_at', 0))
+    except (TypeError, ValueError):
+        expires_at = 0
+
+    if expires_at <= int(time.time()):
+        try:
+            delete_session(session_id)
+        except SessionStoreError:
+            logger.warning('Failed to delete expired session_id=%s', mask_session_id(session_id))
+        return None
+
+    item['groups'] = normalize_groups(item.get('groups'))
+    return item
+
+
+def get_request_session(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Resolve the current request session from the opaque auth cookie."""
+    request_cookies = parse_request_cookies(event)
+    session_id = request_cookies.get(COOKIE_NAME)
+    if not session_id:
+        return None
+    return get_session(session_id)
+
+
+def require_authenticated_session(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Require a valid authenticated session for HTTP-triggered scans."""
+    session = get_request_session(event)
+    if not session:
+        raise UnauthorizedError('Authentication required.')
+    return session
+
+
+def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
+    """Require that the authenticated session has a group permitted to run scanner_type."""
+    groups = set(normalize_groups(session.get('groups')))
+    if 'admin' in groups:
+        return
+    if scanner_type == 'full': # Only admins can run full scans
+        raise ForbiddenError('Forbidden.')
+    
+    lookup = 'securityhub' if scanner_type == 'security-hub' else scanner_type
+    if any(SCANNER_GROUP_MAP.get(g) == scanner_type or
+           (g == 'securityhub' and lookup == 'securityhub')
+           for g in groups):
+        return
+    raise ForbiddenError('Forbidden.')
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler for security scanning
@@ -166,10 +363,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     scan_start_time = datetime.utcnow()
     
     try:
-        logger.info(f"Received event: {json.dumps(event)}")
+        logger.info("Received event: %s", json.dumps(sanitize_event_for_logging(event)))
         
+        is_http_request = 'httpMethod' in event or 'requestContext' in event
+
         # Parse event (API Gateway or direct invocation)
-        if 'httpMethod' in event or 'requestContext' in event:
+        if is_http_request:
             # API Gateway event (v1 REST or v2 HTTP)
             # Extract scanner type from path
             path = event.get('path') or event.get('requestContext', {}).get('http', {}).get('path', '')
@@ -203,6 +402,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return create_response(400, {
                 'error': f'Invalid scanner type. Must be one of: {", ".join(valid_scanners)}'
             })
+
+        if is_http_request:
+            session = require_authenticated_session(event)
+            require_groups(session, scanner_type)
         
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
@@ -334,7 +537,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'message': str(scan_error)[:500],
                     'scan_id': scan_id,
                     'scanner_type': scanner_type
-                })
+                }, event)
         
         # Store results (non-blocking - don't fail if storage fails)
         try:
@@ -350,14 +553,20 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'status': scan_result.get('status', 'completed'),
             'results': scan_result,
             'timestamp': datetime.utcnow().isoformat()
-        })
+        }, event)
         
+    except UnauthorizedError:
+        return create_response(401, {'error': 'Authentication required'})
+    except ForbiddenError:
+        return create_response(403, {'error': 'Forbidden: You do not have sufficient permissions to perform this operation'})
+    except SessionStoreError:
+        return create_response(500, {'error': 'Unable to process request'})
     except Exception as e:
-        logger.error(f"Error in lambda_handler: {str(e)}", exc_info=True)
+        logger.error(f"Error in lambda_handler: {e!s}", exc_info=True)
         return create_response(500, {
             'error': 'Internal server error',
-            'message': str(e)
-        })
+            'message': f"{e!s}"
+        }, event)
 
 
 def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
@@ -1640,19 +1849,18 @@ def store_results(scan_id: str, scanner_type: str, region: str, scan_result: Dic
         logger.error(f"Error storing results: {str(e)}")
 
 
-def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
+def create_response(
+    status_code: int,
+    body: Dict[str, Any],
+    event: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Create API Gateway compatible response with proper JSON serialization"""
     try:
         # Use json_serial to handle datetime, Decimal, bytes, etc.
         body_json = json.dumps(body, default=json_serial)
         return {
             'statusCode': status_code,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': _cors_response_headers(event),
             'body': body_json
         }
     except Exception as e:
@@ -1665,11 +1873,6 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
         }
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-            },
+            'headers': _cors_response_headers(event),
             'body': json.dumps(error_body, default=str)
         }

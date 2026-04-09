@@ -2,11 +2,14 @@
 
 ## 🎯 What This Does
 
-Creates an AWS API Gateway (HTTP API) as a placeholder structure for the 9 security scan endpoints. This will be integrated with the Lambda function once it's fully implemented.
+Creates an AWS API Gateway (HTTP API) resources for the 9 security scan endpoints and 3 authentication scan endpoints. 
+They're also integrated with the two Lambda function that current exist.
 
-## 📋 Planned API Endpoints
+## 📋 Existing API Endpoints
 
-The following 9 endpoints will be implemented:
+The following 12 endpoints have been implemented:
+
+### Scanner Endpoints
 
 1. `POST /scan/security-hub` - Trigger Security Hub scan
 2. `POST /scan/guardduty` - Trigger GuardDuty scan
@@ -18,6 +21,12 @@ The following 9 endpoints will be implemented:
 8. `POST /scan/s3` - Run S3 OPA policy scan
 9. `POST /scan/full` - Run all scanners (full security scan)
 
+### Authentication Endpoints
+
+1. `POST /auth/login` - Trigger the login workflow to authenticate the user. Store the session cookie in backend and user's browser
+2. `POST /auth/logout` - Sign the user out of the application. Remove the cookie from the backend and the user's browser
+3. `GET /auth/session` - Use the stored cookie on the user's browser to authenticate automatically
+
 ## 📁 Files Created
 
 - `infra/api-gateway/main.tf` - API Gateway REST API configuration
@@ -25,7 +34,7 @@ The following 9 endpoints will be implemented:
 - `infra/api-gateway/outputs.tf` - Output values
 - `infra/api-gateway/README.md` - This file
 
-## 🚀 How to Deploy (Placeholder)
+## 🚀 How to Deploy
 
 ```bash
 cd infra/api-gateway
@@ -33,9 +42,6 @@ terraform init
 terraform plan
 terraform apply
 ```
-
-**Note**: This creates the API Gateway structure, but routes and Lambda integrations will be added when the Lambda function is ready.
-
 ## 🔧 Current Configuration
 
 - **API Name**: `iam-dashboard-api`
@@ -43,16 +49,12 @@ terraform apply
 - **Stage**: `v1`
 - **CORS**: Enabled with configurable origins
 - **Throttling**: 100 burst, 50 rate limit per second
+- **Routes**: Added route definitions for 12 routes. 9 scanner, 3 authentication
+- **Lambda Integration**: Integrated the scanner routes with the scanner lambda and auth routes with the auth lambda
+- **Request/Response Mapping**: Configure request/response transformations
+- **Deployment**: Deployed to stage and are currently live
 
-## 🔄 Next Steps (When Lambda is Ready)
-
-1. **Create Routes**: Add route definitions for each of the 9 endpoints
-2. **Lambda Integration**: Integrate each route with the Lambda function
-3. **Request/Response Mapping**: Configure request/response transformations
-4. **Authorization**: Add API keys or IAM authentication if needed
-5. **Deployment**: Deploy to stage and test endpoints
-
-## 📝 Example Route Integration (Future)
+## 📝 Example Route Integration
 
 ```hcl
 # Example route for Security Hub scan
@@ -72,7 +74,7 @@ resource "aws_apigatewayv2_integration" "lambda" {
 ## 🔐 CORS Configuration
 
 Default CORS settings:
-- **Allowed Origins**: `["*"]` (configure via variable)
+- **Allowed Origins**: `[cors_allowed_origins]` (configure via variable)
 - **Allowed Methods**: `["GET", "POST", "OPTIONS"]`
 - **Allowed Headers**: `["Content-Type", "Authorization"]`
 - **Max Age**: 3600 seconds
@@ -103,9 +105,9 @@ After deployment, outputs include:
 
 ## 🔗 Integration Points
 
-Once Lambda is ready, the API Gateway will:
+API Gateway will:
 1. Receive HTTP requests from the frontend
-2. Route requests to the appropriate Lambda handler
+2. Route requests to the appropriate Lambda function
 3. Transform responses back to HTTP
 4. Handle CORS for browser requests
 5. Provide throttling and rate limiting

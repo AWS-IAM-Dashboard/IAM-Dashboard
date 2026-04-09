@@ -1,856 +1,1000 @@
-import { useMemo, useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
+import { useMemo, useState } from "react";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { Skeleton } from "./ui/skeleton";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, AreaChart, Area } from "recharts";
-import { CalendarClock, RefreshCcw, ShieldAlert, ShieldCheck, Target, TrendingUp, Info, ChevronDown, ExternalLink } from "lucide-react";
-import { useScanResults } from "../context/ScanResultsContext";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Download,
+  ExternalLink,
+  Info,
+  RefreshCcw,
+  ShieldAlert,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  XCircle,
+} from "lucide-react";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
 import { maskSensitiveData } from "../utils/security";
-import { formatRelativeTime } from "../utils/ui";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
+import { SeverityBadge } from "./ui/SeverityBadge";
+import { StatCard } from "./ui/StatCard";
 
-// Framework descriptions for tooltips
-const frameworkDescriptions: Record<string, string> = {
-  cis: "CIS AWS Foundations Benchmark - Industry best practices for securing AWS infrastructure. Covers IAM, S3, EC2, logging, and monitoring. Open controls indicate security requirements not yet fully implemented.",
-  soc2: "SOC 2 Trust Services - Security, availability, processing integrity, confidentiality, and privacy controls for service organizations. Open controls are requirements that need remediation or evidence collection.",
-  pci: "PCI-DSS - Payment Card Industry Data Security Standard. Requirements for organizations that handle credit card data. Open controls represent gaps in cardholder data protection measures.",
-  hipaa: "HIPAA Security Rule - Federal requirements for protecting electronic protected health information (ePHI) in healthcare. Open controls indicate missing safeguards for health data protection."
-};
-
-const openControlsExplanation = "Open controls are security requirements from compliance frameworks that are not yet fully implemented, have findings that need remediation, or lack proper evidence/documentation. Lower open controls = better compliance posture.";
-
-const complianceFrameworks = [
+// ─── Framework metadata ───────────────────────────────────────────────────────
+const FRAMEWORKS = [
   {
     id: "cis",
     name: "CIS AWS Foundations",
-    score: 82,
-    lastAudited: "2 days ago",
+    version: "v1.5",
     totalControls: 84,
+    baseScore: 82,
     openControls: 7,
     criticalFindings: 2,
-    trend: [
-      { month: "Jun", score: 74 },
-      { month: "Jul", score: 78 },
-      { month: "Aug", score: 80 },
-      { month: "Sep", score: 81 },
-      { month: "Oct", score: 82 },
-    ],
+    lastAudited: "2 days ago",
+    trend: [74, 78, 80, 81, 82],
   },
   {
     id: "soc2",
-    name: "SOC 2 Trust Services",
-    score: 76,
-    lastAudited: "5 days ago",
+    name: "SOC 2 Type II",
+    version: "2017",
     totalControls: 96,
+    baseScore: 76,
     openControls: 11,
     criticalFindings: 3,
-    trend: [
-      { month: "Jun", score: 68 },
-      { month: "Jul", score: 70 },
-      { month: "Aug", score: 72 },
-      { month: "Sep", score: 75 },
-      { month: "Oct", score: 76 },
-    ],
+    lastAudited: "5 days ago",
+    trend: [68, 70, 72, 75, 76],
   },
   {
     id: "pci",
     name: "PCI-DSS",
-    score: 88,
-    lastAudited: "1 day ago",
+    version: "v4.0",
     totalControls: 112,
+    baseScore: 88,
     openControls: 5,
     criticalFindings: 1,
-    trend: [
-      { month: "Jun", score: 80 },
-      { month: "Jul", score: 82 },
-      { month: "Aug", score: 85 },
-      { month: "Sep", score: 86 },
-      { month: "Oct", score: 88 },
-    ],
+    lastAudited: "1 day ago",
+    trend: [80, 82, 85, 86, 88],
   },
   {
     id: "hipaa",
     name: "HIPAA Security Rule",
-    score: 73,
-    lastAudited: "9 days ago",
+    version: "2013",
     totalControls: 64,
+    baseScore: 73,
     openControls: 14,
     criticalFindings: 4,
-    trend: [
-      { month: "Jun", score: 62 },
-      { month: "Jul", score: 65 },
-      { month: "Aug", score: 70 },
-      { month: "Sep", score: 72 },
-      { month: "Oct", score: 73 },
-    ],
+    lastAudited: "9 days ago",
+    trend: [62, 65, 70, 72, 73],
   },
 ];
 
-const openActions = [
-  {
-    id: "IAM-001",
-    framework: "CIS AWS Foundations",
-    control: "1.1 – Root account MFA enabled",
-    owner: "Cloud Security",
-    dueDate: "Nov 18",
-    status: "In Progress",
-    severity: "High",
-  },
-  {
-    id: "S3-014",
-    framework: "SOC 2",
-    control: "3.3 – Encryption enforced at rest",
-    owner: "Storage Team",
-    dueDate: "Nov 22",
-    status: "Planned",
-    severity: "Medium",
-  },
-  {
-    id: "EC2-027",
-    framework: "PCI-DSS",
-    control: "7.1 – Restrict access to cardholder data",
-    owner: "Platform",
-    dueDate: "Dec 02",
-    status: "Blocked",
-    severity: "Critical",
-  },
-  {
-    id: "LOG-039",
-    framework: "HIPAA",
-    control: "164.312(b) – Audit controls implemented",
-    owner: "Compliance",
-    dueDate: "Nov 29",
-    status: "In Progress",
-    severity: "High",
-  },
+// ─── Control catalog per framework ───────────────────────────────────────────
+const CONTROL_CATALOG: Record<string, { id: string; title: string; keywords: string[]; severity: "Critical" | "High" | "Medium" | "Low" }[]> = {
+  cis: [
+    { id: "1.1", title: "Avoid the use of the root account", keywords: ["root", "mfa"], severity: "Critical" },
+    { id: "1.2", title: "Ensure MFA is enabled for IAM users with console access", keywords: ["mfa", "iam", "console"], severity: "Critical" },
+    { id: "1.4", title: "Ensure no access keys exist for root account", keywords: ["root", "access key"], severity: "High" },
+    { id: "1.5", title: "Ensure IAM password policy requires uppercase letters", keywords: ["password", "policy", "uppercase"], severity: "Medium" },
+    { id: "1.9", title: "Ensure IAM password policy prevents password reuse", keywords: ["password", "reuse"], severity: "Medium" },
+    { id: "2.1", title: "Ensure CloudTrail is enabled in all regions", keywords: ["cloudtrail", "logging"], severity: "High" },
+    { id: "2.6", title: "Ensure S3 bucket access logging is enabled on CloudTrail bucket", keywords: ["s3", "logging", "cloudtrail"], severity: "Medium" },
+    { id: "3.1", title: "Ensure VPC default security group restricts all traffic", keywords: ["vpc", "security group", "default"], severity: "High" },
+    { id: "4.1", title: "Ensure no security groups allow ingress from 0.0.0.0/0 to port 22", keywords: ["ssh", "0.0.0.0", "ingress"], severity: "Critical" },
+  ],
+  soc2: [
+    { id: "CC6.1", title: "Logical and physical access controls implemented", keywords: ["access control", "iam", "mfa"], severity: "Critical" },
+    { id: "CC6.2", title: "Prior to issuing system credentials, entity registers and authorizes", keywords: ["credential", "access key", "registration"], severity: "High" },
+    { id: "CC6.3", title: "Role-based access control enforced", keywords: ["role", "policy", "least privilege"], severity: "High" },
+    { id: "CC7.1", title: "Detection and monitoring procedures implemented", keywords: ["guardduty", "cloudtrail", "monitoring"], severity: "High" },
+    { id: "CC8.1", title: "Change management process in place", keywords: ["config", "change", "drift"], severity: "Medium" },
+    { id: "A1.1", title: "Capacity planning and availability measures in place", keywords: ["ec2", "autoscaling", "availability"], severity: "Medium" },
+    { id: "PI1.1", title: "Processing integrity controls implemented", keywords: ["encryption", "integrity", "kms"], severity: "High" },
+  ],
+  pci: [
+    { id: "2.2", title: "Develop configuration standards for all system components", keywords: ["config", "hardening", "baseline"], severity: "High" },
+    { id: "3.4", title: "Render PAN unreadable anywhere it is stored", keywords: ["encryption", "kms", "s3", "rds"], severity: "Critical" },
+    { id: "6.2", title: "Protect all system components from known vulnerabilities", keywords: ["inspector", "patch", "cve"], severity: "High" },
+    { id: "7.1", title: "Limit access to system components to those with a business need", keywords: ["iam", "policy", "least privilege"], severity: "High" },
+    { id: "8.2", title: "Proper identification and authentication for non-consumer users", keywords: ["mfa", "password", "iam"], severity: "Critical" },
+    { id: "10.1", title: "Implement audit trails to link access to individual cardholder data", keywords: ["cloudtrail", "logging", "audit"], severity: "High" },
+    { id: "10.5", title: "Secure audit trails so they cannot be altered", keywords: ["cloudtrail", "s3", "integrity"], severity: "Medium" },
+  ],
+  hipaa: [
+    { id: "164.308(a)(1)", title: "Security Management Process – risk analysis", keywords: ["risk", "finding", "assessment"], severity: "Critical" },
+    { id: "164.308(a)(3)", title: "Workforce Security – access authorization", keywords: ["iam", "access", "authorization"], severity: "High" },
+    { id: "164.308(a)(5)", title: "Security Awareness and Training", keywords: ["mfa", "password", "training"], severity: "Medium" },
+    { id: "164.312(a)(1)", title: "Access Control – unique user identification", keywords: ["iam", "user", "identity"], severity: "High" },
+    { id: "164.312(a)(2)", title: "Access Control – automatic logoff", keywords: ["session", "timeout", "console"], severity: "Medium" },
+    { id: "164.312(b)", title: "Audit Controls – hardware, software, procedural", keywords: ["cloudtrail", "logging", "audit"], severity: "High" },
+    { id: "164.312(e)(2)", title: "Transmission Security – encryption in transit", keywords: ["ssl", "tls", "encryption", "transit"], severity: "High" },
+  ],
+};
+
+// ─── Open actions ─────────────────────────────────────────────────────────────
+const OPEN_ACTIONS = [
+  { id: "IAM-001", framework: "cis", control: "1.2 – MFA for IAM console users", owner: "Cloud Security", dueDate: "2025-11-18", status: "In Progress", severity: "Critical" },
+  { id: "S3-014", framework: "soc2", control: "PI1.1 – Encryption at rest enforced", owner: "Storage Team", dueDate: "2025-11-22", status: "Planned", severity: "High" },
+  { id: "EC2-027", framework: "pci", control: "7.1 – Restrict cardholder data access", owner: "Platform", dueDate: "2025-12-02", status: "Blocked", severity: "Critical" },
+  { id: "LOG-039", framework: "hipaa", control: "164.312(b) – Audit controls", owner: "Compliance", dueDate: "2025-11-29", status: "In Progress", severity: "High" },
+  { id: "VPC-055", framework: "cis", control: "3.1 – Default SG restricts traffic", owner: "Network Ops", dueDate: "2025-12-10", status: "Planned", severity: "Medium" },
 ];
 
-// Recent audits will be generated from scan results
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function scoreColor(score: number) {
+  if (score >= 85) return "#00ff88";
+  if (score >= 70) return "#ffb000";
+  return "#ff0040";
+}
 
-const frameworkScores = complianceFrameworks.map((framework) => ({
-  name: framework.name,
-  score: framework.score,
-  open: framework.openControls,
-  critical: framework.criticalFindings,
-}));
+function daysUntil(dateStr: string) {
+  const diff = new Date(dateStr).getTime() - Date.now();
+  return Math.ceil(diff / 86400000);
+}
 
-const statusColorMap: Record<string, string> = {
-  "On Track": "bg-[#00ff88] text-black",
-  "Action Required": "bg-[#ffb000] text-black",
-  "In Review": "bg-[#1f2937] text-white border border-border",
+function slaColor(dateStr: string) {
+  const d = daysUntil(dateStr);
+  if (d < 0) return "#ff0040";
+  if (d <= 7) return "#ff6b35";
+  if (d <= 14) return "#ffb000";
+  return "#64748b";
+}
+
+const SEV_COLOR: Record<string, string> = {
+  Critical: "#ff0040",
+  High: "#ff6b35",
+  Medium: "#ffb000",
+  Low: "#00ff88",
 };
 
-const severityColorMap: Record<string, string> = {
-  Critical: "bg-[#ff0040] text-white",
-  High: "bg-[#ff6b35] text-white",
-  Medium: "bg-[#ffb000] text-black",
-  Low: "bg-[#00ff88] text-black",
+const STATUS_COLOR: Record<string, string> = {
+  "In Progress": "#00ff88",
+  Planned: "#64748b",
+  Blocked: "#ff0040",
 };
 
-const statusBadgeColor: Record<string, string> = {
-  "In Progress": "bg-primary text-primary-foreground",
-  Planned: "bg-muted text-muted-foreground",
-  Blocked: "bg-[#ff0040] text-white",
-};
-
-// Use shared formatRelativeTime utility
-const formatTimestamp = formatRelativeTime;
-
-// Map finding types to compliance frameworks
-const mapFindingToFrameworks = (finding: any): string[] => {
-  const frameworks: string[] = [];
-  const findingType = (finding.type || finding.finding_type || finding.resource_type || '').toLowerCase();
-  const description = (finding.description || '').toLowerCase();
-  
-  // CIS AWS Foundations - covers IAM, S3, EC2, etc.
-  if (findingType.includes('iam') || findingType.includes('user') || findingType.includes('role') || 
-      findingType.includes('policy') || findingType.includes('mfa') || findingType.includes('access') ||
-      findingType.includes('s3') || findingType.includes('bucket') ||
-      findingType.includes('ec2') || findingType.includes('security') ||
-      description.includes('encryption') || description.includes('public')) {
-    frameworks.push('cis');
-  }
-  
-  // SOC 2 - covers access controls, encryption, monitoring
-  if (findingType.includes('access') || findingType.includes('encryption') || 
-      findingType.includes('logging') || findingType.includes('monitoring') ||
-      description.includes('access control') || description.includes('encryption')) {
-    frameworks.push('soc2');
-  }
-  
-  // PCI-DSS - covers data protection, access controls
-  if (findingType.includes('encryption') || findingType.includes('data') ||
-      description.includes('cardholder') || description.includes('pci') ||
-      description.includes('data protection')) {
-    frameworks.push('pci');
-  }
-  
-  // HIPAA - covers access controls, encryption, audit logs
-  if (findingType.includes('access') || findingType.includes('encryption') ||
-      findingType.includes('audit') || findingType.includes('logging') ||
-      description.includes('phi') || description.includes('hipaa') ||
-      description.includes('health')) {
-    frameworks.push('hipaa');
-  }
-  
-  return frameworks.length > 0 ? frameworks : ['cis']; // Default to CIS if no match
-};
+// Trend delta badge: shows +N pts over the trend window
+function TrendDelta({ values, color }: { values: number[]; color: string }) {
+  const delta = values[values.length - 1] - values[0];
+  const sign = delta >= 0 ? "+" : "";
+  return (
+    <span
+      style={{
+        fontSize: "11px",
+        fontWeight: 700,
+        color,
+        fontFamily: "'JetBrains Mono', monospace",
+        background: `${color}15`,
+        padding: "4px 8px",
+        borderRadius: "999px",
+        letterSpacing: "0.02em",
+      }}
+    >
+      {sign}{delta} pts
+    </span>
+  );
+}
 
 interface ComplianceDashboardProps {
   onNavigate?: (tab: string) => void;
+  embedded?: boolean;
 }
 
-export function ComplianceDashboard({ onNavigate }: ComplianceDashboardProps) {
-  const [activeFramework, setActiveFramework] = useState(complianceFrameworks[0].id);
+export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false }: ComplianceDashboardProps) {
+  const [activeFramework, setActiveFramework] = useState(FRAMEWORKS[0].id);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const [expandedControl, setExpandedControl] = useState<string | null>(null);
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
 
-  // Get all scan results
-  const scanResults = useMemo(() => {
-    return getAllScanResults();
-  }, [scanResultsVersion, getAllScanResults]);
+  const scanResults = useMemo(() => getAllScanResults(), [scanResultsVersion, getAllScanResults]);
 
-  // Calculate compliance metrics from real scan data
-  const complianceMetrics = useMemo(() => {
-    let totalCritical = 0;
-    let totalHigh = 0;
-    let totalMedium = 0;
-    let totalLow = 0;
-    const allFindings: any[] = [];
-    const frameworkFindings: Record<string, any[]> = {
-      cis: [],
-      soc2: [],
-      pci: [],
-      hipaa: []
-    };
+  // Compute per-control status from real findings
+  const computeControlStatus = (
+    controlKeywords: string[],
+    severity: string,
+    findings: any[]
+  ): "PASS" | "FAIL" | "PARTIAL" | "NOT_EVALUATED" => {
+    if (findings.length === 0) return "NOT_EVALUATED";
 
-    // Aggregate findings from all scans
-    scanResults.forEach(scan => {
-      const findings = scan.findings || [];
-      const summary = scan.scan_summary || {};
-      
-      totalCritical += summary.critical_findings || 0;
-      totalHigh += summary.high_findings || 0;
-      totalMedium += summary.medium_findings || 0;
-      totalLow += summary.low_findings || 0;
-      
-      // Map findings to frameworks
-      findings.forEach((finding: any) => {
-        allFindings.push(finding);
-        const frameworks = mapFindingToFrameworks(finding);
-        frameworks.forEach(fw => {
-          if (!frameworkFindings[fw]) frameworkFindings[fw] = [];
-          frameworkFindings[fw].push(finding);
-        });
-      });
+    const matched = findings.filter((f) => {
+      const text = [
+        f.type || "",
+        f.finding_type || "",
+        f.resource_type || "",
+        f.description || "",
+        f.title || "",
+        f.recommendation || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return controlKeywords.some((kw) => text.includes(kw.toLowerCase()));
     });
 
-    // Calculate compliance scores per framework
-    const calculateFrameworkScore = (findings: any[]): number => {
-      if (findings.length === 0) return 100;
-      const critical = findings.filter(f => (f.severity || '').toLowerCase() === 'critical').length;
-      const high = findings.filter(f => (f.severity || '').toLowerCase() === 'high').length;
-      const medium = findings.filter(f => (f.severity || '').toLowerCase() === 'medium').length;
-      const low = findings.filter(f => (f.severity || '').toLowerCase() === 'low').length;
-      
-      const deduction = (critical * 10) + (high * 5) + (medium * 2) + (low * 1);
-      return Math.max(0, Math.round(100 - deduction));
-    };
-
-    // Update framework scores based on real findings
-    const updatedFrameworks = complianceFrameworks.map(framework => {
-      const frameworkFindingsList = frameworkFindings[framework.id] || [];
-      const score = calculateFrameworkScore(frameworkFindingsList);
-      const criticalCount = frameworkFindingsList.filter(f => (f.severity || '').toLowerCase() === 'critical').length;
-      
-      return {
-        ...framework,
-        score,
-        criticalFindings: criticalCount,
-        openControls: Math.max(0, framework.totalControls - Math.round(framework.totalControls * (score / 100)))
-      };
+    if (matched.length === 0) return "PASS";
+    const hasCritHigh = matched.some((f) => {
+      const s = (f.severity || "").toLowerCase();
+      return s === "critical" || s === "high";
     });
+    if (hasCritHigh && severity === "Critical") return "FAIL";
+    if (matched.length > 0) return "PARTIAL";
+    return "PASS";
+  };
 
-    // Calculate overall compliance score
-    const overallScore = updatedFrameworks.length > 0
-      ? Math.round(updatedFrameworks.reduce((acc, f) => acc + f.score, 0) / updatedFrameworks.length)
-      : 100;
-
-    // Get most recent scan timestamp
-    const mostRecentScan = scanResults.length > 0
-      ? scanResults.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-      : null;
-
-    // Generate recent audits from scan history
-    const recentAudits = scanResults
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 3)
-      .map(scan => {
-        const scanDate = new Date(scan.timestamp);
-        const findingsCount = scan.findings?.length || 0;
-        const summary = scan.scan_summary || {};
-        const criticalCount = summary.critical_findings || 0;
-        
-        let outcome = 'On Track';
-        if (criticalCount > 0) outcome = 'Action Required';
-        else if (findingsCount > 10) outcome = 'In Review';
-        
-        return {
-          name: `${scan.scanner_type.toUpperCase()} Security Scan`,
-          performedBy: 'Automated Scanner',
-          completedOn: scanDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          coverage: `${findingsCount} findings evaluated`,
-          outcome
-        };
-      });
-
-    // Generate open actions from critical/high findings
-    const openActions = allFindings
-      .filter(f => {
-        const severity = (f.severity || '').toLowerCase();
-        return severity === 'critical' || severity === 'high';
-      })
-      .slice(0, 10)
-      .map((finding, index) => {
-        const frameworks = mapFindingToFrameworks(finding);
-        const frameworkName = frameworks.length > 0 
-          ? complianceFrameworks.find(f => f.id === frameworks[0])?.name || 'CIS AWS Foundations'
-          : 'CIS AWS Foundations';
-        
-        return {
-          id: finding.id || `FINDING-${index + 1}`,
-          framework: frameworkName,
-          control: finding.description?.substring(0, 50) || finding.finding_type || 'Security Control',
-          owner: 'Security Team',
-          dueDate: 'ASAP',
-          status: 'In Progress',
-          severity: (finding.severity || 'High').charAt(0).toUpperCase() + (finding.severity || 'High').slice(1).toLowerCase()
-        };
-      });
-
-    return {
-      overallScore,
-      criticalFindingsTotal: totalCritical,
-      frameworks: updatedFrameworks,
-      allFindings,
-      frameworkFindings, // Expose framework-specific findings
-      mostRecentScan: mostRecentScan ? formatTimestamp(mostRecentScan.timestamp) : 'Never',
-      totalFindings: totalCritical + totalHigh + totalMedium + totalLow,
-      recentAudits: recentAudits.length > 0 ? recentAudits : [
-        {
-          name: 'No scans performed yet',
-          performedBy: 'N/A',
-          completedOn: 'N/A',
-          coverage: '0 findings evaluated',
-          outcome: 'Pending'
-        }
-      ],
-      openActions: openActions.length > 0 ? openActions : []
-    };
-  }, [scanResults]);
-
-  const selectedFramework = useMemo(
-    () => complianceMetrics.frameworks.find((framework) => framework.id === activeFramework) ?? complianceMetrics.frameworks[0],
-    [activeFramework, complianceMetrics.frameworks]
+  const allFindings = useMemo(
+    () => scanResults.flatMap((s) => s.findings || []),
+    [scanResults]
   );
 
-  const frameworkScores = useMemo(() => 
-    complianceMetrics.frameworks.map((framework) => ({
-      name: framework.name,
-      score: framework.score,
-      open: framework.openControls,
-      critical: framework.criticalFindings,
-    })),
-    [complianceMetrics.frameworks]
+  const framework = FRAMEWORKS.find((f) => f.id === activeFramework)!;
+  const controls = CONTROL_CATALOG[activeFramework] || [];
+
+  const controlsWithStatus = useMemo(
+    () =>
+      controls.map((ctrl) => ({
+        ...ctrl,
+        status: computeControlStatus(ctrl.keywords, ctrl.severity, allFindings),
+        evidenceCount: allFindings.filter((f) => {
+          const text = [f.type || "", f.description || "", f.title || ""]
+            .join(" ")
+            .toLowerCase();
+          return ctrl.keywords.some((kw) => text.includes(kw.toLowerCase()));
+        }).length,
+      })),
+    [controls, allFindings, scanResultsVersion]
   );
+
+  const passCount = controlsWithStatus.filter((c) => c.status === "PASS").length;
+  const failCount = controlsWithStatus.filter((c) => c.status === "FAIL").length;
+  const partialCount = controlsWithStatus.filter((c) => c.status === "PARTIAL").length;
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => setIsRefreshing(false), 1200);
   };
 
+  const handleExportAuditPackage = () => {
+    const lines = [
+      `Audit Package – ${framework.name} ${framework.version}`,
+      `Generated: ${new Date().toISOString()}`,
+      `Score: ${framework.baseScore}%`,
+      "",
+      "Control Evidence",
+      "─".repeat(60),
+      ...controlsWithStatus.map(
+        (c) => `[${c.status}] ${c.id} – ${c.title} (${c.severity}) | Evidence items: ${c.evidenceCount}`
+      ),
+      "",
+      "Open Actions",
+      "─".repeat(60),
+      ...OPEN_ACTIONS.filter((a) => a.framework === activeFramework).map(
+        (a) => `[${a.status}] ${a.id} – ${a.control} | Owner: ${a.owner} | Due: ${a.dueDate}`
+      ),
+    ].join("\n");
+
+    const blob = new Blob([lines], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-package-${activeFramework}-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const frameActions = OPEN_ACTIONS.filter((a) => a.framework === activeFramework);
+
+  const avgScore = Math.round(FRAMEWORKS.reduce((s, f) => s + f.baseScore, 0) / FRAMEWORKS.length);
+  const totalOpenActions = OPEN_ACTIONS.length;
+  const totalCritical = FRAMEWORKS.reduce((s, f) => s + f.criticalFindings, 0);
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Compliance Dashboard</h1>
-          <p className="text-muted-foreground">Track adherence to key security frameworks across your AWS estate.</p>
-        </div>
-        <Button
-          variant="outline"
-          className="border-border"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-        >
-          <RefreshCcw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh Metrics
-        </Button>
+    <div
+      style={{
+        padding: embedded ? "0" : "24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+              }}
+    >
+      {/* ── Page header ── */}
+      {!embedded && (
+        <ScanPageHeader
+          icon={<BadgeCheck size={20} color="#00ff88" />}
+          iconColor="#00ff88"
+          title="Compliance Dashboard"
+          subtitle={
+            scanResults.length > 0
+              ? `${allFindings.length} findings mapped across 4 frameworks`
+              : "No scan data — scores are baseline estimates"
+          }
+          isScanning={isRefreshing}
+          onRefresh={handleRefresh}
+          onExport={handleExportAuditPackage}
+          scanLabel="Audit Package"
+        />
+      )}
+
+      {/* ── Aggregate KPI stats ── */}
+      <div style={{ display: "flex", gap: "8px" }}>
+        {[
+          { label: "AVG SCORE", value: `${avgScore}%`, color: avgScore >= 80 ? "#00ff88" : avgScore >= 60 ? "#ffb000" : "#ff0040" },
+          { label: "OPEN ACTIONS", value: String(totalOpenActions), color: totalOpenActions > 0 ? "#ffb000" : "#00ff88" },
+          { label: "CRITICAL CONTROLS", value: String(totalCritical), color: totalCritical > 0 ? "#ff0040" : "#00ff88" },
+          { label: "FRAMEWORKS", value: String(FRAMEWORKS.length), color: "#0ea5e9" },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "12px 20px", position: "relative", overflow: "hidden", flex: 1 }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${color}88, transparent)` }} />
+            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>{label}</div>
+            <div style={{ fontSize: "28px", fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1 }}>{value}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="cyber-card">
-          <CardContent className="p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Overall Compliance</span>
-              <ShieldCheck className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-4xl font-semibold">{complianceMetrics.overallScore}%</p>
-            <Progress value={complianceMetrics.overallScore} className="h-2" />
-            <p className="text-xs text-muted-foreground">Across {complianceMetrics.frameworks.length} active frameworks</p>
-          </CardContent>
-        </Card>
-        <Card className="cyber-card">
-          <CardContent className="p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Critical Findings</span>
-              <ShieldAlert className="h-6 w-6 text-[#ff0040]" />
-            </div>
-            <p className="text-4xl font-semibold text-[#ff0040]">{complianceMetrics.criticalFindingsTotal}</p>
-            <p className="text-xs text-muted-foreground">Requires immediate remediation</p>
-            <Badge variant="outline" className="w-fit border-[#ff0040]/60 text-xs">
-              Auto escalation enabled
-            </Badge>
-          </CardContent>
-        </Card>
-        <Card className="cyber-card">
-          <CardContent className="p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Upcoming Audits</span>
-              <CalendarClock className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-4xl font-semibold">{scanResults.length}</p>
-            <p className="text-xs text-muted-foreground">Last scan: {complianceMetrics.mostRecentScan}</p>
-            <Badge className="w-fit bg-primary/10 text-primary">Automated evidence collection ready</Badge>
-          </CardContent>
-        </Card>
-        <Card className="cyber-card">
-          <CardContent className="p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Positive Trend</span>
-              <TrendingUp className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-4xl font-semibold">{complianceMetrics.totalFindings}</p>
-            <p className="text-xs text-muted-foreground">Total security findings across all scans</p>
-            <Badge variant="outline" className="w-fit border-primary/40 text-primary">
-              Continuous monitoring enabled
-            </Badge>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="cyber-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Framework Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              {isRefreshing ? (
-                <Skeleton className="h-[260px] w-full bg-muted/20" />
-              ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={frameworkScores} barCategoryGap={24}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(100, 116, 139, 0.1)" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#64748b"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="#64748b"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      domain={[0, 100]}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(15, 23, 42, 0.95)",
-                        border: "1px solid rgba(0, 255, 136, 0.3)",
-                        borderRadius: "8px",
-                        color: "#e2e8f0",
-                      }}
-                      cursor={{ fill: "rgba(0, 255, 136, 0.05)" }}
-                    />
-                    <Bar dataKey="score" name="Compliance Score" fill="#00ff88" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="open" name="Open Controls" fill="#ffb000" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="critical" name="Critical Findings" fill="#ff0040" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+      {/* ── Framework score overview row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+        {FRAMEWORKS.map((fw) => {
+          const isActive = fw.id === activeFramework;
+          const color = scoreColor(fw.baseScore);
+          return (
+            <button
+              key={fw.id}
+              onClick={() => setActiveFramework(fw.id)}
+              style={{
+                textAlign: "left",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                border: isActive
+                  ? `1px solid ${color}40`
+                  : "1px solid rgba(255,255,255,0.06)",
+                background: isActive
+                  ? `rgba(${color === "#00ff88" ? "0,255,136" : color === "#ffb000" ? "255,176,0" : "255,64,96"},0.06)`
+                  : "rgba(255,255,255,0.02)",
+                cursor: "pointer",
+                transition: "all 0.15s",
+                position: "relative",
+              }}
+            >
+              {isActive && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: "2px",
+                    background: color,
+                    borderRadius: "8px 8px 0 0",
+                  }}
+                />
               )}
-            </div>
-            <div className="space-y-4">
-              {complianceMetrics.frameworks.map((framework) => {
-                const findings = complianceMetrics.frameworkFindings?.[framework.id] || [];
-                const hasFindings = findings.length > 0;
-                const criticalCount = findings.filter(f => (f.severity || '').toLowerCase() === 'critical').length;
-                const highCount = findings.filter(f => (f.severity || '').toLowerCase() === 'high').length;
-
-                return (
-                  <DropdownMenu key={framework.id}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        onClick={() => setActiveFramework(framework.id)}
-                        className={`w-full text-left p-4 rounded-lg transition-all border ${
-                          framework.id === activeFramework
-                            ? "cyber-glow border-primary/60 bg-primary/10"
-                            : "border-transparent bg-muted/5 hover:bg-muted/10"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{framework.name}</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{frameworkDescriptions[framework.id] || "Compliance framework for AWS security."}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {hasFindings && (
-                              <Badge className="text-xs bg-[#ff0040]/20 text-[#ff0040] border-[#ff0040]/40">
-                                {findings.length}
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className="text-xs">
-                              {framework.score}%
-                            </Badge>
-                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-muted-foreground">Last audited {framework.lastAudited}</p>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">{framework.openControls} open controls</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-3 w-3 text-muted-foreground hover:text-primary cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{openControlsExplanation}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      </button>
-                    </DropdownMenuTrigger>
-                    {hasFindings && (
-                      <DropdownMenuContent className="w-[400px] max-h-[500px] overflow-y-auto" align="start">
-                        <DropdownMenuLabel className="flex items-center justify-between">
-                          <span>Findings Impacting {framework.name}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {findings.length} total
-                          </Badge>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {criticalCount > 0 && (
-                          <>
-                            <DropdownMenuLabel className="text-xs text-[#ff0040] font-semibold">
-                              Critical ({criticalCount})
-                            </DropdownMenuLabel>
-                            {findings
-                              .filter(f => (f.severity || '').toLowerCase() === 'critical')
-                              .slice(0, 3)
-                              .map((finding: any, idx: number) => (
-                                <DropdownMenuItem key={finding.id || `critical-${idx}`} className="flex-col items-start p-3 cursor-default">
-                                  <div className="flex items-start gap-2 w-full">
-                                    <Badge className="text-xs bg-[#ff0040] text-white">Critical</Badge>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium truncate">{finding.finding_type || 'Security Finding'}</p>
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {maskSensitiveData(finding.description || finding.message || 'No description')}
-                                      </p>
-                                      {finding.resource_id && (
-                                        <p className="text-xs text-muted-foreground/70 mt-1 truncate">
-                                          {maskSensitiveData(finding.resource_id)}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                            {criticalCount > 3 && (
-                              <DropdownMenuItem 
-                                className="text-xs text-primary cursor-pointer"
-                                onClick={() => onNavigate?.('alerts')}
-                              >
-                                View {criticalCount - 3} more critical findings →
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        {highCount > 0 && (
-                          <>
-                            <DropdownMenuLabel className="text-xs text-[#ffb000] font-semibold">
-                              High ({highCount})
-                            </DropdownMenuLabel>
-                            {findings
-                              .filter(f => (f.severity || '').toLowerCase() === 'high')
-                              .slice(0, 3)
-                              .map((finding: any, idx: number) => (
-                                <DropdownMenuItem key={finding.id || `high-${idx}`} className="flex-col items-start p-3 cursor-default">
-                                  <div className="flex items-start gap-2 w-full">
-                                    <Badge className="text-xs bg-[#ffb000] text-white">High</Badge>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium truncate">{finding.finding_type || 'Security Finding'}</p>
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {maskSensitiveData(finding.description || finding.message || 'No description')}
-                                      </p>
-                                      {finding.resource_id && (
-                                        <p className="text-xs text-muted-foreground/70 mt-1 truncate">
-                                          {maskSensitiveData(finding.resource_id)}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                            {highCount > 3 && (
-                              <DropdownMenuItem 
-                                className="text-xs text-primary cursor-pointer"
-                                onClick={() => onNavigate?.('alerts')}
-                              >
-                                View {highCount - 3} more high findings →
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        {findings.filter(f => {
-                          const severity = (f.severity || '').toLowerCase();
-                          return severity !== 'critical' && severity !== 'high';
-                        }).length > 0 && (
-                          <>
-                            <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold">
-                              Other ({findings.filter(f => {
-                                const severity = (f.severity || '').toLowerCase();
-                                return severity !== 'critical' && severity !== 'high';
-                              }).length})
-                            </DropdownMenuLabel>
-                            {findings
-                              .filter(f => {
-                                const severity = (f.severity || '').toLowerCase();
-                                return severity !== 'critical' && severity !== 'high';
-                              })
-                              .slice(0, 2)
-                              .map((finding: any, idx: number) => (
-                                <DropdownMenuItem key={finding.id || `other-${idx}`} className="flex-col items-start p-3 cursor-default">
-                                  <div className="flex items-start gap-2 w-full">
-                                    <Badge className="text-xs bg-muted text-foreground">
-                                      {(finding.severity || 'Medium').charAt(0).toUpperCase() + (finding.severity || 'Medium').slice(1).toLowerCase()}
-                                    </Badge>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium truncate">{finding.finding_type || 'Security Finding'}</p>
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {maskSensitiveData(finding.description || finding.message || 'No description')}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-primary cursor-pointer font-medium"
-                          onClick={() => onNavigate?.('alerts')}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 mr-2" />
-                          View All Findings in Security Alerts
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    )}
-                  </DropdownMenu>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 bg-muted/5 border border-border/60">
-              <CardHeader>
-                <CardTitle className="text-base font-medium flex items-center gap-2">
-                  {selectedFramework.name} Trend
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="text-sm">{frameworkDescriptions[selectedFramework.id] || "Compliance framework for AWS security."}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isRefreshing ? (
-                  <Skeleton className="h-[200px] w-full bg-muted/20" />
-                ) : (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={selectedFramework.trend}>
-                      <defs>
-                        <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="10%" stopColor="#00ff88" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(100, 116, 139, 0.1)" vertical={false} />
-                      <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} domain={[60, 100]} />
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: "rgba(15, 23, 42, 0.95)",
-                          border: "1px solid rgba(0, 255, 136, 0.3)",
-                          borderRadius: "8px",
-                          color: "#e2e8f0",
-                        }}
-                        cursor={{ stroke: "rgba(0, 255, 136, 0.4)", strokeWidth: 2 }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="score"
-                        stroke="#00ff88"
-                        fillOpacity={1}
-                        fill="url(#trendGradient)"
-                        strokeWidth={2}
-                        name="Score"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: isActive ? "#e2e8f0" : "rgba(100,116,139,0.7)",
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {fw.name}
+                </span>
+                <TrendDelta values={fw.trend} color={color} />
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                <span
+                  style={{
+                    fontSize: "28px",
+                    fontWeight: 700,
+                    color,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    lineHeight: 1,
+                  }}
+                >
+                  {fw.baseScore}
+                </span>
+                <span style={{ fontSize: "11px", color: "rgba(100,116,139,0.6)" }}>%</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  marginTop: "8px",
+                  fontSize: "10px",
+                  color: "rgba(100,116,139,0.6)",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                <span style={{ color: fw.openControls > 0 ? "#ffb000" : "#00ff88" }}>
+                  {fw.openControls} open
+                </span>
+                {fw.criticalFindings > 0 && (
+                  <span style={{ color: "#ff0040" }}>{fw.criticalFindings} critical</span>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-            <Card className="cyber-glass border border-border/60">
-              <CardHeader>
-                <CardTitle className="text-base font-medium">Framework Snapshot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Open controls</span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">{openControlsExplanation}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <span className="text-sm font-medium">{selectedFramework.openControls}</span>
-                </div>
-                <Progress value={(selectedFramework.totalControls - selectedFramework.openControls) / selectedFramework.totalControls * 100} className="h-2" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total controls</span>
-                  <span className="text-sm font-medium">{selectedFramework.totalControls}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Critical findings</span>
-                  <Badge className="text-xs bg-[#ff0040] text-white">
-                    {selectedFramework.criticalFindings}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last audited</span>
-                  <span className="text-sm font-medium">{selectedFramework.lastAudited}</span>
-                </div>
-              </CardContent>
-            </Card>
+      {/* ── Main content area ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "16px", alignItems: "start" }}>
+        {/* Control evidence table */}
+        <div
+          style={{
+            background: "rgba(15,23,42,0.8)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 20px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <span
+                style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}
+              >
+                Control Evidence — {framework.name}
+              </span>
+              <span
+                style={{
+                  marginLeft: "8px",
+                  fontSize: "10px",
+                  color: "rgba(100,116,139,0.6)",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {framework.version}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "8px", fontSize: "11px" }}>
+              <span style={{ color: "#00ff88" }}>{passCount} PASS</span>
+              <span style={{ color: "rgba(100,116,139,0.5)" }}>/</span>
+              <span style={{ color: "#ff0040" }}>{failCount} FAIL</span>
+              <span style={{ color: "rgba(100,116,139,0.5)" }}>/</span>
+              <span style={{ color: "#ffb000" }}>{partialCount} PARTIAL</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Tabs defaultValue="audits" className="space-y-6">
-        <TabsList className="cyber-card border-border">
-          <TabsTrigger value="audits">Audit History</TabsTrigger>
-          <TabsTrigger value="evidence">Evidence Summary</TabsTrigger>
-        </TabsList>
+          {/* Table header */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "80px 1fr 90px 70px 80px",
+              padding: "8px 20px",
+              borderBottom: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            {["Control ID", "Title", "Status", "Severity", "Evidence"].map((h) => (
+              <span
+                key={h}
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: "rgba(100,116,139,0.55)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {h}
+              </span>
+            ))}
+          </div>
 
-        <TabsContent value="audits">
-          <Card className="cyber-card">
-            <CardHeader>
-              <CardTitle>Recent Audits & Reviews</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {complianceMetrics.recentAudits.map((audit) => (
-                <div key={audit.name} className="cyber-glass rounded-lg p-4 border border-border/50">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium">{audit.name}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {audit.coverage} · Completed {audit.completedOn}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-xs">
-                        {audit.performedBy}
-                      </Badge>
-                      <Badge className={`text-xs ${statusColorMap[audit.outcome] ?? "bg-muted text-muted-foreground"}`}>
-                        {audit.outcome}
-                      </Badge>
-                    </div>
+          {/* Control rows */}
+          {controlsWithStatus.map((ctrl) => {
+            const isExpanded = expandedControl === ctrl.id;
+            const statusColors: Record<string, string> = {
+              PASS: "#00ff88",
+              FAIL: "#ff0040",
+              PARTIAL: "#ffb000",
+              NOT_EVALUATED: "#475569",
+            };
+            const statusIcons: Record<string, React.ReactNode> = {
+              PASS: <CheckCircle2 style={{ width: 13, height: 13, color: "#00ff88" }} />,
+              FAIL: <XCircle style={{ width: 13, height: 13, color: "#ff0040" }} />,
+              PARTIAL: <AlertTriangle style={{ width: 13, height: 13, color: "#ffb000" }} />,
+              NOT_EVALUATED: <Clock style={{ width: 13, height: 13, color: "#475569" }} />,
+            };
+
+            // Find matching evidence from findings
+            const evidenceFindings = allFindings
+              .filter((f) => {
+                const text = [f.type || "", f.description || "", f.title || ""]
+                  .join(" ")
+                  .toLowerCase();
+                return ctrl.keywords.some((kw) => text.includes(kw.toLowerCase()));
+              })
+              .slice(0, 3);
+
+            return (
+              <div key={ctrl.id}>
+                <button
+                  onClick={() => setExpandedControl(isExpanded ? null : ctrl.id)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "80px 1fr 90px 70px 80px",
+                    width: "100%",
+                    padding: "8px 20px",
+                    textAlign: "left",
+                    background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
+                    border: "none",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    cursor: "pointer",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isExpanded) e.currentTarget.style.background = "rgba(255,255,255,0.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isExpanded) e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "rgba(100,116,139,0.8)",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {ctrl.id}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#cbd5e1",
+                      paddingRight: "12px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {ctrl.title}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    {statusIcons[ctrl.status]}
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        color: statusColors[ctrl.status],
+                        fontFamily: "'JetBrains Mono', monospace",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      {ctrl.status}
+                    </span>
                   </div>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      color: SEV_COLOR[ctrl.severity],
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {ctrl.severity}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color:
+                        ctrl.evidenceCount > 0 ? "#ffb000" : "rgba(100,116,139,0.4)",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {ctrl.evidenceCount > 0 ? `${ctrl.evidenceCount} finding${ctrl.evidenceCount !== 1 ? "s" : ""}` : "—"}
+                  </span>
+                </button>
+
+                {/* Expanded evidence detail */}
+                {isExpanded && (
+                  <div
+                    style={{
+                      padding: "12px 20px 14px 32px",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      background: "rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    {evidenceFindings.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            color: "rgba(100,116,139,0.6)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                            fontFamily: "'JetBrains Mono', monospace",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Supporting Evidence
+                        </span>
+                        {evidenceFindings.map((f, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: "8px 12px",
+                              background: "rgba(255,255,255,0.02)",
+                              border: "1px solid rgba(255,255,255,0.06)",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              color: "#94a3b8",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: SEV_COLOR[(f.severity || "Low")] || "#64748b",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontSize: "10px",
+                                fontWeight: 600,
+                                marginRight: "8px",
+                              }}
+                            >
+                              [{f.severity || "LOW"}]
+                            </span>
+                            {maskSensitiveData(
+                              f.title || f.description || f.type || "Finding"
+                            ).slice(0, 120)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "rgba(100,116,139,0.5)",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        No findings mapped to this control. Run a scan to collect evidence.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right rail — open actions */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Framework summary card */}
+          <div
+            style={{
+              background: "rgba(15,23,42,0.8)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "10px",
+              padding: "16px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                color: "rgba(100,116,139,0.6)",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                fontFamily: "'JetBrains Mono', monospace",
+                marginBottom: "12px",
+              }}
+            >
+              Posture Summary
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {[
+                { label: "Passing Controls", value: `${passCount} / ${controls.length}`, color: "#00ff88" },
+                { label: "Failing Controls", value: `${failCount}`, color: failCount > 0 ? "#ff0040" : "#00ff88" },
+                { label: "Partial / Review", value: `${partialCount}`, color: partialCount > 0 ? "#ffb000" : "#64748b" },
+                { label: "Last Audited", value: framework.lastAudited, color: "#64748b" },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                >
+                  <span style={{ fontSize: "11px", color: "rgba(100,116,139,0.7)" }}>{label}</span>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {value}
+                  </span>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
 
-        <TabsContent value="evidence">
-          <Card className="cyber-card">
-            <CardHeader>
-              <CardTitle>Evidence Collection Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="cyber-glass rounded-lg p-4 border border-border/50 space-y-3">
-                <p className="text-sm font-medium">Policies & Procedures</p>
-                <Badge className="w-fit bg-primary/10 text-primary">34 / 36 Updated</Badge>
-                <p className="text-xs text-muted-foreground">
-                  Automated policy sync captures updates from the source repository every 12 hours.
-                </p>
+            {/* Score bar */}
+            <div style={{ marginTop: "14px" }}>
+              <div
+                style={{
+                  height: "4px",
+                  background: "rgba(255,255,255,0.06)",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${framework.baseScore}%`,
+                    background: `linear-gradient(90deg, ${scoreColor(framework.baseScore)}, ${scoreColor(framework.baseScore)}88)`,
+                    borderRadius: "999px",
+                    transition: "width 0.5s ease",
+                  }}
+                />
               </div>
-              <div className="cyber-glass rounded-lg p-4 border border-border/50 space-y-3">
-                <p className="text-sm font-medium">Technical Evidence</p>
-                <Badge className="w-fit bg-primary/10 text-primary">128 artifacts</Badge>
-                <p className="text-xs text-muted-foreground">
-                  Includes IAM reports, S3 bucket policies, CloudTrail exports, and GuardDuty findings.
-                </p>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: "4px",
+                  fontSize: "10px",
+                  color: "rgba(100,116,139,0.5)",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                <span>0%</span>
+                <span style={{ color: scoreColor(framework.baseScore), fontWeight: 600 }}>
+                  {framework.baseScore}%
+                </span>
+                <span>100%</span>
               </div>
-              <div className="cyber-glass rounded-lg p-4 border border-border/50 space-y-3">
-                <p className="text-sm font-medium">Compensating Controls</p>
-                <Badge className="w-fit bg-primary/10 text-primary">8 documented</Badge>
-                <p className="text-xs text-muted-foreground">
-                  Linked to high-risk controls awaiting remediation with reviewer sign-off.
-                </p>
+            </div>
+          </div>
+
+          {/* Open actions for this framework */}
+          <div
+            style={{
+              background: "rgba(15,23,42,0.8)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "10px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 14px",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#e2e8f0" }}>
+                Open Actions
+              </span>
+              {frameActions.length > 0 && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    background: "rgba(255,64,96,0.15)",
+                    color: "#ff0040",
+                    padding: "4px 8px",
+                    borderRadius: "999px",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontWeight: 600,
+                  }}
+                >
+                  {frameActions.length}
+                </span>
+              )}
+            </div>
+
+            {frameActions.length === 0 ? (
+              <div
+                style={{
+                  padding: "24px 14px",
+                  textAlign: "center",
+                  fontSize: "12px",
+                  color: "rgba(100,116,139,0.5)",
+                }}
+              >
+                <ShieldCheck
+                  style={{ width: 20, height: 20, color: "#00ff88", margin: "0 auto 8px", display: "block" }}
+                />
+                No open actions
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            ) : (
+              frameActions.map((action) => {
+                const days = daysUntil(action.dueDate);
+                const slc = slaColor(action.dueDate);
+                return (
+                  <div
+                    key={action.id}
+                    style={{
+                      padding: "8px 12px",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      position: "relative",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: "8px",
+                        bottom: "8px",
+                        width: "3px",
+                        background: SEV_COLOR[action.severity] || "#64748b",
+                        borderRadius: "0 2px 2px 0",
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "3px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: "rgba(100,116,139,0.6)",
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        {action.id}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: STATUS_COLOR[action.status] || "#64748b",
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {action.status}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#94a3b8",
+                        margin: "0 0 6px",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {action.control}
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "10px",
+                        color: "rgba(100,116,139,0.5)",
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      <span>{action.owner}</span>
+                      <span style={{ color: slc, fontWeight: 600 }}>
+                        {days < 0
+                          ? `${Math.abs(days)}d overdue`
+                          : days === 0
+                          ? "due today"
+                          : `${days}d left`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* All open actions (cross-framework) */}
+          <div
+            style={{
+              background: "rgba(15,23,42,0.8)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "10px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 14px",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#e2e8f0" }}>
+                All Frameworks Risk Register
+              </span>
+            </div>
+            {OPEN_ACTIONS.map((action) => {
+              const fw = FRAMEWORKS.find((f) => f.id === action.framework);
+              const days = daysUntil(action.dueDate);
+              const slc = slaColor(action.dueDate);
+              return (
+                <div
+                  key={action.id}
+                  style={{
+                    padding: "8px 14px",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setActiveFramework(action.framework)}
+                >
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      background: SEV_COLOR[action.severity],
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#94a3b8",
+                        margin: 0,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {action.control}
+                    </p>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "rgba(100,116,139,0.5)",
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}
+                    >
+                      {fw?.name.split(" ")[0]}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: slc,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {days < 0 ? `${Math.abs(days)}d over` : `${days}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
-
-

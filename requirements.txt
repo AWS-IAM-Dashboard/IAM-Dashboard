@@ -2,11 +2,11 @@
 Flask==3.1.3
 Flask-CORS==6.0.0
 Flask-RESTful==0.3.10
-Werkzeug==3.1.6
+Werkzeug==3.1.7
 
 # AWS SDK and services
 boto3==1.42.58
-botocore==1.42.58
+botocore==1.42.78
 
 # Security and authentication
 cryptography>=42.0.0
@@ -14,12 +14,12 @@ bcrypt==4.1.2
 
 # Data processing and analysis
 pandas==3.0.1
-numpy==1.26.4
+numpy==2.4.4
 requests==2.33.0
 
 # Database and caching
 SQLAlchemy==2.0.23
-Redis==7.2.0
+Redis==7.4.0
 # psycopg2-binary moved to requirements-postgres.txt (PostgreSQL driver)
 # Install with: pip install -r requirements.txt -r requirements-postgres.txt for Docker/Postgres
 
@@ -38,7 +38,7 @@ flake8==6.1.0
 python-dotenv==1.0.0
 
 # API documentation
-marshmallow==3.26.2
+marshmallow==4.2.3
 
 # Utilities
 click==8.1.7

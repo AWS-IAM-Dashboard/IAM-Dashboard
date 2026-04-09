@@ -100,3 +100,8 @@ variable "s3_bucket_name" {
   type        = string
   default     = "iam-dashboard-project"
 }
+
+variable "session_table_name" {
+  description = "Name of the DynamoDB table for auth sessions"
+  type        = string
+}

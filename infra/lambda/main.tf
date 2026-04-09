@@ -80,6 +80,7 @@ resource "aws_lambda_function" "scanner" {
         S3_BUCKET_NAME      = var.s3_bucket_name
         PROJECT_NAME        = var.project_name
         ENVIRONMENT         = var.environment
+        SESSION_TABLE_NAME  = var.session_table_name
       }
     )
   }
