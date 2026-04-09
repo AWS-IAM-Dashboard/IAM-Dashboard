@@ -203,7 +203,7 @@ export function LandingPage() {
         <div
           className={`transition-all duration-700 ease-in-out ${
             scrolled
-              ? "mx-auto max-w-5xl rounded-3xl border border-white/5 bg-black/20 shadow-[0_0_30px_rgba(255,255,255,0.1),0_0_60px_rgba(0,255,136,0.15)] backdrop-blur-md"
+              ? "mx-auto max-w-5xl rounded-[10px] border border-white/5 bg-black/20 backdrop-blur-md"
               : "mx-auto max-w-7xl border-b border-white/10 bg-black/50 backdrop-blur-xl"
           } px-4 sm:px-6 lg:px-8`}
         >
@@ -357,7 +357,7 @@ export function LandingPage() {
                 initial={{ rotateX: 5, rotateY: -12 }}
                 whileHover={{ rotateX: 0, rotateY: 0 }}
                 transition={{ duration: 0.5 }}
-                className="group relative z-10 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 shadow-2xl backdrop-blur-xl"
+                className="group relative z-10 overflow-hidden rounded-[10px] border border-white/10 bg-slate-900/50 backdrop-blur-xl"
                 style={{ transformStyle: "preserve-3d" }}
               >
                 <div className="absolute inset-0 bg-green-500/5 opacity-0 transition-opacity duration-500"></div>
@@ -388,7 +388,7 @@ export function LandingPage() {
                 />
               </motion.div>
 
-              <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-r from-green-500 to-emerald-500 opacity-20 blur-2xl" />
+              <div className="absolute -inset-4 -z-10 rounded-[10px] bg-gradient-to-r from-green-500 to-emerald-500 opacity-20 blur-2xl" />
               <div className="absolute -bottom-10 -right-10 -z-10 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" />
             </motion.div>
           </div>
@@ -428,13 +428,13 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] p-8 backdrop-blur-md transition-all hover:border-green-500/50 hover:bg-white/[0.05]"
+                className="group relative overflow-hidden rounded-[10px] border border-white/5 bg-white/[0.02] p-8 backdrop-blur-md transition-all hover:border-green-500/50 hover:bg-white/[0.05]"
               >
-                <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-green-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-r from-green-500/50 to-emerald-500/50 opacity-0 blur-sm transition-opacity group-hover:opacity-20" />
+                <div className="pointer-events-none absolute inset-0 rounded-[10px] bg-gradient-to-br from-green-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="pointer-events-none absolute -inset-px rounded-[10px] bg-gradient-to-r from-green-500/50 to-emerald-500/50 opacity-0 blur-sm transition-opacity group-hover:opacity-20" />
 
                 <div className="relative">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-green-500/20 bg-black/50 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.1)] transition-all group-hover:scale-110 group-hover:border-green-500/50">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-green-500/20 bg-black/50 text-green-400 transition-all group-hover:scale-110 group-hover:border-green-500/50">
                     {feature.icon}
                   </div>
                   <h3 className="mb-2 text-xl font-bold text-white transition-colors group-hover:text-green-400">
@@ -501,7 +501,7 @@ export function LandingPage() {
                   className="group relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all hover:bg-slate-800/50"
                 >
                   <div className="absolute right-0 top-0 p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
                   </div>
 
                   <div className="mb-4 flex items-start justify-between">
@@ -544,7 +544,7 @@ export function LandingPage() {
                   className="group relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all hover:bg-slate-800/50"
                 >
                   <div className="absolute right-0 top-0 p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
                   </div>
 
                   <div className="mb-4 flex items-start justify-between">
@@ -589,7 +589,7 @@ export function LandingPage() {
               viewport={{ once: true }}
               className="relative"
             >
-              <div className="group relative aspect-[16/10] overflow-hidden rounded-xl border border-green-500/20 bg-slate-900/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+              <div className="group relative aspect-[16/10] overflow-hidden rounded-xl border border-green-500/20 bg-slate-900/50 backdrop-blur-sm">
                 <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-br from-green-500/10 to-transparent" />
 
                 <img
@@ -694,7 +694,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="rounded-2xl border border-white/5 bg-slate-900/40 p-8 transition-colors hover:border-green-500/30"
+                className="rounded-[10px] border border-white/5 bg-slate-900/40 p-8 transition-colors hover:border-green-500/30"
               >
                 <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-green-500/10 to-transparent">
                   {persona.icon}
@@ -718,7 +718,7 @@ export function LandingPage() {
       >
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-green-900/20" />
         <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-green-500/30 bg-slate-900/80 p-12 text-center backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-[10px] border border-green-500/30 bg-slate-900/80 p-12 text-center backdrop-blur-xl">
             <div className="pointer-events-none absolute left-1/2 top-0 h-full w-full -translate-x-1/2 bg-gradient-to-b from-green-500/10 to-transparent opacity-50 blur-xl"></div>
 
             <h2 className="relative z-10 mb-6 text-4xl font-bold text-white sm:text-5xl">
@@ -731,7 +731,7 @@ export function LandingPage() {
             <div className="relative z-10 flex flex-col justify-center gap-4 sm:flex-row">
               <button
                 onClick={onGetStarted}
-                className="transform rounded-xl bg-green-500 px-8 py-4 font-bold text-black shadow-[0_0_30px_rgba(34,197,94,0.4)] transition-all hover:-translate-y-1 hover:bg-green-400 hover:shadow-[0_0_60px_rgba(34,197,94,0.6)]"
+                className="transform rounded-xl bg-green-500 px-8 py-4 font-bold text-black transition-all hover:-translate-y-1 hover:bg-green-400"
               >
                 Start Free Trial
               </button>

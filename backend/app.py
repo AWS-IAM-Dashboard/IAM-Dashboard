@@ -20,6 +20,21 @@ from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.ir import (
+    LLMTriageResource,
+    LLMRootCauseResource,
+    LLMRunbookResource,
+    AutomationContainResource,
+    AutomationRemediateResource,
+    ForensicsCaptureResource,
+    EvidencePreserveResource,
+    IRJobStatusResource,
+    IRJobApproveResource,
+    IRJobRejectResource,
+    IRForensicsResource,
+    IREvidenceResource,
+    IRAuditResource,
+)
 
 # Import services
 from services.aws_service import AWSService
@@ -46,8 +61,16 @@ def create_app():
     app.config['REDIS_URL'] = os.environ.get(
         'REDIS_URL', 'redis://localhost:6379/0')
 
-    # Enable CORS for frontend integration
-    CORS(app, origins=['http://localhost:3001', 'http://localhost:5173'])
+    # Browser origins allowed to call this Flask API (local Docker + optional prod SPA).
+    # Match infra var.allowed_urls; see docs/security/CORS.md. Override with CORS_ALLOWED_ORIGINS (comma-separated).
+    _cors_default = (
+        'http://localhost:3001,http://localhost:5173,'
+        'https://d33ytnxd7i6mo9.cloudfront.net,http://localhost:5001'
+    )
+    _cors_raw = os.environ.get('CORS_ALLOWED_ORIGINS')
+    _cors_src = _cors_default if not (_cors_raw and _cors_raw.strip()) else _cors_raw
+    _cors_origins = [o.strip() for o in _cors_src.split(',') if o.strip()]
+    CORS(app, origins=_cors_origins, supports_credentials=True)
 
     # Register metrics collection hooks
     register_metrics_hooks(app)
@@ -70,6 +93,21 @@ def create_app():
     api.add_resource(SecurityHubResource, '/aws/security-hub')
     api.add_resource(ConfigResource, '/aws/config')
     api.add_resource(GrafanaResource, '/grafana')
+
+    # IR Action Engine routes
+    api.add_resource(LLMTriageResource,           '/llm/triage')
+    api.add_resource(LLMRootCauseResource,        '/llm/root-cause')
+    api.add_resource(LLMRunbookResource,          '/llm/runbook')
+    api.add_resource(AutomationContainResource,   '/automation/contain')
+    api.add_resource(AutomationRemediateResource, '/automation/remediate')
+    api.add_resource(ForensicsCaptureResource,    '/forensics/capture')
+    api.add_resource(EvidencePreserveResource,    '/evidence/preserve')
+    api.add_resource(IRJobStatusResource,         '/ir/actions/<string:job_id>')
+    api.add_resource(IRJobApproveResource,        '/ir/actions/<string:job_id>/approve')
+    api.add_resource(IRJobRejectResource,         '/ir/actions/<string:job_id>/reject')
+    api.add_resource(IRForensicsResource,         '/ir/forensics/<string:finding_id>')
+    api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
+    api.add_resource(IRAuditResource,             '/ir/audit')
 
     # Serve static files (React frontend)
     @app.route('/')

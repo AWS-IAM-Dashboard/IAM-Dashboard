@@ -57,6 +57,20 @@ export default defineConfig(async () => {
     server: {
       port: 5173,
       host: true,
+      proxy: {
+        '/auth': {
+          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+        '/scan': {
+          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+      },
       watch: {
         usePolling: true,
       },

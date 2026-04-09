@@ -11,7 +11,13 @@ services:
       - .:/app
       - /app/node_modules
     environment:
-      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-http://localhost:5001}
+      # Dev-only mode switch for frontend data sources:
+      # - mock: UI uses local fixtures (no backend required)
+      # - live: UI calls backend API (default http://localhost:3001)
+      - VITE_DATA_MODE=${VITE_DATA_MODE:-live}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3001}
+      # Keep compatibility with older env naming if someone still exports it.
+      - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-}
     networks:
       - cybersecurity-network
     stdin_open: true
@@ -36,6 +42,8 @@ services:
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-no-reply@local.test}
+      # Optional: comma-separated origins for Flask-CORS (defaults in app.py match infra allowed_urls)
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data

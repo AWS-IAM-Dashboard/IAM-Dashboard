@@ -1,837 +1,898 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { FileText, Download, Calendar, Filter, Search, Eye, Plus } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Shield,
+  AlertTriangle,
+  Users,
+  BarChart3,
+  Package,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  RefreshCcw,
+} from "lucide-react";
+import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, type ScanResultData } from "../services/pdfExport";
 import { toast } from "sonner";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import type { ReportRecord } from "../types/report";
 
-const REPORT_TYPE_TABS = [
-  {
-    value: "security-hub",
-    label: "Security Hub",
-    title: "Security Hub Report",
-    description: "Summarises findings, control status, and automated actions from AWS Security Hub.",
-  },
-  {
-    value: "guardduty",
-    label: "GuardDuty",
-    title: "GuardDuty Report",
-    description: "Highlights anomaly detections, IP reputation events, and resource compromises from GuardDuty.",
-  },
-  {
-    value: "config",
-    label: "Config",
-    title: "Config Compliance Report",
-    description: "Tracks configuration drift, compliance packs, and remediation timelines captured by AWS Config.",
-  },
-  {
-    value: "inspector",
-    label: "Inspector",
-    title: "Inspector Vulnerability Report",
-    description: "Provides CVE coverage, package findings, and remediation progress from AWS Inspector scans.",
-  },
-  {
-    value: "macie",
-    label: "Macie",
-    title: "Macie Data Protection Report",
-    description: "Details sensitive data discovery, classification results, and access anomalies surfaced by Macie.",
-  },
-  {
-    value: "iam-security",
-    label: "IAM & Access",
-    title: "IAM & Access Control Report",
-    description: "Reviews user permissions, role changes, and high-risk policies detected across IAM resources.",
-  },
-  {
-    value: "ec2-security",
-    label: "EC2 Compute",
-    title: "EC2 & Compute Report",
-    description: "Analyses instance posture, patch status, exposed services, and runtime events for compute resources.",
-  },
-  {
-    value: "s3-security",
-    label: "S3 Storage",
-    title: "S3 Storage Report",
-    description: "Surfaces bucket misconfigurations, access issues, and sensitive data exposures within S3.",
-  },
-  {
-    value: "alerts",
-    label: "Security Alerts",
-    title: "Security Alerts Digest",
-    description: "Aggregates alert spikes, suppressed signals, and rule coverage across monitoring channels.",
-  },
-] as const;
-
-const DEFAULT_REPORT_TYPE = REPORT_TYPE_TABS[0].value;
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface ReportsProps {
   reports: ReportRecord[];
 }
 
+// ─── Quick report card definitions ───────────────────────────────────────────
+const QUICK_REPORTS = [
+  {
+    id: "security-summary",
+    label: "Security Summary",
+    desc: "Full posture — all findings, severity breakdown, risk score",
+    icon: Shield,
+    accent: "#00ff88",
+    tag: "OVERVIEW",
+  },
+  {
+    id: "threat-intelligence",
+    label: "Threat Intelligence",
+    desc: "Critical & high findings, threat type clusters, attack vectors",
+    icon: AlertTriangle,
+    accent: "#ff0040",
+    tag: "THREAT",
+  },
+  {
+    id: "executive-brief",
+    label: "Executive Brief",
+    desc: "Board-ready — compliance score, top risks, remediation status",
+    icon: BarChart3,
+    accent: "#7c3aed",
+    tag: "EXEC",
+  },
+  {
+    id: "audit-package",
+    label: "Audit Package",
+    desc: "All reports bundled — PDF + CSV + JSON for auditor hand-off",
+    icon: Package,
+    accent: "#ffb000",
+    tag: "AUDITOR",
+    isBundle: true,
+  },
+  {
+    id: "iam-access",
+    label: "IAM & Access",
+    desc: "User permissions, role changes, policy violations, MFA gaps",
+    icon: Users,
+    accent: "#38bdf8",
+    tag: "IAM",
+  },
+  {
+    id: "compliance-status",
+    label: "Compliance Status",
+    desc: "CIS / SOC2 / PCI-DSS / HIPAA control pass/fail evidence",
+    icon: FileText,
+    accent: "#00ff88",
+    tag: "COMPLIANCE",
+  },
+] as const;
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  "security-hub": "Security Hub",
+  "guardduty": "GuardDuty",
+  "config": "Config",
+  "inspector": "Inspector",
+  "macie": "Macie",
+  "iam-security": "IAM & Access",
+  "ec2-security": "EC2 Compute",
+  "s3-security": "S3 Storage",
+  "alerts": "Security Alerts",
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function Reports({ reports }: ReportsProps) {
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [reportType, setReportType] = useState<string>(DEFAULT_REPORT_TYPE);
-  const [reportName, setReportName] = useState("");
-  const [reportDescription, setReportDescription] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [exportFormats, setExportFormats] = useState({
-    pdf: true,
-    csv: false,
-    json: false
-  });
-  const { getScanResult, getAllScanResults } = useScanResults();
+  const [generating, setGenerating] = useState<string | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [builderType, setBuilderType] = useState("security-hub");
+  const [builderName, setBuilderName] = useState("");
+  const [formats, setFormats] = useState({ pdf: true, csv: false, json: false });
+  const [historySearch, setHistorySearch] = useState("");
+  const { getScanResult, getAllScanResults } = useActiveScanResults();
 
-  const handleFormatChange = (format: 'pdf' | 'csv' | 'json') => {
-    setExportFormats(prev => ({ ...prev, [format]: !prev[format] }));
-  };
-
-  const selectedReport = REPORT_TYPE_TABS.find((tab) => tab.value === reportType) ?? REPORT_TYPE_TABS[0];
-
-  /**
-   * Extract findings from scan result, trying multiple locations
-   */
+  // ── Shared data helpers ──────────────────────────────────────────────────
   const extractFindingsFromResult = (scanResult: any): any[] => {
-    // Try direct findings
-    if (scanResult.findings && Array.isArray(scanResult.findings) && scanResult.findings.length > 0) {
-      return scanResult.findings;
-    }
-    
-    // Try in results object
-    if (scanResult.results?.findings && Array.isArray(scanResult.results.findings) && scanResult.results.findings.length > 0) {
-      return scanResult.results.findings;
-    }
-    
-    // Try nested in various scanner-specific locations
-    const nestedFindings: any[] = [];
-    
-    if (scanResult.results?.iam_findings) nestedFindings.push(...(Array.isArray(scanResult.results.iam_findings) ? scanResult.results.iam_findings : []));
-    if (scanResult.results?.security_hub_findings) nestedFindings.push(...(Array.isArray(scanResult.results.security_hub_findings) ? scanResult.results.security_hub_findings : []));
-    if (scanResult.results?.guardduty_findings) nestedFindings.push(...(Array.isArray(scanResult.results.guardduty_findings) ? scanResult.results.guardduty_findings : []));
-    if (scanResult.results?.config_findings) nestedFindings.push(...(Array.isArray(scanResult.results.config_findings) ? scanResult.results.config_findings : []));
-    if (scanResult.results?.inspector_findings) nestedFindings.push(...(Array.isArray(scanResult.results.inspector_findings) ? scanResult.results.inspector_findings : []));
-    if (scanResult.results?.macie_findings) nestedFindings.push(...(Array.isArray(scanResult.results.macie_findings) ? scanResult.results.macie_findings : []));
-    
-    if (nestedFindings.length > 0) {
-      return nestedFindings;
-    }
-    
-    return scanResult.findings || [];
+    if (scanResult.findings?.length) return scanResult.findings;
+    if (scanResult.results?.findings?.length) return scanResult.results.findings;
+    const nested: any[] = [];
+    const keys = ["iam_findings", "security_hub_findings", "guardduty_findings", "config_findings", "inspector_findings", "macie_findings"];
+    keys.forEach((k) => {
+      if (Array.isArray(scanResult.results?.[k])) nested.push(...scanResult.results[k]);
+    });
+    return nested.length > 0 ? nested : scanResult.findings || [];
   };
 
-  /**
-   * Generate Security Summary Report - Complete overview of all security findings
-   */
-  const generateSecuritySummary = () => {
-    setIsGenerating(true);
+  const buildCombinedScanData = (title: string): ScanResultData | null => {
     const allScans = getAllScanResults();
-    
-    if (allScans.length === 0) {
-      toast.warning('No scan data available', {
-        description: 'Please run scans first to generate a security summary report'
-      });
-      setIsGenerating(false);
-      return;
-    }
-
-    // Combine all scan results
-    const combinedSummary = {
-      critical_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0),
-      high_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0),
-      medium_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0),
-      low_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0),
-      users: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.users || 0,
-      roles: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.roles || 0,
-      policies: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.policies || 0,
-      groups: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.groups || 0
-    };
-    
-    const allFindings = allScans.flatMap(s => s.findings || []);
-    
-    const scanData: ScanResultData = {
-      scan_id: `security-summary-${Date.now()}`,
-      scanner_type: 'comprehensive',
-      region: allScans[0]?.region || 'us-east-1',
-      status: 'completed',
+    if (allScans.length === 0) return null;
+    const allFindings = allScans.flatMap((s) => s.findings || []);
+    return {
+      scan_id: `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+      scanner_type: "comprehensive",
+      region: allScans[0]?.region || "us-east-1",
+      status: "completed",
       timestamp: new Date().toISOString(),
       results: { scans: allScans },
-      scan_summary: combinedSummary,
-      findings: allFindings
-    };
-
-    try {
-      exportScanResultToPDF(scanData, 'Security Summary Report');
-      toast.success('Security Summary Report generated', {
-        description: `Combined ${allScans.length} scan results with ${allFindings.length} total findings`
-      });
-    } catch (error) {
-      toast.error('Failed to generate report', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  /**
-   * Generate Threat Intelligence Report - Detailed analysis of detected threats
-   */
-  const generateThreatIntelligence = () => {
-    setIsGenerating(true);
-    const allScans = getAllScanResults();
-    
-    if (allScans.length === 0) {
-      toast.warning('No scan data available', {
-        description: 'Please run scans first to generate a threat intelligence report'
-      });
-      setIsGenerating(false);
-      return;
-    }
-
-    // Focus on critical and high severity findings
-    const allFindings = allScans.flatMap(s => s.findings || []);
-    const threatFindings = allFindings.filter((f: any) => {
-      const severity = (f.severity || '').toLowerCase();
-      return severity === 'critical' || severity === 'high';
-    });
-
-    // Group threats by type
-    const threatsByType: Record<string, any[]> = {};
-    threatFindings.forEach((finding: any) => {
-      const type = finding.type || finding.finding_type || finding.resource_type || 'Unknown';
-      if (!threatsByType[type]) {
-        threatsByType[type] = [];
-      }
-      threatsByType[type].push(finding);
-    });
-
-    const threatSummary = {
-      critical_findings: allFindings.filter((f: any) => (f.severity || '').toLowerCase() === 'critical').length,
-      high_findings: allFindings.filter((f: any) => (f.severity || '').toLowerCase() === 'high').length,
-      medium_findings: 0,
-      low_findings: 0,
-      total_threats: threatFindings.length,
-      threat_types: Object.keys(threatsByType).length
-    };
-    
-    const scanData: ScanResultData = {
-      scan_id: `threat-intelligence-${Date.now()}`,
-      scanner_type: 'threat-intelligence',
-      region: allScans[0]?.region || 'us-east-1',
-      status: 'completed',
-      timestamp: new Date().toISOString(),
-      results: { 
-        threats_by_type: threatsByType,
-        threat_analysis: {
-          total_threats: threatFindings.length,
-          critical_count: threatSummary.critical_findings,
-          high_count: threatSummary.high_findings,
-          threat_types: Object.keys(threatsByType)
-        }
+      scan_summary: {
+        critical_findings: allScans.reduce((s, r) => s + (r.scan_summary?.critical_findings || 0), 0),
+        high_findings: allScans.reduce((s, r) => s + (r.scan_summary?.high_findings || 0), 0),
+        medium_findings: allScans.reduce((s, r) => s + (r.scan_summary?.medium_findings || 0), 0),
+        low_findings: allScans.reduce((s, r) => s + (r.scan_summary?.low_findings || 0), 0),
+        users: allScans.find((s) => s.scanner_type === "iam")?.scan_summary?.users || 0,
+        roles: allScans.find((s) => s.scanner_type === "iam")?.scan_summary?.roles || 0,
+        policies: allScans.find((s) => s.scanner_type === "iam")?.scan_summary?.policies || 0,
+        groups: allScans.find((s) => s.scanner_type === "iam")?.scan_summary?.groups || 0,
       },
-      scan_summary: threatSummary,
-      findings: threatFindings
+      findings: allFindings,
     };
-
-    try {
-      exportScanResultToPDF(scanData, 'Threat Intelligence Report');
-      toast.success('Threat Intelligence Report generated', {
-        description: `Analyzed ${threatFindings.length} critical/high threats across ${Object.keys(threatsByType).length} threat types`
-      });
-    } catch (error) {
-      toast.error('Failed to generate report', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
-  /**
-   * Generate Executive Summary Report - High-level summary for management
-   */
-  const generateExecutiveSummary = () => {
-    setIsGenerating(true);
-    const allScans = getAllScanResults();
-    
-    if (allScans.length === 0) {
-      toast.warning('No scan data available', {
-        description: 'Please run scans first to generate an executive summary report'
-      });
-      setIsGenerating(false);
-      return;
-    }
-
-    // Aggregate high-level metrics
-    const totalCritical = allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0);
-    const totalHigh = allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0);
-    const totalMedium = allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0);
-    const totalLow = allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0);
-    const totalFindings = totalCritical + totalHigh + totalMedium + totalLow;
-    
-    // Calculate compliance percentage (green if no critical/high, yellow if some, red if many)
-    const compliancePercentage = totalFindings === 0 ? 100 : 
-      Math.max(0, Math.round(100 - ((totalCritical * 10 + totalHigh * 5 + totalMedium * 2 + totalLow) / totalFindings * 100)));
-
-    // Get top 5 critical findings for executive summary
-    const allFindings = allScans.flatMap(s => s.findings || []);
-    const criticalFindings = allFindings
-      .filter((f: any) => (f.severity || '').toLowerCase() === 'critical')
-      .slice(0, 5);
-
-    const executiveSummary = {
-      critical_findings: totalCritical,
-      high_findings: totalHigh,
-      medium_findings: totalMedium,
-      low_findings: totalLow,
-      total_findings: totalFindings,
-      compliance_percentage: compliancePercentage,
-      scans_analyzed: allScans.length,
-      top_critical_risks: criticalFindings.length
-    };
-    
-    const scanData: ScanResultData = {
-      scan_id: `executive-summary-${Date.now()}`,
-      scanner_type: 'executive-summary',
-      region: allScans[0]?.region || 'us-east-1',
-      status: 'completed',
-      timestamp: new Date().toISOString(),
-      results: { 
-        executive_metrics: executiveSummary,
-        top_critical_findings: criticalFindings,
-        scan_summary: {
-          total_scans: allScans.length,
-          scanners_used: [...new Set(allScans.map(s => s.scanner_type))],
-          compliance_score: compliancePercentage
-        }
-      },
-      scan_summary: executiveSummary,
-      findings: criticalFindings // Only show top critical findings in executive summary
-    };
-
+  // ── Quick report generators ──────────────────────────────────────────────
+  const runGenerate = async (id: string) => {
+    setGenerating(id);
     try {
-      exportScanResultToPDF(scanData, 'Executive Summary Report');
-      toast.success('Executive Summary Report generated', {
-        description: `Compliance: ${compliancePercentage}% | ${totalFindings} total findings across ${allScans.length} scans`
-      });
-    } catch (error) {
-      toast.error('Failed to generate report', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const generateReport = () => {
-    if (!reportType) {
-      toast.error('Please select a report type');
-      return;
-    }
-
-    // Use selected report title as default name if not provided
-    const finalReportName = reportName || selectedReport.title;
-
-    setIsGenerating(true);
-
-    // Map report type to scanner type
-    const scannerTypeMap: Record<string, string> = {
-      'comprehensive': 'full',
-      'memory-scan': 'memory', // Not a scanner, but keep for compatibility
-      'hidden-process': 'process', // Not a scanner, but keep for compatibility
-      'dll-analysis': 'dll', // Not a scanner, but keep for compatibility
-      'incident': 'full',
-      'custom': reportType, // Use as-is
-      'iam': 'iam',
-      'iam-security': 'iam',
-      'ec2': 'ec2',
-      'ec2-security': 'ec2',
-      's3': 's3',
-      's3-security': 's3',
-      'security-hub': 'security-hub',
-      'guardduty': 'guardduty',
-      'config': 'config',
-      'inspector': 'inspector',
-      'macie': 'macie'
-    };
-    
-    const scannerType = scannerTypeMap[reportType] || reportType;
-    
-    let scanData: ScanResultData;
-    
-    // For comprehensive reports, combine all available scan results
-    if (reportType === 'comprehensive' || reportType === 'incident') {
       const allScans = getAllScanResults();
-      if (allScans.length > 0) {
-        // Combine all scan results into one comprehensive report
-        const combinedSummary = {
-          critical_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.critical_findings || 0), 0),
-          high_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.high_findings || 0), 0),
-          medium_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.medium_findings || 0), 0),
-          low_findings: allScans.reduce((sum, s) => sum + (s.scan_summary?.low_findings || 0), 0),
-          users: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.users || 0,
-          roles: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.roles || 0,
-          policies: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.policies || 0,
-          groups: allScans.find(s => s.scanner_type === 'iam')?.scan_summary?.groups || 0
-        };
-        
-        const allFindings = allScans.flatMap(s => s.findings || []);
-        
-        scanData = {
-          scan_id: `comprehensive-${Date.now()}`,
-          scanner_type: 'comprehensive',
-          region: allScans[0]?.region || 'us-east-1',
-          status: 'completed',
-          timestamp: new Date().toISOString(),
-          results: { scans: allScans },
-          scan_summary: combinedSummary,
-          findings: allFindings
-        };
-        
-        toast.info('Comprehensive report generated', {
-          description: `Combined ${allScans.length} scan results`
-        });
-      } else {
-        // No scans available, use mock data
-        scanData = {
-          scan_id: `report-${Date.now()}`,
-          scanner_type: reportType,
-          region: 'us-east-1',
-          status: 'completed',
-          timestamp: new Date().toISOString(),
-          scan_summary: {
-            critical_findings: 5,
-            high_findings: 12,
-            medium_findings: 8,
-            low_findings: 3
-          },
-          findings: []
-        };
-        toast.warning('No scan data found', {
-          description: 'Run scans first to generate comprehensive report with real data'
-        });
-      }
-    } else {
-      // Get real scan result from context, or use mock data as fallback
-      const realScanResult = getScanResult(scannerType);
-      let scanDataSingle: ScanResultData;
 
-      if (realScanResult) {
-        // Extract findings comprehensively
-        const extractedFindings = extractFindingsFromResult(realScanResult);
-        
-        // Use real scan result
-        scanDataSingle = {
-          scan_id: realScanResult.scan_id,
-          scanner_type: realScanResult.scanner_type,
-          region: realScanResult.region,
-          status: realScanResult.status,
-          timestamp: realScanResult.timestamp,
-          results: realScanResult.results,
-          scan_summary: realScanResult.scan_summary,
-          findings: extractedFindings.length > 0 ? extractedFindings : realScanResult.findings || []
-        };
-        toast.info('Using real scan data', {
-          description: `Report generated from ${realScanResult.scanner_type} scan results`
+      if (id === "security-summary") {
+        const data = buildCombinedScanData("Security Summary Report");
+        if (!data) { toast.warning("No scan data", { description: "Run scans first" }); return; }
+        exportScanResultToPDF(data, "Security Summary Report");
+        toast.success("Security Summary generated", { description: `${data.findings?.length || 0} findings` });
+
+      } else if (id === "threat-intelligence") {
+        if (allScans.length === 0) { toast.warning("No scan data"); return; }
+        const allFindings = allScans.flatMap((s) => s.findings || []);
+        const threats = allFindings.filter((f) => {
+          const s = (f.severity || "").toLowerCase();
+          return s === "critical" || s === "high";
         });
-      } else {
-        // Fallback to mock data if no real scan exists
-        scanDataSingle = {
-          scan_id: `report-${Date.now()}`,
-          scanner_type: reportType,
-          region: 'us-east-1',
-          status: 'completed',
+        const data: ScanResultData = {
+          scan_id: `threat-intel-${Date.now()}`,
+          scanner_type: "threat-intelligence",
+          region: allScans[0]?.region || "us-east-1",
+          status: "completed",
           timestamp: new Date().toISOString(),
+          results: {},
           scan_summary: {
-            critical_findings: 5,
-            high_findings: 12,
-            medium_findings: 8,
-            low_findings: 3,
-            users: 10,
-            roles: 17,
-            policies: 25,
-            groups: 4
+            critical_findings: threats.filter((f) => (f.severity || "").toLowerCase() === "critical").length,
+            high_findings: threats.filter((f) => (f.severity || "").toLowerCase() === "high").length,
+            medium_findings: 0,
+            low_findings: 0,
           },
-          findings: [
-            {
-              severity: 'Critical',
-              type: 'user',
-              resource_name: 'admin-user',
-              resource_arn: 'arn:aws:iam::123456789012:user/admin-user',
-              description: 'User has active access keys with administrator privileges',
-              recommendation: 'Enable MFA and rotate access keys'
-            }
-          ]
+          findings: threats,
         };
-        toast.warning('No scan data found', {
-          description: `No ${reportType} scan results available. Using sample data. Run a scan first for real data.`
-        });
+        exportScanResultToPDF(data, "Threat Intelligence Report");
+        toast.success("Threat Intelligence generated", { description: `${threats.length} critical/high threats` });
+
+      } else if (id === "executive-brief") {
+        if (allScans.length === 0) { toast.warning("No scan data"); return; }
+        const allFindings = allScans.flatMap((s) => s.findings || []);
+        const crit = allScans.reduce((s, r) => s + (r.scan_summary?.critical_findings || 0), 0);
+        const high = allScans.reduce((s, r) => s + (r.scan_summary?.high_findings || 0), 0);
+        const med = allScans.reduce((s, r) => s + (r.scan_summary?.medium_findings || 0), 0);
+        const low = allScans.reduce((s, r) => s + (r.scan_summary?.low_findings || 0), 0);
+        const total = crit + high + med + low;
+        const compliance = total === 0 ? 100 : Math.max(0, Math.round(100 - ((crit * 10 + high * 5 + med * 2 + low) / total * 100)));
+        const data: ScanResultData = {
+          scan_id: `exec-brief-${Date.now()}`,
+          scanner_type: "executive-summary",
+          region: allScans[0]?.region || "us-east-1",
+          status: "completed",
+          timestamp: new Date().toISOString(),
+          results: { compliance_score: compliance },
+          scan_summary: { critical_findings: crit, high_findings: high, medium_findings: med, low_findings: low },
+          findings: allFindings.filter((f) => (f.severity || "").toLowerCase() === "critical").slice(0, 5),
+        };
+        exportScanResultToPDF(data, "Executive Brief");
+        toast.success("Executive Brief generated", { description: `Compliance: ${compliance}%` });
+
+      } else if (id === "audit-package") {
+        const data = buildCombinedScanData("Audit Package");
+        if (!data) { toast.warning("No scan data", { description: "Run scans first" }); return; }
+        exportScanResultToPDF(data, "Audit Package — Full Security Report");
+        exportScanResultToCSV(data, `audit-package-${Date.now()}.csv`);
+        exportScanResultToJSON(data, `audit-package-${Date.now()}.json`);
+        toast.success("Audit Package generated", { description: "PDF + CSV + JSON delivered" });
+
+      } else if (id === "iam-access") {
+        const iamScan = getScanResult("iam") || getScanResult("iam-security");
+        if (!iamScan) {
+          const data = buildCombinedScanData("IAM Access Report");
+          if (!data) { toast.warning("No scan data"); return; }
+          data.findings = data.findings?.filter((f) => {
+            const t = (f.type || f.resource_type || "").toLowerCase();
+            return t.includes("iam") || t.includes("user") || t.includes("role") || t.includes("policy");
+          }) || [];
+          exportScanResultToPDF(data, "IAM & Access Report");
+        } else {
+          const findings = extractFindingsFromResult(iamScan);
+          const d: ScanResultData = { ...iamScan, findings };
+          exportScanResultToPDF(d, "IAM & Access Report");
+        }
+        toast.success("IAM & Access report generated");
+
+      } else if (id === "compliance-status") {
+        const data = buildCombinedScanData("Compliance Status Report");
+        if (!data) { toast.warning("No scan data"); return; }
+        exportScanResultToPDF(data, "Compliance Status Report");
+        toast.success("Compliance Status generated");
       }
-      scanData = scanDataSingle;
+    } catch (err) {
+      toast.error("Report failed", { description: err instanceof Error ? err.message : "Unknown error" });
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  // ── Advanced builder generate ────────────────────────────────────────────
+  const runBuilderGenerate = () => {
+    const scannerTypeMap: Record<string, string> = {
+      "iam-security": "iam", "ec2-security": "ec2", "s3-security": "s3",
+      "security-hub": "security-hub", "guardduty": "guardduty", "config": "config",
+      "inspector": "inspector", "macie": "macie", "alerts": "full",
+    };
+    const scannerType = scannerTypeMap[builderType] || builderType;
+    const realScan = getScanResult(scannerType);
+    const title = builderName || REPORT_TYPE_LABELS[builderType] || builderType;
+
+    let data: ScanResultData;
+    if (realScan) {
+      data = { ...realScan, findings: extractFindingsFromResult(realScan) };
+      toast.info("Using real scan data");
+    } else {
+      const combined = buildCombinedScanData(title);
+      if (combined) {
+        data = combined;
+      } else {
+        data = {
+          scan_id: `report-${Date.now()}`,
+          scanner_type: builderType,
+          region: "us-east-1",
+          status: "completed",
+          timestamp: new Date().toISOString(),
+          scan_summary: { critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 },
+          findings: [],
+        };
+        toast.warning("Using sample data — run a scan first");
+      }
     }
 
     try {
-      // Export in selected formats
-      if (exportFormats.pdf) {
-        exportScanResultToPDF(scanData, finalReportName);
-        toast.success('PDF report generated', {
-          description: 'The report will open in a new window for printing'
-        });
-      }
-
-      if (exportFormats.csv) {
-        exportScanResultToCSV(scanData, `${finalReportName}.csv`);
-        toast.success('CSV report downloaded');
-      }
-
-      if (exportFormats.json) {
-        exportScanResultToJSON(scanData, `${finalReportName}.json`);
-        toast.success('JSON report downloaded');
-      }
-
-      if (!exportFormats.pdf && !exportFormats.csv && !exportFormats.json) {
-        toast.warning('Please select at least one export format');
-        setIsGenerating(false);
-        return;
-      }
-
-      // Reset form after a short delay
-      setTimeout(() => {
-        setIsGenerating(false);
-        setShowGenerateDialog(false);
-        setReportName("");
-        setReportDescription("");
-        setReportType(DEFAULT_REPORT_TYPE);
-      }, 1000);
-
-    } catch (error) {
-      setIsGenerating(false);
-      toast.error('Failed to generate report', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
+      if (formats.pdf) { exportScanResultToPDF(data, title); toast.success("PDF generated"); }
+      if (formats.csv) { exportScanResultToCSV(data, `${title}.csv`); toast.success("CSV downloaded"); }
+      if (formats.json) { exportScanResultToJSON(data, `${title}.json`); toast.success("JSON downloaded"); }
+      if (!formats.pdf && !formats.csv && !formats.json) { toast.warning("Select at least one format"); }
+    } catch (err) {
+      toast.error("Failed", { description: err instanceof Error ? err.message : "Unknown" });
     }
   };
 
+  // ── Helpers ──────────────────────────────────────────────────────────────
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Completed": return "bg-[#00ff88] text-black";
-      case "In Progress": return "bg-[#ffb000] text-black";
-      case "Failed": return "bg-[#ff0040] text-white";
-      default: return "bg-muted text-muted-foreground";
-    }
+    if (status === "Completed") return { bg: "rgba(0,255,136,0.12)", color: "#00ff88" };
+    if (status === "In Progress") return { bg: "rgba(255,176,0,0.12)", color: "#ffb000" };
+    return { bg: "rgba(255,64,96,0.12)", color: "#ff0040" };
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "Incident": return "border-[#ff0040] text-[#ff0040]";
-      case "Manual": return "border-[#ffb000] text-[#ffb000]";
-      case "Automated": return "border-[#00ff88] text-[#00ff88]";
-      default: return "border-border";
-    }
-  };
+  const filteredReports = reports.filter((r) =>
+    r.name.toLowerCase().includes(historySearch.toLowerCase()) ||
+    r.type.toLowerCase().includes(historySearch.toLowerCase())
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Report Generation */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Generate New Report
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-2">
-                <Label htmlFor="report-type">Report Type</Label>
-                <Select value={reportType} onValueChange={setReportType}>
-                  <SelectTrigger className="bg-input border-border">
-                    <SelectValue placeholder="Select report type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {REPORT_TYPE_TABS.map((tab) => (
-                    <SelectItem key={tab.value} value={tab.value}>
-                      {tab.label}
-                    </SelectItem>
-                  ))}
-                  </SelectContent>
-                </Select>
-              <div className="rounded-md border border-dashed border-border bg-muted/40 p-4 space-y-1">
-                <h4 className="text-sm font-medium">
-                  {selectedReport.title}
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedReport.description}
+    <div
+      style={{
+        padding: "24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+              }}
+    >
+      {/* ── Page header ── */}
+      <ScanPageHeader
+        icon={<FileText size={20} color="#00ff88" />}
+        iconColor="#00ff88"
+        title="Reports"
+        subtitle="Generate, export, and deliver security evidence"
+        onRefresh={() => {}}
+        onExport={() => {}}
+      />
+
+      {/* ── Quick generate hero grid ── */}
+      <div>
+        <div
+          style={{
+            fontSize: "10px",
+            fontWeight: 600,
+            color: "rgba(100,116,139,0.55)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            fontFamily: "'JetBrains Mono', monospace",
+            marginBottom: "12px",
+          }}
+        >
+          Quick Generate
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "8px",
+          }}
+        >
+          {QUICK_REPORTS.map((qr) => {
+            const Icon = qr.icon;
+            const isRunning = generating === qr.id;
+            const isBundle = "isBundle" in qr && qr.isBundle;
+
+            return (
+              <div
+                key={qr.id}
+                style={{
+                  background: "rgba(15,23,42,0.8)",
+                  border: `1px solid ${isBundle ? `${qr.accent}30` : "rgba(255,255,255,0.06)"}`,
+                  borderRadius: "10px",
+                  padding: "16px",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Subtle glow strip */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: "2px",
+                    background: isBundle
+                      ? `linear-gradient(90deg, ${qr.accent}00, ${qr.accent}, ${qr.accent}00)`
+                      : `linear-gradient(90deg, ${qr.accent}30, ${qr.accent}10, transparent)`,
+                    transition: "background 0.2s",
+                  }}
+                />
+
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      background: `${qr.accent}15`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon style={{ width: 15, height: 15, color: qr.accent }} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      color: `${qr.accent}99`,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: "0.1em",
+                      background: `${qr.accent}12`,
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {qr.tag}
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: "4px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>
+                    {qr.label}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(100,116,139,0.7)",
+                    margin: "0 0 16px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {qr.desc}
                 </p>
+
+                <button
+                  onClick={() => runGenerate(qr.id)}
+                  disabled={!!generating}
+                  style={{
+                    width: "100%",
+                    padding: "8px 0",
+                    background: isRunning
+                      ? `${qr.accent}20`
+                      : isBundle
+                      ? `${qr.accent}15`
+                      : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${isRunning ? `${qr.accent}50` : isBundle ? `${qr.accent}30` : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: "6px",
+                    color: isRunning ? qr.accent : isBundle ? qr.accent : "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: generating ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    transition: "all 0.15s",
+                    opacity: generating && !isRunning ? 0.5 : 1,
+                  }}
+                >
+                  {isRunning ? (
+                    <>
+                      <RefreshCcw style={{ width: 12, height: 12, animation: "spin 1s linear infinite" }} />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Download style={{ width: 12, height: 12 }} />
+                      {isBundle ? "Generate All" : "Generate"}
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Advanced report builder (collapsed) ── */}
+      <div
+        style={{
+          background: "rgba(15,23,42,0.5)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: "10px",
+          overflow: "hidden",
+        }}
+      >
+        <button
+          onClick={() => setShowBuilder((v) => !v)}
+          style={{
+            width: "100%",
+            padding: "16px 16px",
+            background: "transparent",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <FileText style={{ width: 14, height: 14, color: "rgba(100,116,139,0.6)" }} />
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "#cbd5e1" }}>
+              Advanced Report Builder
+            </span>
+            <span
+              style={{
+                fontSize: "10px",
+                color: "rgba(100,116,139,0.5)",
+                fontFamily: "'JetBrains Mono', monospace",
+                background: "rgba(255,255,255,0.04)",
+                padding: "4px 8px",
+                borderRadius: "4px",
+              }}
+            >
+              Custom formats &amp; scope
+            </span>
+          </div>
+          {showBuilder ? (
+            <ChevronUp style={{ width: 14, height: 14, color: "rgba(100,116,139,0.5)" }} />
+          ) : (
+            <ChevronDown style={{ width: 14, height: 14, color: "rgba(100,116,139,0.5)" }} />
+          )}
+        </button>
+
+        {showBuilder && (
+          <div
+            style={{
+              padding: "0 16px 16px",
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+                paddingTop: "16px",
+              }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: "rgba(100,116,139,0.7)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Report Type
+                </label>
+                <select
+                  value={builderType}
+                  onChange={(e) => setBuilderType(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: "rgba(30,41,59,0.8)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "6px",
+                    color: "#e2e8f0",
+                    fontSize: "12px",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {Object.entries(REPORT_TYPE_LABELS).map(([v, l]) => (
+                    <option key={v} value={v}>{l}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: "rgba(100,116,139,0.7)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Custom Name (optional)
+                </label>
+                <input
+                  value={builderName}
+                  onChange={(e) => setBuilderName(e.target.value)}
+                  placeholder="Auto-named if blank"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: "rgba(30,41,59,0.8)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "6px",
+                    color: "#e2e8f0",
+                    fontSize: "12px",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
               </div>
             </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="report-name">Report Name</Label>
-                <Input 
-                  id="report-name"
-                  value={reportName}
-                  onChange={(e) => setReportName(e.target.value)}
-                  placeholder="Enter report name..."
-                  className="bg-input border-border"
-                />
+
+            <div style={{ marginTop: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: "rgba(100,116,139,0.7)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  marginBottom: "8px",
+                }}
+              >
+                Export Formats
+              </label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                {(["pdf", "csv", "json"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => setFormats((f) => ({ ...f, [fmt]: !f[fmt] }))}
+                    style={{
+                      padding: "4px 16px",
+                      borderRadius: "6px",
+                      background: formats[fmt] ? "rgba(0,255,136,0.12)" : "rgba(255,255,255,0.04)",
+                      border: formats[fmt] ? "1px solid rgba(0,255,136,0.3)" : "1px solid rgba(255,255,255,0.07)",
+                      color: formats[fmt] ? "#00ff88" : "rgba(100,116,139,0.7)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {fmt}
+                  </button>
+                ))}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="report-description">Description</Label>
-                <Textarea 
-                  id="report-description"
-                  value={reportDescription}
-                  onChange={(e) => setReportDescription(e.target.value)}
-                  placeholder="Optional description or notes..."
-                  className="bg-input border-border resize-none"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label>Export Format</Label>
-                <div className="flex gap-2 mt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={exportFormats.pdf}
-                      onChange={() => handleFormatChange('pdf')}
-                      className="rounded cursor-pointer" 
-                    />
-                    <span className="text-sm">PDF</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={exportFormats.csv}
-                      onChange={() => handleFormatChange('csv')}
-                      className="rounded cursor-pointer" 
-                    />
-                    <span className="text-sm">CSV</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={exportFormats.json}
-                      onChange={() => handleFormatChange('json')}
-                      className="rounded cursor-pointer" 
-                    />
-                    <span className="text-sm">JSON</span>
-                  </label>
+            </div>
+
+            <button
+              onClick={runBuilderGenerate}
+              style={{
+                marginTop: "16px",
+                padding: "8px 16px",
+                background: "rgba(0,255,136,0.1)",
+                border: "1px solid rgba(0,255,136,0.25)",
+                borderRadius: "6px",
+                color: "#00ff88",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <Download style={{ width: 13, height: 13 }} />
+              Generate Report
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Report history ── */}
+      {reports.length > 0 && (
+        <div
+          style={{
+            background: "rgba(15,23,42,0.8)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 16px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>
+              Report History
+            </span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "6px",
+              }}
+            >
+              <Search style={{ width: 12, height: 12, color: "rgba(100,116,139,0.5)" }} />
+              <input
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder="Filter reports…"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "#e2e8f0",
+                  fontSize: "12px",
+                  width: "160px",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Table header */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
+              padding: "8px 16px",
+              borderBottom: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            {["Report Name", "Type", "Date", "Status", "Threats", "Actions"].map((h) => (
+              <span
+                key={h}
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: "rgba(100,116,139,0.55)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {h}
+              </span>
+            ))}
+          </div>
+
+          {filteredReports.map((report) => {
+            const sc = getStatusColor(report.status);
+            const threatColor =
+              report.threats > 10 ? "#ff0040" : report.threats > 0 ? "#ffb000" : "#00ff88";
+
+            return (
+              <div
+                key={report.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
+                  padding: "8px 16px",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  alignItems: "center",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: 500 }}>
+                  {report.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(100,116,139,0.7)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {report.type}
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(100,116,139,0.6)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {report.date}
+                </span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: sc.color,
+                    background: sc.bg,
+                    padding: "2px 8px",
+                    borderRadius: "999px",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    display: "inline-block",
+                  }}
+                >
+                  {report.status}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: threatColor,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {report.threats}
+                </span>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <button
+                    onClick={() => {
+                      const scanResult = getScanResult("full");
+                      if (scanResult) {
+                        exportScanResultToPDF(
+                          { ...scanResult, findings: extractFindingsFromResult(scanResult) },
+                          report.name
+                        );
+                      } else {
+                        toast.warning("Scan data not available");
+                      }
+                    }}
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "6px",
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      color: "rgba(100,116,139,0.6)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    title="View"
+                  >
+                    <Eye style={{ width: 12, height: 12 }} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const scanResult = getScanResult("full");
+                      if (scanResult) {
+                        exportScanResultToPDF(
+                          { ...scanResult, findings: extractFindingsFromResult(scanResult) },
+                          report.name
+                        );
+                      }
+                    }}
+                    disabled={report.status === "In Progress"}
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "6px",
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      color: "rgba(100,116,139,0.6)",
+                      cursor: report.status === "In Progress" ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: report.status === "In Progress" ? 0.4 : 1,
+                    }}
+                    title="Download"
+                  >
+                    <Download style={{ width: 12, height: 12 }} />
+                  </button>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-4 mt-6">
-            <Button 
-              onClick={generateReport}
-              disabled={!reportType || isGenerating}
-              className="bg-primary text-primary-foreground hover:bg-primary/80 cyber-glow"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {isGenerating ? "Generating..." : "Generate Report"}
-            </Button>
-            
-            <Button variant="outline" className="border-border">
-              <Calendar className="h-4 w-4 mr-2" />
-              Schedule Report
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {reports.length > 0 && (
-      <Card className="cyber-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Report History</CardTitle>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search reports..."
-                  className="pl-10 bg-input border-border w-64"
-                />
-              </div>
-              <Button variant="outline" className="border-border">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead>Report Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Threats Found</TableHead>
-                <TableHead>Processes</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                {reports.map((report) => (
-                <TableRow key={report.id} className="border-border">
-                  <TableCell className="font-medium">{report.name}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className={getTypeColor(report.type)}
-                    >
-                      {report.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono">{report.date}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      className={getStatusColor(report.status)}
-                    >
-                      {report.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className={report.threats > 10 ? "text-[#ff0040]" : report.threats > 0 ? "text-[#ffb000]" : "text-[#00ff88]"}>
-                      {report.threats}
-                    </span>
-                  </TableCell>
-                  <TableCell>{report.processes}</TableCell>
-                  <TableCell>{report.size}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          onClick={() => {
-                            // Find corresponding scan result and generate report
-                            const scanResult = getScanResult('full');
-                            if (scanResult) {
-                              // Generate PDF from scan result
-                              const scanData: ScanResultData = {
-                                scan_id: scanResult.scan_id,
-                                scanner_type: scanResult.scanner_type,
-                                region: scanResult.region,
-                                status: scanResult.status,
-                                timestamp: scanResult.timestamp,
-                                results: scanResult.results,
-                                scan_summary: scanResult.scan_summary,
-                                findings: scanResult.findings
-                              };
-                              exportScanResultToPDF(scanData, report.name);
-                            } else {
-                              toast.warning('Scan data not available', {
-                                description: 'The scan results for this report are no longer available'
-                              });
-                            }
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 hover:bg-accent/20"
-                          disabled={report.status === "In Progress"}
-                          onClick={() => {
-                            const scanResult = getScanResult('full');
-                            if (scanResult) {
-                              const scanData: ScanResultData = {
-                                scan_id: scanResult.scan_id,
-                                scanner_type: scanResult.scanner_type,
-                                region: scanResult.region,
-                                status: scanResult.status,
-                                timestamp: scanResult.timestamp,
-                                results: scanResult.results,
-                                scan_summary: scanResult.scan_summary,
-                                findings: scanResult.findings
-                              };
-                              exportScanResultToPDF(scanData, report.name);
-                            }
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
       )}
 
-      {/* Report Templates */}
-      <Card className="cyber-card">
-        <CardHeader>
-          <CardTitle>Quick Report Templates</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="cyber-glass p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Security Summary</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                Complete overview of all security findings
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-border w-full"
-                onClick={generateSecuritySummary}
-                disabled={isGenerating}
-              >
-                {isGenerating ? "Generating..." : "Generate"}
-              </Button>
-            </div>
-            
-            <div className="cyber-glass p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Threat Intelligence</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                Detailed analysis of detected threats
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-border w-full"
-                onClick={generateThreatIntelligence}
-                disabled={isGenerating}
-              >
-                {isGenerating ? "Generating..." : "Generate"}
-              </Button>
-            </div>
-            
-            <div className="cyber-glass p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Executive Summary</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                High-level summary for management
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-border w-full"
-                onClick={generateExecutiveSummary}
-                disabled={isGenerating}
-              >
-                {isGenerating ? "Generating..." : "Generate"}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* ── Scheduled reports placeholder ── */}
+      <div
+        style={{
+          background: "rgba(15,23,42,0.4)",
+          border: "1px dashed rgba(255,255,255,0.06)",
+          borderRadius: "10px",
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "rgba(100,116,139,0.7)" }}>
+            Scheduled Reports
+          </span>
+          <p
+            style={{
+              fontSize: "11px",
+              color: "rgba(100,116,139,0.5)",
+              margin: "4px 0 0",
+            }}
+          >
+            Auto-generate and email reports on a cadence — weekly security digest, monthly compliance
+          </p>
+        </div>
+        <span
+          style={{
+            fontSize: "10px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            color: "rgba(100,116,139,0.5)",
+            padding: "4px 12px",
+            borderRadius: "999px",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Coming soon
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

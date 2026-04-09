@@ -10,13 +10,16 @@ The IAM Dashboard infrastructure is defined as Terraform modules. Each service h
 
 ## 📁 Directory Structure
 
-```
+```graphql
 infra/
 ├── bootstrap/       # One-time: S3 state bucket + DynamoDB lock table (run before main)
-├── s3/              # S3 bucket for static hosting and scan results
-├── dynamodb/        # DynamoDB table for storing scan results
+├── s3/              # S3 bucket for static hosting and scan results and terraform state file
+├── dynamodb/        # DynamoDB table for storing scan results and terraform state locking
+├── DynamoDB_Auth/   # DynamoDB table for storing session cookies from user authentication
 ├── lambda/          # Lambda function and IAM role for security scanning
-├── api-gateway/     # API Gateway REST API (placeholder for 9 endpoints)
+├── api-gateway/     # API Gateway HTTP API creates the 12 endpoints used for auth + scans
+├── cognito/         # User pool, app client, and cognito domain for authentication
+├── cloudfront/       # CloudFront CDN for secure https transportation and caching         
 └── README.md        # This file
 ```
 
@@ -25,12 +28,18 @@ infra/
 ### S3 (`infra/s3/`)
 - **Bucket**: `iam-dashboard-project` (static hosting)
 - **Bucket**: `iam-dashboard-scan-results-{random}` (scan results storage)
-- **Purpose**: Static site hosting and storing scan results
+- **Bucket**: `iam-dashboard-terraform-state` (terraform state file)
+- **Purpose**: Static site hosting, storing state file, and storing scan results
 
 ### DynamoDB (`infra/dynamodb/`)
 - **Table**: `iam-dashboard-scan-results`
 - **Purpose**: Store security scan results from AWS scanners and OPA policies
 - **Schema**: Partition key `scanner_type`, Sort key `scan_id`
+
+### DynamoDB (`infra/DynamoDB_Auth`)
+- **Table**: `iam-dashboard-auth-sessions-test`
+- **Purpose**: Store session cookies when users authenticate
+- **Schema**: Partition key `session_id`, index, `username`
 
 ### Lambda (`infra/lambda/`)
 - **Function**: `iam-dashboard-scanner`
@@ -40,8 +49,8 @@ infra/
 
 ### API Gateway (`infra/api-gateway/`)
 - **API**: `iam-dashboard-api`
-- **Purpose**: REST API endpoints for triggering scans (9 endpoints planned)
-- **Status**: Placeholder structure, routes will be added when Lambda is ready
+- **Purpose**: HTTP API endpoints for scans and authentication
+- **Status**: Currently 12 route endpoints exist
 
 ## Terraform state bucket (important)
 

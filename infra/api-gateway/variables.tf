@@ -28,10 +28,25 @@ variable "stage_name" {
   default     = "v1"
 }
 
+variable "auth_lambda_function_name" {
+  description = "Function name of the auth Lambda (looked up via data source)"
+  type        = string
+}
+
+variable "scanner_lambda_function_name" {
+  description = "Function name of the scanner Lambda (looked up via data source)"
+  type        = string
+}
+
 variable "cors_allowed_origins" {
-  description = "List of allowed CORS origins"
+  description = "List of allowed CORS origins (no wildcards). Override via root module var.allowed_urls."
   type        = list(string)
-  default     = ["*"]
+  default = [
+    "http://localhost:3001",
+    "https://d33ytnxd7i6mo9.cloudfront.net",
+    "http://localhost:5173",
+    "http://localhost:5001",
+  ]
 }
 
 variable "cors_allowed_methods" {
@@ -41,9 +56,9 @@ variable "cors_allowed_methods" {
 }
 
 variable "cors_allowed_headers" {
-  description = "List of allowed CORS headers"
+  description = "Allowed request headers for CORS"
   type        = list(string)
-  default     = ["Content-Type", "Authorization"]
+  default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
 
 variable "throttling_burst_limit" {
@@ -70,12 +85,24 @@ variable "kms_key_arn" {
 }
 
 variable "route_authorization_type" {
-  description = "Authorization type for API Gateway routes. Use NONE until Cognito/JWT authorizer is in place."
+  description = "Authorization type for API Gateway routes. Defaults to NONE for backend-managed session auth."
   type        = string
   default     = "NONE"
   validation {
     condition     = contains(["NONE", "JWT", "AWS_IAM", "CUSTOM"], var.route_authorization_type)
     error_message = "route_authorization_type must be one of NONE, JWT, AWS_IAM, CUSTOM."
   }
+}
+
+variable "cognito_issuer_url" {
+  description = "Cognito OIDC issuer URL used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
+}
+
+variable "cognito_app_client_id" {
+  description = "Cognito app client ID (audience) used for the (legacy/optional) JWT authorizer."
+  type        = string
+  default     = ""
 }
 
