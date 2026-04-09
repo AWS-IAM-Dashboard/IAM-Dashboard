@@ -1,0 +1,17 @@
+Grafana: Findings over time panels can show no data
+
+-Problem:
+Panels show no data.
+When building a Grafana dashboard that charts findings over time from PostgreSQL, panels show "No data" even though the SQL query looks correct.
+
+-Possible cause:
+The "security_findings" table in the local dev database can be empty ("COUNT(*) = 0"). That isn't a Grafana bug. There's just nothing to aggregate by day/week or severity.
+
+-How it was verified:
+docker exec -it cybersecurity-db psql -U postgres -d cybersecurity_db -c "SELECT COUNT(*) FROM security_findings;"
+What it returned was:
+ count
+-------
+     0
+(1 row)
+So if the result is 0, time-series and table panels that read from security_findings will have no data. No data in Grafana in local dev usually means no rows in the table, not a wrong datasource or broken panel
