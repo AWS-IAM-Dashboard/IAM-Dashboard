@@ -21,6 +21,7 @@ from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
 from api.scan_history import ScanHistoryResource
+from api.accounts import AccountsResource
 from api.ir import (
     LLMTriageResource,
     LLMRootCauseResource,
@@ -41,6 +42,7 @@ from api.ir import (
 from services.aws_service import AWSService
 from services.grafana_service import GrafanaService
 from services.database_service import DatabaseService
+from services.organizations_service import OrganizationsService
 
 # Configure logging
 logging.basicConfig(
@@ -61,6 +63,10 @@ def create_app():
         'DATABASE_URL', 'sqlite:///cybersecurity.db')
     app.config['REDIS_URL'] = os.environ.get(
         'REDIS_URL', 'redis://localhost:6379/0')
+    app.config['AWS_MANAGEMENT_ACCOUNT_ID'] = os.environ.get(
+        'AWS_MANAGEMENT_ACCOUNT_ID', '')
+    app.config['CROSS_ACCOUNT_ROLE_NAME'] = os.environ.get(
+        'CROSS_ACCOUNT_ROLE_NAME', 'SecurityAuditRole-test')
 
     # Browser origins allowed to call this Flask API (local Docker + optional prod SPA).
     # Match infra var.allowed_urls; see docs/security/CORS.md. Override with CORS_ALLOWED_ORIGINS (comma-separated).
@@ -83,11 +89,13 @@ def create_app():
     aws_service = AWSService()
     grafana_service = GrafanaService()
     database_service = DatabaseService()
+    organizations_service = OrganizationsService()
 
     # Register API resources
     api.add_resource(HealthResource, '/health')
     api.add_resource(MetricsResource, '/metrics')
     api.add_resource(ScanHistoryResource, '/scan-history')
+    api.add_resource(AccountsResource, '/accounts')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')
     api.add_resource(EC2Resource, '/aws/ec2')
