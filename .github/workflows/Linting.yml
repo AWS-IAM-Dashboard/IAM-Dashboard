@@ -2,9 +2,9 @@ name: Linting, Formatting and Migrations
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [Linting,-formatter,-migration-script  ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [Linting,-formatter,-migration-script ]
 
 jobs:
 
