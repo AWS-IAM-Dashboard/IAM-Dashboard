@@ -1,0 +1,54 @@
+# pyproject.toml — IAM Dashboard Python backend
+# Ruff replaces flake8 with faster checks; Black is already in requirements.txt.
+# Both are already installed: `black==26.3.1` and `flake8==6.1.0` are in requirements.txt.
+# Add ruff with: pip install ruff
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+# Exclude generated/infra files
+exclude = '''
+/(
+    \.git
+  | __pycache__
+  | \.venv
+  | infra
+  | alembic/versions
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes — unused imports, undefined names (replaces flake8)
+  "I",   # isort — import order
+  "UP",  # pyupgrade — modernise Python syntax
+  "B",   # flake8-bugbear — common bugs and design issues
+  "S",   # flake8-bandit — security (important for an IAM/security dashboard!)
+]
+ignore = [
+  "E501",   # line length — Black handles this
+  "S101",   # assert usage — fine in tests
+  "S105",   # hardcoded passwords — too noisy with env var patterns
+  "S106",
+  "B008",   # function calls in default args — common in Flask route decorators
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Relax security checks in test files
+"**/tests/**" = ["S", "B"]
+"scripts/**" = ["S603", "S607"]  # subprocess in scripts is intentional
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "api", "services"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--tb=short -q"
