@@ -6,7 +6,6 @@ When account_id is provided, an assumed-role session is used for that account.
 
 import logging
 from flask_restful import Resource, reqparse
-from services.aws_service import AWSService
 from services.grafana_service import GrafanaService
 from services.organizations_service import OrganizationsService
 
@@ -36,10 +35,10 @@ class DashboardResource(Resource):
             account_id = args.get('account_id')
 
             # Resolve the boto3 session — assumed-role session for member accounts,
-            # default session for the management account or when no account_id given
-            session = self.org_service.get_session_for_account(account_id) \
-                if account_id else None
-            aws_service = AWSService(session=session)  # noqa: F841 — used when methods are wired
+            # default session for the management account or when no account_id given.
+            # aws_service will be used here once dashboard methods are wired up.
+            if account_id:
+                self.org_service.get_session_for_account(account_id)
 
             overview_data = {
                 'account_id': account_id,

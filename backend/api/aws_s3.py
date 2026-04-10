@@ -30,7 +30,6 @@ class S3Resource(Resource):
         try:
             args = self.parser.parse_args()
             region = args.get('region', 'us-east-1')
-            bucket_name = args.get('bucket_name')
             account_id = args.get('account_id')
 
             # Resolve the boto3 session — assumed-role session for member accounts,
@@ -39,14 +38,25 @@ class S3Resource(Resource):
                 if account_id else None
             aws_service = AWSService(session=session)
 
+            # Fetch S3 analysis once and pass the result to helpers to avoid
+            # making redundant API calls for each sub-section
+            s3_analysis = aws_service.get_s3_analysis(region)
+            buckets = s3_analysis.get('buckets', {})
+
             s3_data = {
                 'account_id': account_id,
-                'buckets': self._analyze_buckets(aws_service, region, bucket_name),
-                'encryption': self._analyze_encryption(aws_service, region),
-                'versioning': self._analyze_versioning(aws_service, region),
-                'logging': self._analyze_logging(aws_service, region),
+                'buckets': buckets,
+                'encryption': {
+                    'buckets_with_encryption': buckets.get('with_encryption', 0),
+                    'buckets_without_encryption': buckets.get('without_encryption', 0)
+                },
+                'versioning': {
+                    'buckets_with_versioning': buckets.get('with_versioning', 0),
+                    'buckets_without_versioning': buckets.get('without_versioning', 0)
+                },
+                'logging': self._analyze_logging(),
                 'security_findings': self._get_security_findings(aws_service, region),
-                'recommendations': self._get_recommendations(region)
+                'recommendations': self._get_recommendations()
             }
 
             return s3_data, 200
@@ -59,54 +69,32 @@ class S3Resource(Resource):
             logger.error(f"Error analyzing S3: {str(e)}")
             return {'error': 'Failed to analyze S3 configuration'}, 500
 
-    def _analyze_buckets(self, aws_service, region, bucket_name=None):
-        """Analyze S3 buckets for security issues"""
-        try:
-            return aws_service.get_s3_analysis(region).get('buckets', {})
-        except Exception as e:
-            logger.error(f"Error analyzing buckets: {str(e)}")
-            return {}
-
-    def _analyze_encryption(self, aws_service, region):
-        """Analyze S3 encryption configuration"""
-        try:
-            buckets = aws_service.get_s3_analysis(region).get('buckets', {})
-            return {
-                'buckets_with_encryption': buckets.get('with_encryption', 0),
-                'buckets_without_encryption': buckets.get('without_encryption', 0)
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing encryption: {str(e)}")
-            return {}
-
-    def _analyze_versioning(self, aws_service, region):
-        """Analyze S3 versioning configuration"""
-        try:
-            buckets = aws_service.get_s3_analysis(region).get('buckets', {})
-            return {
-                'buckets_with_versioning': buckets.get('with_versioning', 0),
-                'buckets_without_versioning': buckets.get('without_versioning', 0)
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing versioning: {str(e)}")
-            return {}
-
-    def _analyze_logging(self, aws_service, region):
-        """Analyze S3 logging configuration — placeholder"""
+    def _analyze_logging(self):
+        """S3 logging analysis placeholder"""
         return {
             'buckets_with_logging': 0,
             'buckets_without_logging': 0
         }
 
     def _get_security_findings(self, aws_service, region):
-        """Get S3-related security findings via Security Hub"""
+        """
+        Get S3-specific security findings from Security Hub.
+        Filters to AWS::S3 resource types only to avoid mixing in IAM/EC2 findings.
+        """
         try:
-            return aws_service.get_security_hub_findings(region)
+            all_findings = aws_service.get_security_hub_findings(region)
+            # Filter to S3 resource types only
+            return [
+                f for f in all_findings
+                if isinstance(f, dict) and
+                any('S3' in str(r.get('Type', ''))
+                    for r in f.get('Resources', []))
+            ]
         except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
+            logger.error(f"Error getting S3 security findings: {str(e)}")
             return []
 
-    def _get_recommendations(self, region):
+    def _get_recommendations(self):
         """Get S3 security recommendations"""
         return [
             {

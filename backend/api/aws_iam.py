@@ -98,11 +98,21 @@ class IAMResource(Resource):
             return {}
 
     def _get_security_findings(self, aws_service, region):
-        """Get IAM-related security findings via Security Hub"""
+        """
+        Get IAM-specific security findings from Security Hub.
+        Filters to AWS::IAM resource types only to avoid mixing in EC2/S3 findings.
+        """
         try:
-            return aws_service.get_security_hub_findings(region)
+            all_findings = aws_service.get_security_hub_findings(region)
+            # Filter to IAM resource types only
+            return [
+                f for f in all_findings
+                if isinstance(f, dict) and
+                any('IAM' in str(r.get('Type', ''))
+                    for r in f.get('Resources', []))
+            ]
         except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
+            logger.error(f"Error getting IAM security findings: {str(e)}")
             return []
 
     def _get_recommendations(self, region):

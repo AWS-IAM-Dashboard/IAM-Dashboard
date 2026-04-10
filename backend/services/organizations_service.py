@@ -25,6 +25,12 @@ CROSS_ACCOUNT_ROLE_NAME = os.environ.get(
 # Used to decide whether role assumption is needed.
 MANAGEMENT_ACCOUNT_ID = os.environ.get('AWS_MANAGEMENT_ACCOUNT_ID', '')
 
+if not MANAGEMENT_ACCOUNT_ID:
+    logger.warning(
+        "AWS_MANAGEMENT_ACCOUNT_ID is not set. Multi-account features will not work correctly — "
+        "all account_id values will trigger STS AssumeRole, including the management account."
+    )
+
 
 class OrganizationsService:
     """Service for AWS Organizations account discovery and cross-account session management."""
@@ -97,6 +103,14 @@ class OrganizationsService:
         if account_id == MANAGEMENT_ACCOUNT_ID:
             logger.info(f"Using default session for management account {account_id}")
             return self.session
+
+        # Fail fast if the management account ID is not configured — we cannot
+        # safely distinguish management from member accounts without it
+        if not MANAGEMENT_ACCOUNT_ID:
+            raise RuntimeError(
+                "AWS_MANAGEMENT_ACCOUNT_ID is not set. Cannot determine whether "
+                f"account {account_id} requires role assumption."
+            )
 
         # Member account — assume the cross-account role via STS
         sts_client = self.session.client('sts')

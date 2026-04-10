@@ -39,14 +39,18 @@ class EC2Resource(Resource):
                 if account_id else None
             aws_service = AWSService(session=session)
 
+            # Fetch EC2 analysis once and pass the result to helpers to avoid
+            # making redundant API calls for each sub-section
+            ec2_analysis = aws_service.get_ec2_analysis(region)
+
             ec2_data = {
                 'account_id': account_id,
-                'instances': self._analyze_instances(aws_service, region, instance_id),
-                'security_groups': self._analyze_security_groups(aws_service, region),
-                'volumes': self._analyze_volumes(aws_service, region),
-                'snapshots': self._analyze_snapshots(region),
+                'instances': self._analyze_instances(ec2_analysis, instance_id),
+                'security_groups': self._analyze_security_groups(ec2_analysis),
+                'volumes': self._analyze_volumes(ec2_analysis),
+                'snapshots': self._analyze_snapshots(),
                 'security_findings': self._get_security_findings(aws_service, region),
-                'recommendations': self._get_recommendations(region)
+                'recommendations': self._get_recommendations()
             }
 
             return ec2_data, 200
@@ -59,31 +63,31 @@ class EC2Resource(Resource):
             logger.error(f"Error analyzing EC2: {str(e)}")
             return {'error': 'Failed to analyze EC2 configuration'}, 500
 
-    def _analyze_instances(self, aws_service, region, instance_id=None):
-        """Analyze EC2 instances for security issues"""
+    def _analyze_instances(self, ec2_analysis, instance_id=None):
+        """Extract instance metrics from the pre-fetched EC2 analysis result"""
         try:
-            return aws_service.get_ec2_analysis(region).get('instances', {})
+            return ec2_analysis.get('instances', {})
         except Exception as e:
             logger.error(f"Error analyzing instances: {str(e)}")
             return {}
 
-    def _analyze_security_groups(self, aws_service, region):
-        """Analyze security groups for security issues"""
+    def _analyze_security_groups(self, ec2_analysis):
+        """Extract security group metrics from the pre-fetched EC2 analysis result"""
         try:
-            return aws_service.get_ec2_analysis(region).get('security_groups', {})
+            return ec2_analysis.get('security_groups', {})
         except Exception as e:
             logger.error(f"Error analyzing security groups: {str(e)}")
             return {}
 
-    def _analyze_volumes(self, aws_service, region):
-        """Analyze EBS volumes for security issues"""
+    def _analyze_volumes(self, ec2_analysis):
+        """Extract volume metrics from the pre-fetched EC2 analysis result"""
         try:
-            return aws_service.get_ec2_analysis(region).get('volumes', {})
+            return ec2_analysis.get('volumes', {})
         except Exception as e:
             logger.error(f"Error analyzing volumes: {str(e)}")
             return {}
 
-    def _analyze_snapshots(self, region):
+    def _analyze_snapshots(self):
         """Snapshots analysis placeholder"""
         return {
             'total_snapshots': 0,
@@ -94,14 +98,24 @@ class EC2Resource(Resource):
         }
 
     def _get_security_findings(self, aws_service, region):
-        """Get EC2-related security findings via Security Hub"""
+        """
+        Get EC2-specific security findings from Security Hub.
+        Filters to AWS::EC2 resource types only to avoid mixing in IAM/S3 findings.
+        """
         try:
-            return aws_service.get_security_hub_findings(region)
+            all_findings = aws_service.get_security_hub_findings(region)
+            # Filter to EC2 resource types only
+            return [
+                f for f in all_findings
+                if isinstance(f, dict) and
+                any('EC2' in str(r.get('Type', ''))
+                    for r in f.get('Resources', []))
+            ]
         except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
+            logger.error(f"Error getting EC2 security findings: {str(e)}")
             return []
 
-    def _get_recommendations(self, region):
+    def _get_recommendations(self):
         """Get EC2 security recommendations"""
         return [
             {
