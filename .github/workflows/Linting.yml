@@ -1,0 +1,152 @@
+name: Linting, Formatting and Migrations
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+
+  # ── 1. TypeScript — ESLint & Prettier (runs inside your Node Docker image) ──
+  lint-format-ts:
+    name: TypeScript — ESLint & Prettier
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            --file Dockerfile.frontend \
+            --tag iam-dashboard-frontend:ci \
+            .
+
+      - name: Run ESLint in Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            iam-dashboard-frontend:ci \
+            sh -c "npm ci && npx eslint src/ --ext .ts,.tsx --max-warnings 0"
+
+      - name: Run Prettier check in Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            iam-dashboard-frontend:ci \
+            sh -c "npx prettier --check 'src/**/*.{ts,tsx,css}'"
+
+  # ── 2. Python — Flake8 & Black (runs inside your Flask Docker image) ────────
+  lint-format-py:
+    name: Python — Flake8 & Black
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        run: |
+          docker build \
+            --file Dockerfile \
+            --target python-deps \
+            --tag iam-dashboard-backend:ci \
+            . \
+          || docker build \
+            --file Dockerfile \
+            --tag iam-dashboard-backend:ci \
+            .
+
+      - name: Run Flake8 in Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            iam-dashboard-backend:ci \
+            sh -c "pip install flake8 --quiet && flake8 backend/ --max-line-length=100"
+
+      - name: Run Black check in Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            iam-dashboard-backend:ci \
+            sh -c "black --check backend/"
+
+  # ── 3. Migrations — Alembic inside Docker, connected to a Postgres container ─
+  migrate:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    # Only runs on push (not every PR) and only if lint jobs pass
+    if: github.event_name == 'push'
+    needs: [ lint-format-ts, lint-format-py ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag iam-dashboard-backend:ci \
+            .
+
+      - name: Create Docker network
+        run: docker network create iam-ci-network
+
+      - name: Start Postgres container
+        run: |
+          docker run --detach \
+            --name ci-db \
+            --network iam-ci-network \
+            --env POSTGRES_DB=cybersecurity_db \
+            --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD=password \
+            postgres:15-alpine
+
+      - name: Wait for Postgres to be ready
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 30); do
+            docker exec ci-db pg_isready -U postgres && break
+            echo "  attempt $i/30 — not ready yet"
+            sleep 2
+          done
+
+      - name: Run Alembic migrations in Docker
+        run: |
+          docker run --rm \
+            --network iam-ci-network \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            -e DATABASE_URL=postgresql://postgres:password@ci-db:5432/cybersecurity_db \
+            iam-dashboard-backend:ci \
+            sh -c "pip install alembic --quiet && alembic upgrade head"
+
+      - name: Verify migration state
+        run: |
+          docker run --rm \
+            --network iam-ci-network \
+            -v ${{ github.workspace }}:/app \
+            -w /app \
+            -e DATABASE_URL=postgresql://postgres:password@ci-db:5432/cybersecurity_db \
+            iam-dashboard-backend:ci \
+            sh -c "alembic current"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop ci-db || true
+          docker rm ci-db || true
+          docker network rm iam-ci-network || true
