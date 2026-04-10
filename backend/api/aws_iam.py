@@ -38,14 +38,18 @@ class IAMResource(Resource):
                 if account_id else None
             aws_service = AWSService(session=session)
 
+            # Fetch IAM analysis once and pass the cached result to helpers to
+            # avoid making redundant API calls for each sub-section
+            iam_report = aws_service.get_iam_analysis(region)
+
             iam_data = {
                 'account_id': account_id,
-                'users': self._analyze_users(aws_service, region),
-                'roles': self._analyze_roles(aws_service, region),
-                'policies': self._analyze_policies(aws_service, region),
-                'access_keys': self._analyze_access_keys(aws_service, region),
+                'users': self._analyze_users(iam_report),
+                'roles': self._analyze_roles(iam_report),
+                'policies': self._analyze_policies(iam_report),
+                'access_keys': self._analyze_access_keys(),
                 'security_findings': self._get_security_findings(aws_service, region),
-                'recommendations': self._get_recommendations(region)
+                'recommendations': self._get_recommendations()
             }
 
             return iam_data, 200
@@ -58,64 +62,58 @@ class IAMResource(Resource):
             logger.error(f"Error analyzing IAM: {str(e)}")
             return {'error': 'Failed to analyze IAM configuration'}, 500
 
-    def _analyze_users(self, aws_service, region):
-        """Analyze IAM users for security issues"""
+    def _analyze_users(self, iam_report):
+        """Extract user metrics from the pre-fetched IAM analysis result"""
         try:
-            return aws_service.get_iam_analysis(region).get('users', {})
+            return iam_report.get('users', {})
         except Exception as e:
             logger.error(f"Error analyzing users: {str(e)}")
             return {}
 
-    def _analyze_roles(self, aws_service, region):
-        """Analyze IAM roles for security issues"""
+    def _analyze_roles(self, iam_report):
+        """Extract role metrics from the pre-fetched IAM analysis result"""
         try:
-            return aws_service.get_iam_analysis(region).get('roles', {})
+            return iam_report.get('roles', {})
         except Exception as e:
             logger.error(f"Error analyzing roles: {str(e)}")
             return {}
 
-    def _analyze_policies(self, aws_service, region):
-        """Analyze IAM policies for security issues"""
+    def _analyze_policies(self, iam_report):
+        """Extract policy metrics from the pre-fetched IAM analysis result"""
         try:
-            return aws_service.get_iam_analysis(region).get('policies', {})
+            return iam_report.get('policies', {})
         except Exception as e:
             logger.error(f"Error analyzing policies: {str(e)}")
             return {}
 
-    def _analyze_access_keys(self, aws_service, region):
-        """Analyze access keys for security issues"""
-        try:
-            # Access key analysis uses the same IAM client via AWSService
-            return {
-                'total_access_keys': 0,
-                'active_access_keys': 0,
-                'inactive_access_keys': 0,
-                'old_access_keys': 0,
-                'unused_access_keys': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing access keys: {str(e)}")
-            return {}
+    def _analyze_access_keys(self):
+        """Access key analysis placeholder — not yet available from get_iam_analysis"""
+        return {
+            'total_access_keys': 0,
+            'active_access_keys': 0,
+            'inactive_access_keys': 0,
+            'old_access_keys': 0,
+            'unused_access_keys': 0
+        }
 
     def _get_security_findings(self, aws_service, region):
         """
         Get IAM-specific security findings from Security Hub.
-        Filters to AWS::IAM resource types only to avoid mixing in EC2/S3 findings.
+        Uses AwsIam prefix to match all IAM resource types (AwsIamUser, AwsIamRole, etc.)
         """
         try:
             all_findings = aws_service.get_security_hub_findings(region)
-            # Filter to IAM resource types only
             return [
                 f for f in all_findings
                 if isinstance(f, dict) and
-                any('IAM' in str(r.get('Type', ''))
+                any(str(r.get('Type', '')).startswith('AwsIam')
                     for r in f.get('Resources', []))
             ]
         except Exception as e:
             logger.error(f"Error getting IAM security findings: {str(e)}")
             return []
 
-    def _get_recommendations(self, region):
+    def _get_recommendations(self):
         """Get IAM security recommendations"""
         return [
             {

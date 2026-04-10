@@ -70,24 +70,20 @@ class S3Resource(Resource):
             return {'error': 'Failed to analyze S3 configuration'}, 500
 
     def _analyze_logging(self):
-        """S3 logging analysis placeholder"""
-        return {
-            'buckets_with_logging': 0,
-            'buckets_without_logging': 0
-        }
+        """S3 logging analysis — not yet implemented, returns unsupported marker"""
+        return {'unsupported': True}
 
     def _get_security_findings(self, aws_service, region):
         """
         Get S3-specific security findings from Security Hub.
-        Filters to AWS::S3 resource types only to avoid mixing in IAM/EC2 findings.
+        Uses AwsS3 prefix to match all S3 resource types (AwsS3Bucket, AwsS3Object, etc.)
         """
         try:
             all_findings = aws_service.get_security_hub_findings(region)
-            # Filter to S3 resource types only
             return [
                 f for f in all_findings
                 if isinstance(f, dict) and
-                any('S3' in str(r.get('Type', ''))
+                any(str(r.get('Type', '')).startswith('AwsS3')
                     for r in f.get('Resources', []))
             ]
         except Exception as e:

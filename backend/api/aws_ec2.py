@@ -88,27 +88,20 @@ class EC2Resource(Resource):
             return {}
 
     def _analyze_snapshots(self):
-        """Snapshots analysis placeholder"""
-        return {
-            'total_snapshots': 0,
-            'public_snapshots': 0,
-            'private_snapshots': 0,
-            'old_snapshots': 0,
-            'snapshots_without_encryption': 0
-        }
+        """Snapshots analysis — not yet implemented, returns unsupported marker"""
+        return {'unsupported': True}
 
     def _get_security_findings(self, aws_service, region):
         """
         Get EC2-specific security findings from Security Hub.
-        Filters to AWS::EC2 resource types only to avoid mixing in IAM/S3 findings.
+        Uses AwsEc2 prefix to match all EC2 resource types (AwsEc2Instance, AwsEc2Volume, etc.)
         """
         try:
             all_findings = aws_service.get_security_hub_findings(region)
-            # Filter to EC2 resource types only
             return [
                 f for f in all_findings
                 if isinstance(f, dict) and
-                any('EC2' in str(r.get('Type', ''))
+                any(str(r.get('Type', '')).startswith('AwsEc2')
                     for r in f.get('Resources', []))
             ]
         except Exception as e:
