@@ -2,9 +2,9 @@
 
 ## Overview
 
-A voice-driven incident response agent that allows security engineers to interact with the IAM Dashboard hands-free during active incidents. The agent uses the browser's built-in **Web Speech API** to listen for the wake word **"Hey Argus"**, then pulls live scan findings from the backend, passes them to **Claude via Amazon Bedrock** for summarization and remediation guidance, and speaks back a structured response via **Amazon Polly**.
+A voice-driven incident response agent that allows security engineers to interact with the IAM Dashboard hands-free during active incidents. The shipped UI (`VoiceIRAgent.tsx`) uses the browser **Web Speech API** for speech-to-text: **push-to-talk** by default (mic button or quick commands), and an optional **“Hey Argus”** mode that uses `continuous: true` and only runs the command pipeline after the wake phrase appears in the transcript. Live findings come from the dashboard context; **Claude via Amazon Bedrock** and **Amazon Polly** are planned upgrades in later phases.
 
-This extends the existing AI remediation engine (AI-3) with a real-time voice interface. No external wake word service needed — everything runs in the browser natively.
+This extends the existing AI remediation engine (AI-3) with a real-time voice interface. No external wake word SDK is required for the browser path — optional wake phrase filtering is done on recognition text.
 
 ---
 
@@ -18,28 +18,27 @@ Argus responds verbally with a Claude-generated incident summary and recommended
 
 ---
 
-## Wake Word — "Hey Argus"
+## Wake phrase — "Hey Argus" (optional)
 
-The browser continuously listens using the **Web Speech API** (built into Chrome/Edge, free, no AWS cost). It only activates the full pipeline when it detects the wake word **"Hey Argus"**.
+**Default:** `continuous: false` — one utterance per mic press (push-to-talk). Quick-command buttons bypass the mic and send text intents directly.
+
+**Optional:** With **HEY ARGUS ON** in the live panel, recognition uses `continuous: true` while the panel is open and in voice mode. Final transcript segments are buffered until the text matches **“Hey Argus”** (case-insensitive); the remainder after the last wake match is passed to the same intent router as typed or push-to-talk input. Listening pauses during processing and TTS to reduce picking up playback. This is **not** a dedicated wake-word engine (no on-device keyword model); it is phrase detection on Web Speech API results.
 
 ```
-Browser always listening (Web Speech API — free, runs locally)
+Panel open + HEY ARGUS ON → Web Speech API continuous (browser only)
         │
         ▼
-Detects "hey argus" wake word
+Final STT contains "hey argus" + command
         │
         ▼
-Full Argus pipeline activates
-        │
-        ▼
-User speaks command → captured and sent to backend
+Command text → intent match → buildResponse → browser TTS (today) / Polly (later)
 ```
 
 **Why Web Speech API:**
-- Built into Chrome and Edge — no install, no cost
-- Runs entirely in the browser, no audio sent to AWS until wake word is detected
-- Sufficient accuracy for a controlled dashboard environment
-- Can be upgraded to Porcupine (Picovoice) later if false triggers become an issue
+- Built into Chrome and Edge — no install, no cost for STT in the browser path
+- Runs in the browser; no AWS Transcribe usage until/unless you swap in Phase 4
+- Sufficient for a controlled dashboard environment; false triggers possible on similar-sounding phrases
+- Can be upgraded to Porcupine (Picovoice) or server-side verification later if needed
 
 ---
 
@@ -49,9 +48,9 @@ User speaks command → captured and sent to backend
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (React)                         │
 │                                                                 │
-│   Web Speech API — always listening for "Hey Argus"            │
+│   Web Speech API — push-to-talk; optional continuous + "Hey Argus" filter │
 │        │                                                        │
-│        ▼  (wake word detected)                                  │
+│        ▼  (wake phrase in STT text, if HEY ARGUS mode on)      │
 │   Web Speech API captures full voice command                    │
 │        │                                                        │
 │        ▼                                                        │
@@ -105,7 +104,7 @@ User speaks command → captured and sent to backend
 
 | Service | Role |
 |---|---|
-| Web Speech API (browser) | Wake word detection + voice capture — free, no AWS |
+| Web Speech API (browser) | STT + optional wake phrase on transcript; push-to-talk — free, no AWS |
 | Amazon Transcribe | Confirms transcript server-side for accuracy |
 | Amazon Polly | Text-to-speech — Argus speaks back |
 | Amazon Bedrock (Claude) | LLM for incident summarization and remediation |
@@ -115,9 +114,9 @@ User speaks command → captured and sent to backend
 
 ## Full Cost Breakdown
 
-### Web Speech API (Wake Word)
+### Web Speech API (browser STT)
 
-**Free.** Runs entirely in the browser. No AWS usage, no API calls until wake word is detected.
+**Free** for the browser STT path. No AWS usage until you add Transcribe or other backend voice endpoints.
 
 ---
 
@@ -128,7 +127,7 @@ User speaks command → captured and sent to backend
 | Standard streaming/batch | $0.024 / minute |
 | Free tier (first 12 months) | 60 minutes / month free |
 
-Each voice command after wake word is ~5-10 seconds of audio.
+Each voice command is typically a few seconds of audio (push-to-talk or phrase after “Hey Argus”).
 
 - 100 queries/month ≈ **$0.04**
 - 1000 queries/month ≈ **$0.40**
@@ -176,7 +175,7 @@ Each voice query sends ~1500 tokens total (findings context + prompt + response)
 
 For a dev/demo environment this is essentially free. Free tiers on Transcribe and Polly cover the first 12 months of light usage entirely.
 
-> Note: Amazon Lex is not needed. Web Speech API handles wake word + capture. Simple Python intent matching handles routing. Lex would only be needed for complex multi-turn conversations.
+> Note: Amazon Lex is not needed for the current MVP. Web Speech API handles capture in-browser; optional “Hey Argus” is transcript filtering, not a Lex-style intent model. Lex would only be needed for complex multi-turn conversations.
 
 ---
 
@@ -243,27 +242,21 @@ CMD ["python", "voice_agent.py"]
 
 | Component | Description |
 |---|---|
-| `ArgusVoicePanel.tsx` | Main UI — wake word status indicator, transcript display, audio playback |
-| `useArgus.ts` | Hook — Web Speech API wake word listener, audio capture, pipeline trigger |
+| `VoiceIRAgent.tsx` | Main UI — ARGUS pill, live panel, optional **HEY ARGUS ON** toggle, push-to-talk mic, quick commands, audit log |
 
-### Wake Word Implementation (useArgus.ts)
+### Wake phrase filtering (`VoiceIRAgent.tsx`)
 
 ```ts
-// Simplified wake word detection using Web Speech API
-const recognition = new webkitSpeechRecognition();
-recognition.continuous = true;
-recognition.interimResults = true;
-
-recognition.onresult = (event) => {
-  const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
-  if (transcript.includes("hey argus")) {
-    // Wake word detected — capture next command
-    activateArgus();
-  }
-};
+// Buffered final segments; command = text after last "hey argus" match
+const cmd = extractCommandAfterLastWake(passiveBuffer);
+if (cmd && !processing.current) {
+  passiveBuffer = "";
+  recognition.stop();
+  processCommand(cmd, confidence);
+}
 ```
 
-The UI shows a subtle indicator when Argus is listening vs active.
+Push-to-talk and quick commands call `processCommand` directly without requiring the wake phrase. The status line distinguishes passive wake listening vs push-to-talk.
 
 ---
 
@@ -291,11 +284,10 @@ The voice agent reuses the existing **AI-3 guardrails pipeline** (see `Guardrail
 
 ## MVP Scope
 
-- [ ] Wake word detection — "Hey Argus" via Web Speech API
+- [x] Optional wake phrase path — "Hey Argus" via Web Speech API (`continuous` + transcript filter in `VoiceIRAgent.tsx`)
 - [ ] `/api/voice/transcribe` endpoint using Amazon Transcribe
 - [ ] `/api/voice/respond` endpoint — intent routing + Claude (Bedrock) + Polly synthesis
-- [ ] `ArgusVoicePanel.tsx` — listening indicator + transcript + audio playback
-- [ ] `useArgus.ts` hook — Web Speech API wake word + capture
+- [x] `VoiceIRAgent.tsx` — listening indicators, transcript, optional Hey Argus mode, browser TTS
 - [ ] Docker service wired up with env vars
 - [ ] 4 core intents: summarize critical, filter by severity, scan stats, recommend fix
 
@@ -321,11 +313,93 @@ The voice agent reuses the existing **AI-3 guardrails pipeline** (see `Guardrail
 
 ---
 
+## Implementation Timeline
+
+### ✅ Phase 1 — UI/UX Placement (COMPLETE)
+- [x] `src/components/ir/VoiceIRAgent.tsx` built and placed
+- [x] "ARGUS" header pill with threat indicator and live status
+- [x] Waveform animation — active pulse when listening/speaking
+- [x] Live transcript panel with user/agent message bubbles
+- [x] Audit log tab — STT, TTS, intent entries with session dividers, export to `.log`
+- [x] Quick command buttons — SITREP, CRITICAL, THREAT, SLA, HIGH RISK, SCAN
+- [x] Text input fallback for non-mic environments
+- [x] Keyboard shortcut — backtick `` ` `` to toggle panel
+- [x] Web Speech API — push-to-talk + optional continuous listening with "Hey Argus" transcript filter (`webkitSpeechRecognition`)
+- [x] Browser TTS via `SpeechSynthesisUtterance` (Polly upgrade path ready)
+- [x] Intent router — 11 intents: briefing, critical, threat, sla, latest, compliance, scan, high, isolate, navigate, help
+- [x] Live findings data wired via `useActiveScanResults` hook
+- [x] SLA breach detection logic
+- [x] Confidence score display on STT entries
+
+**Status:** Frontend fully functional with local browser TTS and Web Speech API
+
+---
+
+### Phase 2 — AWS Setup (Next)
+- [ ] AWS Console → Bedrock → Model Access → enable Claude 3 Haiku (free, ~2 min)
+- [ ] Add IAM permissions to your role:
+  - `bedrock:InvokeModel`
+  - `transcribe:StartStreamTranscription`
+  - `polly:SynthesizeSpeech`
+- [ ] Check free tier status at `console.aws.amazon.com/billing/home#/freetier`
+- [ ] Add `BEDROCK_MODEL_ID` to `.env` and `env.example`
+- [ ] Verify: `aws bedrock list-foundation-models --region us-east-1`
+
+**Deliverable:** AWS permissions confirmed, Bedrock model accessible
+
+---
+
+### Phase 3 — Backend Endpoints (Next)
+- [ ] Create `backend/voice_agent.py`
+- [ ] `/api/voice/transcribe` — accepts audio blob → Amazon Transcribe → returns text
+- [ ] `/api/voice/respond` — intent + findings context → Claude (Bedrock) → guardrails → returns structured response
+- [ ] `/api/voice/synthesize` — text → Amazon Polly Neural → returns MP3
+- [ ] Add `voice-agent` service to `docker-compose.yml`
+- [ ] Add `Dockerfile.voice`
+- [ ] Test each endpoint with curl/Postman
+
+**Deliverable:** All 3 endpoints working in Docker
+
+---
+
+### Phase 4 — Upgrade Argus to AWS APIs (Next)
+- [ ] Swap browser `SpeechSynthesisUtterance` → Polly Neural voice in `VoiceIRAgent.tsx`
+- [ ] Swap `webkitSpeechRecognition` → Amazon Transcribe for higher accuracy
+- [ ] Wire Claude (Bedrock) responses into `buildResponse()` for dynamic LLM answers
+- [ ] End-to-end test: "Hey Argus, brief me" → Transcribe → Claude → Polly audio
+
+**Deliverable:** Full AWS-powered pipeline replacing browser APIs
+
+---
+
+### Phase 5 — Testing & Polish (Final)
+- [ ] Test all 11 intents with AWS APIs
+- [ ] Test edge cases — no findings, bad audio, API timeouts
+- [ ] Verify AI-3 guardrails fire on Claude responses
+- [ ] Swap `BEDROCK_MODEL_ID` to Claude 3.5 Sonnet for production quality
+- [ ] Cross-browser test (Chrome required for Web Speech API fallback)
+
+**Deliverable:** Argus production-ready
+
+---
+
+### Summary Timeline
+
+| Phase | Status | Focus | Owner |
+|---|---|---|---|
+| Phase 1 — UI/UX | ✅ Complete | VoiceIRAgent.tsx, Web Speech API, browser TTS | Frontend |
+| Phase 2 — AWS Setup | 🔲 Next | Bedrock access, IAM permissions | DevOps/Security |
+| Phase 3 — Backend | 🔲 Next | voice_agent.py, 3 endpoints, Docker | Backend |
+| Phase 4 — AWS Upgrade | 🔲 Next | Swap browser APIs → Transcribe + Polly + Claude | Frontend + Backend |
+| Phase 5 — Testing | 🔲 Next | Guardrails, edge cases, production model | AI team + QA |
+
+---
+
 ## Team Ownership
 
 | Area | Owner |
 |---|---|
 | Voice backend endpoints | Backend team |
 | Claude (Bedrock) integration + guardrails | AI team |
-| Frontend wake word UI + useArgus hook | Frontend team |
+| Frontend voice UI + wake toggle (`VoiceIRAgent.tsx`) | Frontend team |
 | AWS Transcribe/Polly/Bedrock IAM permissions | DevOps/Security team |

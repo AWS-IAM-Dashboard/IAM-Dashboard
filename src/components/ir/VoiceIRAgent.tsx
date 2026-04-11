@@ -57,6 +57,19 @@ function newSessionId(): string {
 }
 
 // ── Intent matching ───────────────────────────────────────────────────────────
+/** Match "Hey Argus" in STT text; return command after the last wake phrase, or null if none / empty. */
+function extractCommandAfterLastWake(buffer: string): string | null {
+  const re = /hey\s+argus\b/gi;
+  let lastEnd = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(buffer)) !== null) {
+    lastEnd = m.index + m[0].length;
+  }
+  if (lastEnd < 0) return null;
+  const cmd = buffer.slice(lastEnd).trim().replace(/^[,.;:\s]+/, "").trim();
+  return cmd.length >= 1 ? cmd : null;
+}
+
 function matchIntent(input: string): string {
   const t = input.toLowerCase().trim();
   if (/\b(brief|briefing|situation|status|sitrep|what('s| is) (going on|happening|the situation))\b/.test(t)) return "briefing";
@@ -520,11 +533,22 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
   const [textInput,  setTextInput]  = useState("");
   const [inputMode,  setInputMode]  = useState<"voice" | "text">("voice");
   const [hasMic,     setHasMic]     = useState(true);
+  const [wakeListenOn, setWakeListenOn] = useState(false);
+  const [passiveResumeTick, setPassiveResumeTick] = useState(0);
   const [sessionId, setSessionId] = useState(() => newSessionId());
 
   const recognitionRef = useRef<any>(null);
   const synthRef       = useRef<SpeechSynthesis | null>(null);
   const processing     = useRef(false);
+  const wakeListenOnRef = useRef(false);
+  const suspendWakeForPushRef = useRef(false);
+  const passiveBufferRef = useRef("");
+  const isOpenRef = useRef(isOpen);
+  const hasMicRef = useRef(hasMic);
+  const inputModeRef = useRef(inputMode);
+  const startPassiveWakeRef = useRef<() => void>(() => {});
+  const processCommandRef = useRef<(input: string, confidence?: number) => void>(() => {});
+  const [pushToTalkActive, setPushToTalkActive] = useState(false);
   const liveScrollRef  = useRef<HTMLDivElement>(null);
   const auditScrollRef = useRef<HTMLDivElement>(null);
   const lastSessionRef = useRef<string>(sessionId);
@@ -560,6 +584,17 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
     synthRef.current = window.speechSynthesis ?? null;
     return () => { recognitionRef.current?.abort(); synthRef.current?.cancel(); };
   }, []);
+
+  useEffect(() => {
+    wakeListenOnRef.current = wakeListenOn;
+    isOpenRef.current = isOpen;
+    hasMicRef.current = hasMic;
+    inputModeRef.current = inputMode;
+  }, [wakeListenOn, isOpen, hasMic, inputMode]);
+
+  useEffect(() => {
+    if (!wakeListenOn) passiveBufferRef.current = "";
+  }, [wakeListenOn]);
 
   // New session + sys log on open
   useEffect(() => {
@@ -652,14 +687,123 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
     }, 240 + Math.random() * 280);
   }, [stats, findings, speak, onNavigate, pushAudit]);
 
-  // ── Speech recognition ──────────────────────────────────────────────────────
+  useEffect(() => {
+    processCommandRef.current = processCommand;
+  }, [processCommand]);
+
+  // ── Passive "Hey Argus" listening (continuous STT; command only after wake phrase) ──
+  const startPassiveWake = useCallback(() => {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    if (!wakeListenOnRef.current || suspendWakeForPushRef.current) return;
+    if (!isOpenRef.current || !hasMicRef.current || inputModeRef.current !== "voice") return;
+
+    recognitionRef.current?.abort();
+
+    const r = new SR();
+    r.lang = "en-US";
+    r.interimResults = true;
+    r.continuous = true;
+    r.maxAlternatives = 1;
+
+    r.onstart = () => {
+      setPushToTalkActive(false);
+      setStatus("listening");
+    };
+
+    r.onresult = (e: any) => {
+      let pieceFinal = "";
+      let lastConf = 0.85;
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        const tr = res[0].transcript;
+        if (res.isFinal) {
+          pieceFinal += tr;
+          if (res[0].confidence != null) lastConf = res[0].confidence;
+        } else {
+          interim += tr;
+        }
+      }
+      if (interim) setPartial(interim.trim());
+      if (!pieceFinal) return;
+
+      passiveBufferRef.current = `${passiveBufferRef.current} ${pieceFinal}`.trim();
+      if (passiveBufferRef.current.length > 400) {
+        passiveBufferRef.current = passiveBufferRef.current.slice(-220);
+      }
+
+      const cmd = extractCommandAfterLastWake(passiveBufferRef.current);
+      if (cmd && !processing.current) {
+        passiveBufferRef.current = "";
+        setPartial("");
+        r.stop();
+        processCommandRef.current(cmd, lastConf);
+      }
+    };
+
+    r.onerror = (ev: any) => {
+      if (ev.error === "no-speech" || ev.error === "aborted") return;
+      setStatus("error");
+      setTimeout(() => setStatus("standby"), 1200);
+    };
+
+    r.onend = () => {
+      if (!wakeListenOnRef.current) {
+        setStatus("standby");
+        return;
+      }
+      if (suspendWakeForPushRef.current) return;
+      if (processing.current) return;
+      queueMicrotask(() => {
+        if (!wakeListenOnRef.current || suspendWakeForPushRef.current || processing.current) return;
+        if (!isOpenRef.current || inputModeRef.current !== "voice") return;
+        startPassiveWakeRef.current();
+      });
+    };
+
+    recognitionRef.current = r;
+    try {
+      r.start();
+    } catch {
+      /* SR may throw if start called in an invalid state */
+    }
+  }, []);
+
+  useEffect(() => {
+    startPassiveWakeRef.current = startPassiveWake;
+  }, [startPassiveWake]);
+
+  useEffect(() => {
+    if (!isOpen || !wakeListenOn || !hasMic || inputMode !== "voice") {
+      recognitionRef.current?.abort();
+      return;
+    }
+    if (status === "processing" || status === "speaking") {
+      recognitionRef.current?.abort();
+      return;
+    }
+    if (suspendWakeForPushRef.current) return;
+    startPassiveWake();
+    return () => {
+      recognitionRef.current?.abort();
+    };
+  }, [isOpen, wakeListenOn, hasMic, inputMode, status, passiveResumeTick, startPassiveWake]);
+
+  // ── Speech recognition (push-to-talk — no wake phrase required) ───────────────
   const startListening = useCallback(() => {
     const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SR) return;
+    suspendWakeForPushRef.current = true;
     recognitionRef.current?.abort();
+    passiveBufferRef.current = "";
+    setPartial("");
     const r = new SR();
     r.lang = "en-US"; r.interimResults = true; r.continuous = false;
-    r.onstart  = () => setStatus("listening");
+    r.onstart = () => {
+      setPushToTalkActive(true);
+      setStatus("listening");
+    };
     r.onresult = (e: any) => {
       const last = e.results[e.results.length - 1];
       setPartial(last[0].transcript);
@@ -668,16 +812,49 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
         processCommand(last[0].transcript, last[0].confidence ?? undefined);
       }
     };
-    r.onerror  = (e: any) => { setStatus(e.error === "no-speech" ? "standby" : "error"); setTimeout(() => setStatus("standby"), 1000); };
-    r.onend    = () => { if (status === "listening") setStatus("standby"); };
+    r.onerror = (e: any) => {
+      if (e.error === "aborted") return;
+      if (e.error === "no-speech") setStatus("standby");
+      else {
+        setStatus("error");
+        setTimeout(() => setStatus("standby"), 1000);
+      }
+    };
+    r.onend = () => {
+      suspendWakeForPushRef.current = false;
+      setPushToTalkActive(false);
+      setStatus("standby");
+      if (wakeListenOnRef.current && isOpenRef.current && hasMicRef.current && inputModeRef.current === "voice") {
+        setPassiveResumeTick(t => t + 1);
+      }
+    };
     recognitionRef.current = r;
     r.start();
-  }, [processCommand, status]);
+  }, [processCommand]);
 
   const handleMicToggle = useCallback(() => {
-    if (status === "listening")     { recognitionRef.current?.stop(); setStatus("standby"); }
-    else if (status === "speaking") { synthRef.current?.cancel(); setStatus("standby"); }
-    else                            startListening();
+    if (status === "speaking") {
+      synthRef.current?.cancel();
+      setStatus("standby");
+      return;
+    }
+    if (status === "listening") {
+      if (suspendWakeForPushRef.current) {
+        recognitionRef.current?.stop();
+        suspendWakeForPushRef.current = false;
+        setPushToTalkActive(false);
+        setStatus("standby");
+        if (wakeListenOnRef.current) setPassiveResumeTick(t => t + 1);
+      } else if (wakeListenOnRef.current) {
+        startListening();
+      } else {
+        recognitionRef.current?.stop();
+        setPushToTalkActive(false);
+        setStatus("standby");
+      }
+      return;
+    }
+    startListening();
   }, [status, startListening]);
 
   // ── Audit export ────────────────────────────────────────────────────────────
@@ -850,18 +1027,38 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                 )}
               </div>
 
-              {/* Quick commands */}
-              <div style={{ padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {quickCmds.map(({ label, cmd, color }) => (
+              {/* Quick commands + optional wake phrase listening */}
+              <div style={{ padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+                {hasMic && inputMode === "voice" && (
+                  <button
+                    type="button"
+                    title="When ON, the mic stays open while this panel is visible; say “Hey Argus” before your command. Turn OFF for push-to-talk only."
+                    onClick={() => setWakeListenOn(w => !w)}
+                    disabled={status === "processing" || (status === "listening" && pushToTalkActive)}
+                    style={{
+                      fontSize: 8, fontWeight: 800, letterSpacing: "0.1em",
+                      color: wakeListenOn ? "#00d4ff" : "rgba(100,116,139,0.45)",
+                      background: wakeListenOn ? "rgba(0,212,255,0.1)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${wakeListenOn ? "rgba(0,212,255,0.35)" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace",
+                      opacity: status === "processing" || (status === "listening" && pushToTalkActive) ? 0.35 : 1,
+                      transition: "all 0.1s", marginRight: 4,
+                    }}
+                  >HEY ARGUS {wakeListenOn ? "ON" : "OFF"}</button>
+                )}
+                {quickCmds.map(({ label, cmd, color }) => {
+                  const voiceBusy = status === "processing" || (status === "listening" && pushToTalkActive);
+                  return (
                   <button
                     key={cmd}
                     onClick={() => processCommand(cmd)}
-                    disabled={status === "processing" || status === "listening"}
-                    style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color, background: `${color}09`, border: `1px solid ${color}20`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", opacity: (status === "processing" || status === "listening") ? 0.3 : 1, transition: "all 0.1s" }}
+                    disabled={voiceBusy}
+                    style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color, background: `${color}09`, border: `1px solid ${color}20`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", opacity: voiceBusy ? 0.3 : 1, transition: "all 0.1s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}38`; }}
                     onMouseLeave={e => { e.currentTarget.style.background = `${color}09`; e.currentTarget.style.borderColor = `${color}20`; }}
                   >{label}</button>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Transcript */}
@@ -958,7 +1155,23 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                 {/* Status line */}
                 <div style={{ padding: "0 14px 7px", display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 7.5, letterSpacing: "0.1em", fontFamily: "'JetBrains Mono', monospace", color: isActive ? sc.color : inputMode === "text" ? "rgba(0,212,255,0.35)" : "rgba(100,116,139,0.25)", transition: "color 0.25s" }}>
-                    {status === "listening" ? "● VOICE ACTIVE — SPEAK NOW" : status === "processing" ? "● PROCESSING COMMAND" : status === "speaking" ? "● ARGUS SPEAKING" : inputMode === "text" ? "TEXT MODE — ENTER TO SEND" : hasMic ? "VOICE READY — PRESS MIC OR TYPE" : "TEXT MODE ACTIVE"}
+                    {status === "listening" && pushToTalkActive
+                      ? "● PUSH-TO-TALK — SPEAK NOW"
+                      : status === "listening" && wakeListenOn
+                        ? "● LISTENING — SAY \"HEY ARGUS\", THEN COMMAND"
+                        : status === "listening"
+                          ? "● VOICE ACTIVE — SPEAK NOW"
+                          : status === "processing"
+                            ? "● PROCESSING COMMAND"
+                            : status === "speaking"
+                              ? "● ARGUS SPEAKING"
+                              : inputMode === "text"
+                                ? "TEXT MODE — ENTER TO SEND"
+                                : hasMic
+                                  ? wakeListenOn
+                                    ? "HEY ARGUS ON — OR PRESS MIC / TYPE"
+                                    : "VOICE READY — PRESS MIC OR TYPE"
+                                  : "TEXT MODE ACTIVE"}
                   </span>
                   {inputMode === "text" && hasMic && (
                     <button
