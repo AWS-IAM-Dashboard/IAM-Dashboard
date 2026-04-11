@@ -7,6 +7,7 @@ import {
   Search, Bell, Settings, User, LogOut,
   ChevronDown, MapPin,
 } from "lucide-react";
+import { VoiceIRAgent } from "./ir/VoiceIRAgent";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -411,6 +412,9 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           </span>
           LIVE
         </div>
+
+        {/* ARIA Voice IR Agent */}
+        <VoiceIRAgent onNavigate={onNavigate} />
 
         {/* Notifications */}
         <Popover>

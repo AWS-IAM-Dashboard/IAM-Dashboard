@@ -1969,6 +1969,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </button>
         ))}
       </div>
+
     </div>
   );
 }
