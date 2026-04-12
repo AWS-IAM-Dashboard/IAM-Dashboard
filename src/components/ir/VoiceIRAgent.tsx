@@ -1090,12 +1090,44 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
         }]);
       }
 
-      // ── IR confirmation (unchanged — always gated regardless of source) ──
+      // ── IR confirmation — target resolution ──────────────────────────────
       if (["isolate", "revoke", "disable_key"].includes(intent) && findings.length > 0) {
-        const irFinding =
-          findings.find(f => (f.severity ?? "").toUpperCase() === "CRITICAL") ??
-          findings.find(f => (f.severity ?? "").toUpperCase() === "HIGH") ??
-          findings[0];
+        const targetResource = resolved.args?.resource as string | undefined;
+        let irFinding: any;
+
+        if (targetResource) {
+          // Bedrock extracted a specific resource from the utterance — match it.
+          const t = targetResource.toLowerCase();
+          irFinding = findings.find(f =>
+            (f.resource_name ?? "").toLowerCase().includes(t) ||
+            (f.resource_arn  ?? "").toLowerCase().includes(t)
+          );
+          if (!irFinding) {
+            // Fail closed: named resource not found. Do not auto-pick an unrelated finding.
+            const msg = `No active finding matched resource "${targetResource}". Verify the resource ID or say "list findings" first.`;
+            setMessages(p => [...p, {
+              id: `err-${Date.now()}`, role: "agent" as const, ts: Date.now(),
+              response: {
+                classification: "NO MATCH",
+                priority: "warning" as const,
+                fields: [{ label: "RESOURCE", value: targetResource.toUpperCase(), color: "#ffb000" }],
+                items: [{ text: `No finding matched "${targetResource}"`, sub: `Verify the resource ID or say "list findings"`, color: "#ffb000" }],
+                spokenText: msg,
+              },
+            }]);
+            pushAudit({ type: "tts", content: msg, sessionId: lastSessionRef.current });
+            processing.current = false;
+            void speak(msg);
+            return;
+          }
+        } else {
+          // No specific resource in utterance — fall back to top critical/high finding.
+          irFinding =
+            findings.find(f => (f.severity ?? "").toUpperCase() === "CRITICAL") ??
+            findings.find(f => (f.severity ?? "").toUpperCase() === "HIGH") ??
+            findings[0];
+        }
+
         if (irFinding) {
           setTimeout(() => showIRConfirm(intent, irFinding), 400);
         }
@@ -1129,7 +1161,8 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
       if (e.error === "no-speech") { setStatus("standby"); }
       else { setStatus("error"); setTimeout(() => setStatus("standby"), 1000); }
     };
-    r.onend = () => setStatus("standby");
+    // Only reset to standby if we're not mid-processing (isFinal already called processCommand).
+    r.onend = () => { if (!processing.current) setStatus("standby"); };
     recognitionRef.current = r;
     r.start();
   }, [processCommand]);

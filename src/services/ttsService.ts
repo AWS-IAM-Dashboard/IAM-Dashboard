@@ -34,7 +34,11 @@ export async function pollySpeak(
   if (!text.trim()) return false;
 
   try {
-    const resp = await fetch(`${IR_BASE}/api/v1/tts/synthesize`, {
+    // VITE_IR_API_BASE is documented as already ending in /api/v1 (e.g.
+    // http://localhost:3001/api/v1), so appending the full path again would
+    // produce a double-segment URL. Strip the suffix if present.
+    const ttsBase = IR_BASE.endsWith("/api/v1") ? IR_BASE : `${IR_BASE}/api/v1`;
+    const resp = await fetch(`${ttsBase}/tts/synthesize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: text.slice(0, 3000), voice, engine: "neural" }),

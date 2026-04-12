@@ -11,7 +11,6 @@ POST /api/v1/voice/intent
 
 import json
 import logging
-import os
 
 from flask import request, jsonify
 from flask_restful import Resource
@@ -47,10 +46,8 @@ class VoiceIntentResource(Resource):
     """POST /api/v1/voice/intent — Bedrock intent classification fallback."""
 
     def post(self):
-        if not os.environ.get("BEDROCK_API_KEY"):
-            logger.warning("VoiceIntent: BEDROCK_API_KEY not set — returning fallback")
-            return _BEDROCK_UNAVAILABLE, 503
-
+        # Do not gate on BEDROCK_API_KEY here — _invoke_claude() handles credential
+        # discovery (API key, IAM role, env vars) and returns None if unavailable.
         data = request.get_json(force=True, silent=True) or {}
         utterance: str = (data.get("utterance") or "").strip()
         if not utterance:
@@ -101,6 +98,10 @@ class VoiceIntentResource(Resource):
             result = json.loads(text)
         except json.JSONDecodeError as exc:
             logger.warning("VoiceIntent JSON parse failed: %s | raw=%r", exc, raw[:200])
+            return _BEDROCK_UNAVAILABLE, 503
+
+        if not isinstance(result, dict):
+            logger.warning("VoiceIntent: model returned non-object JSON — raw=%r", raw[:200])
             return _BEDROCK_UNAVAILABLE, 503
 
         intent = str(result.get("intent", "unknown"))

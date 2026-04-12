@@ -49,10 +49,12 @@ export interface FindingContext {
 
 function matchIntent(input: string): string {
   const t = input.toLowerCase().trim();
-  if (/\b(brief|briefing|situation|status|sitrep|what('s| is) (going on|happening|the situation))\b/.test(t)) return "briefing";
+  // SLA must be tested before briefing — "sla status" would match the (now-removed)
+  // bare "status" token in the old briefing regex, returning "briefing" instead.
+  if (/\b(sla|breach|breached|overdue)\b/.test(t)) return "sla";
+  if (/\b(brief|briefing|situation|sitrep|what('s| is) (going on|happening|the situation))\b/.test(t)) return "briefing";
   if (/\b(critical|crit findings?|show critical|critical alerts?)\b/.test(t)) return "critical";
   if (/\b(threat level|threat assessment|current threat)\b/.test(t)) return "threat";
-  if (/\b(sla|breach|breached|overdue)\b/.test(t)) return "sla";
   if (/\b(latest|new findings?|recent|last scan)\b/.test(t)) return "latest";
   if (/\b(show findings?|list findings?|findings? list|all findings?)\b/.test(t)) return "show_findings";
   if (/\b(compliance|score|posture|frameworks?)\b/.test(t)) return "compliance";

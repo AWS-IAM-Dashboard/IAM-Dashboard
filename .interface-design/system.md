@@ -96,8 +96,8 @@ Red:     #ef4444   (destructive / shadcn)
 ```
 
 ### ARGUS overlay accent
-```
---argus-accent:  #00d4ff   (ARGUS Voice IR Agent identity color — panel borders, wordmark, active states)
+```css
+--argus-accent:  #00d4ff;   /* ARGUS Voice IR Agent identity color — panel borders, wordmark, active states */
 ```
 Scoped exclusively to `VoiceIRAgent.tsx`. Do not use outside the ARGUS overlay.
 

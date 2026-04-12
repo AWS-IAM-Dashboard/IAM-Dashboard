@@ -47,7 +47,8 @@ const IR_API_BASE_URL =
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
 const IS_MOCK = DATA_MODE === "mock";
 
-const LLM_MAX_CONCURRENT = Math.max(1, Number(import.meta.env.VITE_LLM_MAX_CONCURRENT || 2));
+const _parsedMax = Number(import.meta.env.VITE_LLM_MAX_CONCURRENT);
+const LLM_MAX_CONCURRENT = Number.isFinite(_parsedMax) && _parsedMax > 0 ? Math.floor(_parsedMax) : 2;
 let llmInFlight = 0;
 const llmWaitQueue: Array<() => void> = [];
 

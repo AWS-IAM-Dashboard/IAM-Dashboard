@@ -43,15 +43,13 @@ def _get_bedrock_client():
     api_key = os.environ.get("BEDROCK_API_KEY")
     region  = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
     if api_key:
-        return boto3.client(
-            "bedrock-runtime",
-            region_name=region,
-            aws_access_key_id=api_key,
-            aws_secret_access_key="bedrock-api-key",  # Bedrock API key auth
-        )
+        # Bedrock API key auth: boto3 reads AWS_BEARER_TOKEN_BEDROCK automatically.
+        # Do not stuff the key into SigV4 credential fields.
+        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
+    # Without an API key, boto3 discovers credentials normally (env vars, IAM role, etc.)
     return boto3.client("bedrock-runtime", region_name=region)
 
-MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5-20251001")
 
 # ─── Runbook structured-output constants ──────────────────────────────────────
 
@@ -72,9 +70,6 @@ SYSTEM_RUNBOOK = (
 
 def _invoke_claude(prompt: str, system: str | None = None, max_tokens: int = 1024) -> str | None:
     """Call Claude via Bedrock and return the text response. Falls back to None if unavailable."""
-    api_key = os.environ.get("BEDROCK_API_KEY")
-    if not api_key:
-        return None  # No key = mock mode
     try:
         client = _get_bedrock_client()
         body_dict = {
@@ -130,7 +125,7 @@ def _parse_runbook_steps(raw: str | None) -> list[dict] | None:
             "phase": phase,
             "title": str(item.get("title", ""))[:80],
             "description": str(item.get("description", ""))[:400],
-            "commands": [str(c) for c in item.get("commands", []) if isinstance(c, str)][:6],
+            "commands": [str(c) for c in (item.get("commands") if isinstance(item.get("commands"), list) else []) if isinstance(c, str)][:6],
             "estimated_time": str(item.get("estimated_time", "30")),
         }
         validated.append(step)
@@ -263,13 +258,15 @@ class LLMTriageResource(Resource):
         job = _job_store[job_id]
         job["status"] = "succeeded"
         job["completed_at"] = _now_iso()
-        job["result"] = {
-            "triage_summary": llm_response or mock["triage_summary"],
-            "confidence_score": mock["confidence_score"],
-            "false_positive_probability": mock["false_positive_probability"],
-            "mitre_techniques": mock["mitre_techniques"],
-            "model": MODEL_ID if llm_response else "mock",
-        }
+        # When Bedrock returns real prose, omit mock confidence/MITRE fields — mixing
+        # fabricated metadata with real LLM text misleads the operator.
+        if llm_response:
+            job["result"] = {
+                "triage_summary": llm_response,
+                "model": MODEL_ID,
+            }
+        else:
+            job["result"] = {**mock, "model": "mock"}
 
         return {
             "job_id": job_id,
@@ -319,11 +316,14 @@ class LLMRootCauseResource(Resource):
         job = _job_store[job_id]
         job["status"] = "succeeded"
         job["completed_at"] = _now_iso()
-        job["result"] = {
-            "root_cause_narrative": llm_response or mock["root_cause_narrative"],
-            "mitre_techniques": mock["mitre_techniques"],
-            "model": MODEL_ID if llm_response else "mock",
-        }
+        # Same rule as triage: omit mock MITRE techniques when Bedrock returns real prose.
+        if llm_response:
+            job["result"] = {
+                "root_cause_narrative": llm_response,
+                "model": MODEL_ID,
+            }
+        else:
+            job["result"] = {**mock, "model": "mock"}
 
         return {
             "job_id": job_id,

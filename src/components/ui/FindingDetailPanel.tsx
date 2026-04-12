@@ -418,6 +418,8 @@ export function FindingDetailPanel({
       const req = llmRequestFromFinding(f);
       const triageRes = await fetchLLMActionResult("llm_triage", req);
       const rootRes = await fetchLLMActionResult("llm_root_cause", req);
+      // Discard if the user switched findings while the requests were in-flight.
+      if (findingRef.current.id !== f.id) return;
       const payload: OverviewAiPayload = {
         triage: (triageRes?.triage_summary as string) ?? "",
         rootCause: (rootRes?.root_cause_narrative as string) ?? "",
@@ -443,13 +445,17 @@ export function FindingDetailPanel({
     try {
       const req = llmRequestFromFinding(f);
       const res = await fetchLLMActionResult("llm_runbook", req);
+      // Discard if the user switched findings while the request was in-flight.
+      if (findingRef.current.id !== f.id) return;
       const rawSteps = res?.runbook_steps as PlaybookStep[] | undefined;
       const model = res?.model as string | undefined;
       const VALID_PHASES: PlaybookStep["phase"][] = ["IDENTIFY", "CONTAIN", "REMEDIATE", "VERIFY"];
+      // Validate every step — not just the first — so a bad later item can't reach
+      // PHASE_META[step.phase] and blow up the runbook tab.
       const steps: PlaybookStep[] =
         Array.isArray(rawSteps) &&
         rawSteps.length > 0 &&
-        VALID_PHASES.includes(rawSteps[0].phase)
+        rawSteps.every(s => s && typeof s === "object" && VALID_PHASES.includes((s as PlaybookStep).phase))
           ? rawSteps
           : [];
       if (steps.length === 0) {

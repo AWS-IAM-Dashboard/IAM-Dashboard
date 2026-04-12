@@ -77,7 +77,7 @@ class TTSSynthesizeResource(Resource):
 
         except (BotoCoreError, ClientError) as exc:
             logger.warning("Polly synthesis failed: %s", exc)
-            return {"error": str(exc), "fallback": True}, 503
+            return {"error": "synthesis unavailable", "fallback": True}, 503
 
         except Exception as exc:  # pylint: disable=broad-except
             logger.error("Unexpected TTS error: %s", exc)

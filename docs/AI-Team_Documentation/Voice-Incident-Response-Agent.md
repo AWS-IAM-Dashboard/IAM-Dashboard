@@ -44,57 +44,45 @@ processCommand → intent match → buildResponse → Polly (preferred) / browse
 
 ## Architecture Flow
 
+> **Shipped path** — STT is entirely in-browser (Web Speech API). Amazon Transcribe is **not** active in the current implementation; it remains a future optional upgrade (see Phase 4).
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (React)                         │
 │                                                                 │
-│   Web Speech API — push-to-talk (`continuous: false`)             │
+│   Web Speech API — push-to-talk (`continuous: false`)           │
 │        │                                                        │
 │        ▼                                                        │
-│   Web Speech API captures one utterance per mic press           │
+│   Final transcript produced in-browser (no backend STT call)   │
 │        │                                                        │
 │        ▼                                                        │
-│   Audio blob sent to backend via /api/voice/transcribe          │
+│   processCommand → useVoiceIntent                               │
+│   ├── Tier 1: regex matchIntent() — synchronous, zero network   │
+│   └── Tier 2: POST /api/v1/voice/intent (Bedrock fallback)      │
+│        │           only when regex returns "unknown"            │
+│        ▼                                                        │
+│   buildResponse() → response card rendered in panel            │
+│        │                                                        │
+│        ▼                                                        │
+│   pollySpeak() → POST /api/v1/tts/synthesize                    │
+│        │           falls back to SpeechSynthesisUtterance       │
+│        ▼                                                        │
+│   For briefing/critical/threat: fetchLLMBriefing()             │
+│        └── POST /api/v1/llm/triage → LLMTriageCard in panel    │
 └──────────────────────────────┬──────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     BACKEND (Python/Flask)                      │
 │                                                                 │
-│   /api/voice/transcribe                                         │
-│        │                                                        │
-│        ▼                                                        │
-│   Amazon Transcribe ──► confirmed text transcript               │
-│        │                                                        │
-│        ▼                                                        │
-│   Intent Router                                                 │
-│   ├── "critical findings"  ──► pull from ScanResultsContext     │
-│   ├── "summarize incident" ──► pull findings + metadata         │
-│   └── "recommend fix for [resource]" ──► pull specific finding  │
-│        │                                                        │
-│        ▼                                                        │
-│   Build AI Input Schema (existing AI-2 schema)                  │
-│        │                                                        │
-│        ▼                                                        │
-│   Amazon Bedrock (Claude) ──► structured incident summary       │
-│        │                                                        │
-│        ▼                                                        │
-│   Guardrails check (existing AI-3 pipeline)                     │
-│        │                                                        │
-│        ▼                                                        │
-│   Amazon Polly ──► audio response (MP3)                         │
-│        │                                                        │
-│        ▼                                                        │
-│   Return audio + text transcript to frontend                    │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND (React)                         │
+│   POST /api/v1/voice/intent                                     │
+│        └── Amazon Bedrock (Claude) — intent classification      │
 │                                                                 │
-│   Play audio response via <audio> element                       │
-│   Display text transcript in incident panel                     │
-│   Show findings table filtered to what was spoken about         │
+│   POST /api/v1/tts/synthesize                                   │
+│        └── Amazon Polly Neural ──► audio/mpeg                   │
+│                                                                 │
+│   POST /api/v1/llm/triage                                       │
+│        └── Amazon Bedrock (Claude) ──► triage summary           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -102,13 +90,13 @@ processCommand → intent match → buildResponse → Polly (preferred) / browse
 
 ## AWS Services Required
 
-| Service | Role |
-|---|---|
-| Web Speech API (browser) | STT for push-to-talk utterances — free, no AWS |
-| Amazon Transcribe | Confirms transcript server-side for accuracy |
-| Amazon Polly | Text-to-speech — Argus speaks back |
-| Amazon Bedrock (Claude) | LLM for incident summarization and remediation |
-| Existing backend | Findings data source — already running |
+| Service | Role | Status |
+|---|---|---|
+| Web Speech API (browser) | STT for push-to-talk utterances — free, no AWS | **Active** |
+| Amazon Polly Neural | Text-to-speech — `POST /api/v1/tts/synthesize`; falls back to browser TTS | **Active** |
+| Amazon Bedrock (Claude) | Intent classification fallback (`/api/v1/voice/intent`) and LLM triage (`/api/v1/llm/triage`) | **Active** |
+| Existing backend | Findings data source — already running | **Active** |
+| Amazon Transcribe | Optional server-side STT upgrade (not shipped) | Future / Phase 4 optional |
 
 ---
 
@@ -228,13 +216,15 @@ CMD ["python", "voice_agent.py"]
 
 ---
 
-## New Backend Endpoints
+## Backend Endpoints (shipped)
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/voice/transcribe` | POST | Accepts audio blob, returns confirmed transcript |
-| `/api/voice/respond` | POST | Accepts transcript + findings context, returns audio + text |
-| `/api/voice/synthesize` | POST | Accepts text, returns Polly audio |
+| `/api/v1/tts/synthesize` | POST | Accepts `{text, voice, engine}`, returns `audio/mpeg` (Polly Neural) or `{error, fallback:true}` 503 |
+| `/api/v1/voice/intent` | POST | Bedrock intent classification fallback — called only when client regex returns `"unknown"` |
+| `/api/v1/llm/triage` | POST | LLM triage summary for a finding (used by `fetchLLMBriefing` on briefing/critical/threat intents) |
+
+> **Not shipped:** `/api/voice/transcribe` (Transcribe-based STT), `/api/voice/respond`, and `/api/voice/synthesize` are planning artifacts from an earlier design. The active TTS route is `/api/v1/tts/synthesize`.
 
 ---
 
