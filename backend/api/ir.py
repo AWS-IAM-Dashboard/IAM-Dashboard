@@ -53,24 +53,88 @@ def _get_bedrock_client():
 
 MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5")
 
-def _invoke_claude(prompt: str) -> str:
+# ─── Runbook structured-output constants ──────────────────────────────────────
+
+VALID_PHASES = {"IDENTIFY", "CONTAIN", "REMEDIATE", "VERIFY"}
+
+SYSTEM_RUNBOOK = (
+    "You are a cloud security incident responder. "
+    "You MUST respond with ONLY a valid JSON array — no markdown, no prose, no code fences, no explanation. "
+    "The array must contain exactly 4 objects matching this schema: "
+    '{"step": <int>, "phase": <"IDENTIFY"|"CONTAIN"|"REMEDIATE"|"VERIFY">, '
+    '"title": <string max 60 chars>, "description": <string max 200 chars>, '
+    '"commands": [<bash strings, 1-4 items>], "estimated_time": <numeric string in minutes>}. '
+    "Steps must be in phase order: IDENTIFY first, then CONTAIN, REMEDIATE, VERIFY. "
+    "Every command must be a real AWS CLI command or a bash comment starting with #. "
+    "Do not include any text before or after the JSON array."
+)
+
+
+def _invoke_claude(prompt: str, system: str | None = None, max_tokens: int = 1024) -> str | None:
     """Call Claude via Bedrock and return the text response. Falls back to None if unavailable."""
     api_key = os.environ.get("BEDROCK_API_KEY")
     if not api_key:
         return None  # No key = mock mode
     try:
         client = _get_bedrock_client()
-        body = json.dumps({
+        body_dict = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1024,
+            "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
-        })
+        }
+        if system:
+            body_dict["system"] = system
+        body = json.dumps(body_dict)
         response = client.invoke_model(modelId=MODEL_ID, body=body)
         result = json.loads(response["body"].read())
         return result["content"][0]["text"]
     except Exception as e:
         logger.error("Bedrock invocation failed: %s", e)
         return None  # Fall back to mock
+
+
+def _parse_runbook_steps(raw: str | None) -> list[dict] | None:
+    """
+    Parse Claude's JSON response into a validated list of PlaybookStep dicts.
+    Returns None if parsing or validation fails — caller falls back to mock steps.
+    """
+    if not raw:
+        return None
+    text = raw.strip()
+    # Strip accidental code fences Claude sometimes emits despite instruction
+    if text.startswith("```"):
+        lines = text.splitlines()
+        text = "\n".join(
+            line for line in lines[1:]
+            if not line.strip().startswith("```")
+        ).strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.warning("Runbook JSON parse failed: %s | raw=%r", exc, raw[:200])
+        return None
+    if not isinstance(data, list) or len(data) == 0:
+        logger.warning("Runbook JSON is not a non-empty list")
+        return None
+    validated = []
+    for i, item in enumerate(data):
+        if not isinstance(item, dict):
+            logger.warning("Runbook step %d is not a dict", i)
+            return None
+        phase = item.get("phase", "")
+        if phase not in VALID_PHASES:
+            logger.warning("Runbook step %d has invalid phase: %r", i, phase)
+            return None
+        step = {
+            "step": int(item.get("step", i + 1)),
+            "phase": phase,
+            "title": str(item.get("title", ""))[:80],
+            "description": str(item.get("description", ""))[:400],
+            "commands": [str(c) for c in item.get("commands", []) if isinstance(c, str)][:6],
+            "estimated_time": str(item.get("estimated_time", "30")),
+        }
+        validated.append(step)
+    return validated if validated else None
 
 # ─── In-memory job store (replace with DynamoDB in production) ────────────────
 
@@ -293,25 +357,26 @@ class LLMRunbookResource(Resource):
         _register_idempotency(idempotency_key, job_id)
         _write_audit(finding_id, "system", "system", "LLM runbook generation triggered", idempotency_key=idempotency_key)
 
-        prompt = (
-            f"You are a cloud security incident responder. Generate a step-by-step IR runbook for:\n"
+        user_prompt = (
+            f"Generate a 4-step IR playbook for this AWS security finding.\n"
             f"Finding ID: {finding_id}\n"
-            f"Severity: {data.get('severity', 'Unknown')}\n"
+            f"Severity: {data.get('severity', 'MEDIUM')}\n"
             f"Type: {data.get('finding_type', 'Unknown')}\n"
             f"Resource: {data.get('resource_name', 'Unknown')}\n"
+            f"Resource ARN: {data.get('resource_arn', 'arn:aws:iam::123456789012:resource/unknown')}\n"
             f"Description: {data.get('description', 'No description provided')}\n\n"
-            f"Format as markdown with phases: IDENTIFY, CONTAIN, ERADICATE, RECOVER, LESSONS LEARNED. "
-            f"Include specific AWS CLI commands where applicable. Be concise and actionable."
+            f"Return only the JSON array as instructed."
         )
-        llm_response = _invoke_claude(prompt)
+        llm_response = _invoke_claude(user_prompt, system=SYSTEM_RUNBOOK, max_tokens=2048)
+        parsed_steps = _parse_runbook_steps(llm_response)
         mock = _mock_result("llm_runbook")
 
         job = _job_store[job_id]
         job["status"] = "succeeded"
         job["completed_at"] = _now_iso()
         job["result"] = {
-            "runbook_markdown": llm_response or mock["runbook_markdown"],
-            "model": MODEL_ID if llm_response else "mock",
+            "runbook_steps": parsed_steps if parsed_steps is not None else mock["runbook_steps"],
+            "model": MODEL_ID if (llm_response and parsed_steps is not None) else "mock",
         }
 
         return {
@@ -536,7 +601,62 @@ def _mock_result(action_type: str) -> dict:
             "mitre_techniques": ["T1078", "T1580"],
         },
         "llm_runbook": {
-            "runbook_markdown": "## IR Runbook\n\n### Phase 1 — IDENTIFY\n1. Validate finding via CloudTrail.\n",
+            "runbook_steps": [
+                {
+                    "step": 1,
+                    "phase": "IDENTIFY",
+                    "title": "Validate Finding via CloudTrail",
+                    "description": "Confirm true positive by querying CloudTrail for API calls from the suspicious principal within the finding window. Cross-reference source IPs against threat intel.",
+                    "commands": [
+                        "# Lookup events by access key or resource",
+                        "aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIA_REPLACE --start-time $(date -u -d '-24 hours' +%FT%TZ) --max-results 50",
+                        "# Check for anomalous IAM activity",
+                        "aws iam generate-service-last-accessed-details --arn RESOURCE_ARN",
+                    ],
+                    "estimated_time": "15",
+                },
+                {
+                    "step": 2,
+                    "phase": "CONTAIN",
+                    "title": "Revoke Compromised Credentials",
+                    "description": "Immediately disable the access key to stop ongoing access. Use the IR Engine contain actions for approval-gated permanent revocation.",
+                    "commands": [
+                        "# Disable key (reversible — safe first step)",
+                        "aws iam update-access-key --access-key-id AKIA_REPLACE --status Inactive --user-name USERNAME",
+                        "# Tag resource for IR tracking",
+                        "aws resourcegroupstaggingapi tag-resources --resource-arn-list RESOURCE_ARN --tags IncidentId=IR-REPLACE,ContainedAt=$(date -u +%FT%TZ)",
+                    ],
+                    "estimated_time": "10",
+                },
+                {
+                    "step": 3,
+                    "phase": "REMEDIATE",
+                    "title": "Rotate Credentials and Harden IAM",
+                    "description": "Issue a new key for legitimate workloads, apply least-privilege policy, enable MFA, and audit IAM trust boundaries to prevent recurrence.",
+                    "commands": [
+                        "# Create replacement key for the workload",
+                        "aws iam create-access-key --user-name USERNAME",
+                        "# Review and scope down attached policies",
+                        "aws iam list-attached-user-policies --user-name USERNAME",
+                        "# Enable virtual MFA",
+                        "aws iam create-virtual-mfa-device --virtual-mfa-device-name USERNAME-mfa --outfile /tmp/mfa-qr.png --bootstrap-method QRCodePNG",
+                    ],
+                    "estimated_time": "60",
+                },
+                {
+                    "step": 4,
+                    "phase": "VERIFY",
+                    "title": "Confirm Closure and Re-scan",
+                    "description": "Re-run the scanner, verify no active sessions from the suspicious principal, update the Security Hub finding status, and close the workflow ticket.",
+                    "commands": [
+                        "# Confirm no active sessions remain",
+                        "aws iam list-access-keys --user-name USERNAME",
+                        "# Resolve finding in Security Hub",
+                        "aws securityhub batch-update-findings --finding-identifiers ProductArn=PRODUCT_ARN,Id=FINDING_ID --note Text='Remediated by IR workflow',UpdatedBy=analyst --workflow Status=RESOLVED",
+                    ],
+                    "estimated_time": "20",
+                },
+            ],
         },
         "aws_ec2_isolate": {
             "isolation_sg_id": f"sg-{uuid.uuid4().hex[:8]}",

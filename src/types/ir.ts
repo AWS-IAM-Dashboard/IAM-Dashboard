@@ -8,6 +8,20 @@
  *                    → /api/evidence/preserve
  */
 
+// ─── Playbook types (shared between IR engine and FindingDetailPanel) ─────────
+
+export type PlaybookPhase = "IDENTIFY" | "CONTAIN" | "REMEDIATE" | "VERIFY";
+
+export interface PlaybookStep {
+  step: number;
+  phase: PlaybookPhase;
+  title: string;
+  description: string;
+  commands: string[];
+  /** Numeric string — minutes */
+  estimated_time: string;
+}
+
 // ─── Action taxonomy ─────────────────────────────────────────────────────────
 
 export type IRActionType =
@@ -73,6 +87,7 @@ export interface IRActionResult {
   root_cause_narrative?: string;
   mitre_techniques?: string[];
   runbook_markdown?: string;
+  runbook_steps?: PlaybookStep[];
   // Containment results
   isolation_sg_id?: string;
   original_sg_ids?: string[];
