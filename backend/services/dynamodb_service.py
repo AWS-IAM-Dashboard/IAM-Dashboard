@@ -5,7 +5,7 @@ DynamoDB Service for data persistence and management
 import os
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 import boto3
 from botocore.exceptions import ClientError
@@ -18,7 +18,9 @@ _DEFAULT_RETENTION_DAYS = 90
 
 def _compute_expires_at_epoch(days: int = _DEFAULT_RETENTION_DAYS) -> int:
     """Unix epoch seconds for DynamoDB TTL (expires_at)."""
-    return int((datetime.utcnow() + timedelta(days=days)).timestamp())
+    if days <= 0:
+        raise ValueError("days must be positive")
+    return int((datetime.now(timezone.utc) + timedelta(days=days)).timestamp())
 
 
 def _parse_item_time_epoch(value: Any) -> Optional[float]:
@@ -31,7 +33,12 @@ def _parse_item_time_epoch(value: Any) -> Optional[float]:
     if not s:
         return None
     try:
-        return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.timestamp()
     except ValueError:
         return None
 
@@ -269,7 +276,7 @@ class DynamoDBService:
 
         Uses the correct primary key for scan results vs IAM findings tables.
         """
-        cutoff_dt = datetime.utcnow().replace(
+        cutoff_dt = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
         ) - timedelta(days=days)
         cutoff_epoch = cutoff_dt.timestamp()
@@ -322,5 +329,5 @@ class DynamoDBService:
 
         except ClientError as e:
             logger.error("DynamoDB error deleting old records from %s: %s", table_name, str(e))
-            return 0
+            raise
 

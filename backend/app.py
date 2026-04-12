@@ -151,7 +151,13 @@ def create_app():
         ):
             logger.info("Retention scheduler disabled (RETENTION_SCHEDULER_ENABLED).")
             return
-        interval = int(os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400"))
+        raw_interval = os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400")
+        try:
+            interval = int(raw_interval)
+        except (TypeError, ValueError):
+            interval = 86400
+        if interval <= 0:
+            interval = 86400
 
         def _worker():
             """Run retention on startup delay, then loop with ``interval`` sleeps."""
@@ -174,7 +180,10 @@ def create_app():
             interval,
         )
 
-    _start_retention_scheduler(app)
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and os.environ.get(
+        "WERKZEUG_RUN_MAIN", "false"
+    ) != "true":
+        _start_retention_scheduler(app)
 
     return app
 

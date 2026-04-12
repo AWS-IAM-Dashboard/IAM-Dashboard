@@ -180,6 +180,8 @@ class DatabaseService:
     
     def cleanup_old_records(self, days: int = 90) -> dict:
         """Delete rows older than ``days`` from security_findings and performance_metrics."""
+        if days <= 0:
+            raise ValueError("days must be positive")
         cutoff = datetime.utcnow() - timedelta(days=days)
         session = None
         try:
@@ -206,11 +208,7 @@ class DatabaseService:
                     session.rollback()
                 except Exception:
                     pass
-            return {
-                "security_findings_deleted": 0,
-                "performance_metrics_deleted": 0,
-                "error": str(e),
-            }
+            raise
         finally:
             if session is not None:
                 try:
