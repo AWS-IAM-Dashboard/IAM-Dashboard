@@ -20,6 +20,8 @@ import { Mic, MicOff, Volume2, Zap, X, Download, Trash2, ShieldAlert } from "luc
 import { useActiveScanResults } from "../../hooks/useActiveScanResults";
 import { pollySpeak } from "../../services/ttsService";
 import { fetchLLMActionResult, triggerIRAction } from "../../services/irEngine";
+import { useVoiceIntent } from "../../hooks/useVoiceIntent";
+import type { ConversationTurn, FindingContext } from "../../hooks/useVoiceIntent";
 import type { IRActionType, IRActionResult } from "../../types/ir";
 import { ACTION_META } from "../../types/ir";
 
@@ -111,26 +113,6 @@ function sevColor(s: string) { return SEV_COLOR[(s ?? "").toUpperCase()] ?? "#64
 
 function newSessionId(): string {
   return `argus-${Date.now().toString(36).slice(-4)}-${Math.random().toString(36).slice(2, 5)}`;
-}
-
-// ── Intent matching ───────────────────────────────────────────────────────────
-function matchIntent(input: string): string {
-  const t = input.toLowerCase().trim();
-  if (/\b(brief|briefing|situation|status|sitrep|what('s| is) (going on|happening|the situation))\b/.test(t)) return "briefing";
-  if (/\b(critical|crit findings?|show critical|critical alerts?)\b/.test(t)) return "critical";
-  if (/\b(threat level|threat assessment|current threat)\b/.test(t)) return "threat";
-  if (/\b(sla|breach|breached|overdue)\b/.test(t)) return "sla";
-  if (/\b(latest|new findings?|recent|last scan)\b/.test(t)) return "latest";
-  if (/\b(show findings?|list findings?|findings? list|all findings?)\b/.test(t)) return "show_findings";
-  if (/\b(compliance|score|posture|frameworks?)\b/.test(t)) return "compliance";
-  if (/\b(scan|run scan|start scan)\b/.test(t)) return "scan";
-  if (/\b(help|commands?|what can you)\b/.test(t)) return "help";
-  if (/\b(high (risk|findings?|severity)|high risk)\b/.test(t)) return "high";
-  if (/\b(isolate|contain|lock down|quarantine)\b/.test(t)) return "isolate";
-  if (/\b(revoke|delete key|remove key|kill key)\b/.test(t)) return "revoke";
-  if (/\b(disable key|deactivate key|suspend key)\b/.test(t)) return "disable_key";
-  if (/\b(go to|navigate|open|take me)\b/.test(t)) return "navigate";
-  return "unknown";
 }
 
 // ── Response builder ──────────────────────────────────────────────────────────
@@ -733,6 +715,8 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
   const [pendingConfirm, setPendingConfirm] = useState<IRConfirmData | null>(null);
   const [sessionId,    setSessionId]    = useState(() => newSessionId());
 
+  const { resolveIntent, isThinking } = useVoiceIntent();
+
   const recognitionRef     = useRef<any>(null);
   const synthRef           = useRef<SpeechSynthesis | null>(null);
   const processing         = useRef(false);
@@ -1000,7 +984,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
   }, []);
 
   // ── Process command ─────────────────────────────────────────────────────────
-  const processCommand = useCallback((input: string, confidence?: number) => {
+  const processCommand = useCallback(async (input: string, confidence?: number) => {
     if (processing.current || !input.trim()) return;
 
     // Intercept confirmation responses first
@@ -1016,44 +1000,80 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
     setStatus("processing");
     setPartial("");
 
-    const intent = matchIntent(input);
-
+    // Immediate feedback: user bubble and STT audit appear before async work
     pushAudit({ type: "stt", content: input.trim(), confidence, sessionId: lastSessionRef.current });
-
-    // Navigation side-effect
-    if (intent === "navigate") {
-      const navMap: Record<string, string> = {
-        iam: "iam-security", guardduty: "guardduty", alerts: "alerts",
-        "security hub": "security-hub", compliance: "grc", reports: "reports",
-        ec2: "ec2-security", s3: "s3-security", vpc: "vpc-security",
-        soc: "soc", infra: "infra-security", macie: "macie",
-      };
-      const lower = input.toLowerCase();
-      for (const [k, v] of Object.entries(navMap)) {
-        if (lower.includes(k)) { onNavigate?.(v); break; }
-      }
-    }
-
-    pushAudit({ type: "intent", content: intent.toUpperCase().replace(/_/g, " "), sessionId: lastSessionRef.current });
     setMessages(p => [...p, { id: `u-${Date.now()}`, role: "user" as const, text: input.trim(), ts: Date.now() }]);
 
-    setTimeout(() => {
-      const response = buildResponse(intent, stats, findings, input);
-      setMessages(p => [...p, { id: `r-${Date.now()}`, role: "agent" as const, response, ts: Date.now() }]);
-      pushAudit({ type: "tts", content: response.spokenText, sessionId: lastSessionRef.current });
-      processing.current = false;
-      void speak(response.spokenText);
+    // Build context window for Bedrock (last 3 turns with readable text)
+    const contextTurns: ConversationTurn[] = messages
+      .filter(m => (m.role === "user" || m.role === "agent") && (m.text || m.response?.spokenText))
+      .slice(-3)
+      .map(m => ({
+        role: m.role as "user" | "agent",
+        text: m.text ?? m.response?.spokenText ?? "",
+      }));
 
-      // ── LLM enrichment for intelligence-gathering intents ────────────────
+    const topFinding =
+      findings.find(f => (f.severity ?? "").toUpperCase() === "CRITICAL") ??
+      findings.find(f => (f.severity ?? "").toUpperCase() === "HIGH") ??
+      findings[0] ?? null;
+
+    const findingCtx: FindingContext | null = topFinding ? {
+      id:           String(topFinding.id ?? topFinding.finding_id ?? "unknown"),
+      severity:     topFinding.severity,
+      finding_type: topFinding.finding_type ?? topFinding.title,
+      resource_name: topFinding.resource_name ?? topFinding.resource_arn,
+      service:      topFinding.service,
+    } : null;
+
+    try {
+      // Two-tier intent resolution: regex fast-path → Bedrock fallback
+      const resolved = await resolveIntent(input, contextTurns, findingCtx);
+      const intent = resolved.intent;
+
+      // Navigation side-effect (unchanged)
+      if (intent === "navigate") {
+        const navMap: Record<string, string> = {
+          iam: "iam-security", guardduty: "guardduty", alerts: "alerts",
+          "security hub": "security-hub", compliance: "grc", reports: "reports",
+          ec2: "ec2-security", s3: "s3-security", vpc: "vpc-security",
+          soc: "soc", infra: "infra-security", macie: "macie",
+        };
+        const lower = input.toLowerCase();
+        for (const [k, v] of Object.entries(navMap)) {
+          if (lower.includes(k)) { onNavigate?.(v); break; }
+        }
+      }
+
+      // Audit the resolved intent (note Bedrock source for traceability)
+      const intentLabel = resolved.source === "bedrock"
+        ? `${intent.toUpperCase().replace(/_/g, " ")} [BEDROCK ${Math.round((resolved.confidence ?? 0) * 100)}%]`
+        : intent.toUpperCase().replace(/_/g, " ");
+      pushAudit({ type: "intent", content: intentLabel, sessionId: lastSessionRef.current });
+
+      // Build response card; Bedrock spoken_reply overrides spokenText for TTS
+      const response = buildResponse(intent, stats, findings, input);
+      const spokenText = resolved.spokenReply ?? response.spokenText;
+
+      setMessages(p => [...p, {
+        id: `r-${Date.now()}`, role: "agent" as const,
+        response: { ...response, spokenText },
+        ts: Date.now(),
+      }]);
+      pushAudit({ type: "tts", content: spokenText, sessionId: lastSessionRef.current });
+      processing.current = false;
+      void speak(spokenText);
+
+      // ── LLM enrichment for intelligence-gathering intents (unchanged) ────
       if (["briefing", "critical", "threat"].includes(intent) && findings.length > 0) {
-        const topFinding =
+        const enrichFinding =
           findings.find(f => (f.severity ?? "").toUpperCase() === "CRITICAL") ??
           findings.find(f => (f.severity ?? "").toUpperCase() === "HIGH") ??
           findings[0];
-        if (topFinding) void fetchLLMBriefing(topFinding);
+        if (enrichFinding) void fetchLLMBriefing(enrichFinding);
       }
 
-      // ── Inline finding cards for list intent ─────────────────────────────
+      // ── Inline finding cards for list intent (unchanged) ─────────────────
       if (intent === "show_findings" && findings.length > 0) {
         const snippets: FindingSnippet[] = findings.slice(0, 6).map((f, i) => ({
           id:       String(f.id ?? f.finding_id ?? i),
@@ -1070,7 +1090,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
         }]);
       }
 
-      // ── IR action confirmation flow ───────────────────────────────────────
+      // ── IR confirmation (unchanged — always gated regardless of source) ──
       if (["isolate", "revoke", "disable_key"].includes(intent) && findings.length > 0) {
         const irFinding =
           findings.find(f => (f.severity ?? "").toUpperCase() === "CRITICAL") ??
@@ -1080,8 +1100,11 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
           setTimeout(() => showIRConfirm(intent, irFinding), 400);
         }
       }
-    }, 240 + Math.random() * 280);
-  }, [stats, findings, speak, onNavigate, pushAudit, handleConfirmResponse, fetchLLMBriefing, showIRConfirm]);
+    } catch {
+      processing.current = false;
+      setStatus("standby");
+    }
+  }, [stats, findings, messages, speak, onNavigate, pushAudit, handleConfirmResponse, fetchLLMBriefing, showIRConfirm, resolveIntent]);
 
   // ── Push-to-talk ────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
@@ -1098,7 +1121,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
       setPartial(last[0].transcript);
       if (last.isFinal) {
         r.stop();
-        processCommand(last[0].transcript, last[0].confidence ?? undefined);
+        void processCommand(last[0].transcript, last[0].confidence ?? undefined);
       }
     };
     r.onerror = (e: any) => {
@@ -1292,7 +1315,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                 {quickCmds.map(({ label, cmd, color }) => (
                   <button
                     key={cmd}
-                    onClick={() => processCommand(cmd)}
+                    onClick={() => { void processCommand(cmd); }}
                     disabled={voiceBusy}
                     style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", color, background: `${color}09`, border: `1px solid ${color}20`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", opacity: voiceBusy ? 0.3 : 1, transition: "all 0.1s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}38`; }}
@@ -1370,7 +1393,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                 {status === "processing" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "rgba(167,139,250,0.05)", border: "1px solid rgba(167,139,250,0.12)", borderTop: "2px solid rgba(167,139,250,0.5)", borderRadius: 6 }}>
                     <span style={{ fontSize: 7.5, color: "#a78bfa", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.12em" }}>
-                      {pendingConfirm ? "AWAITING RESPONSE" : "ANALYZING"}
+                      {pendingConfirm ? "AWAITING RESPONSE" : isThinking ? "ARGUS THINKING…" : "ANALYZING"}
                     </span>
                     {[0, 0.14, 0.28].map((d, i) => (
                       <div key={i} style={{ width: 3, height: 3, borderRadius: "50%", background: "#a78bfa", animation: `argus-pulse 0.8s ease-in-out ${d}s infinite` }} />
@@ -1388,7 +1411,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                       value={textInput}
                       onChange={e => { setTextInput(e.target.value); if (e.target.value) setInputMode("text"); }}
                       onFocus={() => setInputMode("text")}
-                      onKeyDown={e => { if (e.key === "Enter" && textInput.trim()) { processCommand(textInput); setTextInput(""); } }}
+                      onKeyDown={e => { if (e.key === "Enter" && textInput.trim()) { void processCommand(textInput); setTextInput(""); } }}
                       placeholder={
                         pendingConfirm
                           ? `Confirm or cancel ${pendingConfirm.label}…`
@@ -1409,7 +1432,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
                   </div>
                   {/* Send button */}
                   <button
-                    onClick={() => { if (textInput.trim()) { processCommand(textInput); setTextInput(""); } }}
+                    onClick={() => { if (textInput.trim()) { void processCommand(textInput); setTextInput(""); } }}
                     disabled={!textInput.trim() || status === "processing"}
                     style={{
                       height: 30, paddingInline: 12, borderRadius: 6, cursor: textInput.trim() ? "pointer" : "default",

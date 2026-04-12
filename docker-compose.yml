@@ -38,8 +38,13 @@ services:
       - DATABASE_URL=postgresql://postgres:password@db:5432/cybersecurity_db
       - REDIS_URL=redis://redis:6379/0
       - AWS_REGION=${AWS_REGION:-us-east-1}
+      # Bedrock + Polly: boto/ir.py read AWS_DEFAULT_REGION; align with AWS_REGION if unset
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-${AWS_REGION:-us-east-1}}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Required for /api/v1/llm/* and /api/v1/voice/intent in Docker — set in host .env (never commit)
+      - BEDROCK_API_KEY=${BEDROCK_API_KEY:-}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-haiku-4-5}
       - SMTP_HOST=${SMTP_HOST:-mailhog}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
