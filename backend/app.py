@@ -39,6 +39,7 @@ from api.ir import (
     IRAuditResource,
 )
 from api.retention import RetentionCleanupResource, run_retention_pass
+from api.tts import TTSSynthesizeResource
 
 # Import services
 from services.aws_service import AWSService
@@ -114,6 +115,7 @@ def create_app():
     api.add_resource(IRForensicsResource,         '/ir/forensics/<string:finding_id>')
     api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
     api.add_resource(IRAuditResource,             '/ir/audit')
+    api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
 
     # Serve static files (React frontend)
     @app.route('/')
