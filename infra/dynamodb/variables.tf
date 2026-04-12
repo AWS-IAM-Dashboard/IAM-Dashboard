@@ -22,6 +22,12 @@ variable "dynamodb_table_name" {
   default     = "iam-dashboard-scan-results"
 }
 
+variable "iam_findings_table_name" {
+  description = "Name of the DynamoDB table for IAM security findings"
+  type        = string
+  default     = "iam-dashboard-iam-findings"
+}
+
 variable "enable_scanner_type_index" {
   description = "Enable Global Secondary Index for scanner_type-based queries"
   type        = bool

@@ -5,6 +5,8 @@ Main application entry point with API endpoints for AWS integrations
 
 import os
 import logging
+import threading
+import time
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
@@ -36,6 +38,7 @@ from api.ir import (
     IREvidenceResource,
     IRAuditResource,
 )
+from api.retention import RetentionCleanupResource, run_retention_pass
 
 # Import services
 from services.aws_service import AWSService
@@ -95,6 +98,7 @@ def create_app():
     api.add_resource(SecurityHubResource, '/aws/security-hub')
     api.add_resource(ConfigResource, '/aws/config')
     api.add_resource(GrafanaResource, '/grafana')
+    api.add_resource(RetentionCleanupResource, '/system/retention')
 
     # IR Action Engine routes
     api.add_resource(LLMTriageResource,           '/llm/triage')
@@ -133,6 +137,38 @@ def create_app():
     with app.app_context():
         database_service.init_db()
         logger.info("Database initialized")
+
+    def _start_retention_scheduler(flask_app: Flask) -> None:
+        if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
+            "1",
+            "true",
+            "yes",
+        ):
+            logger.info("Retention scheduler disabled (RETENTION_SCHEDULER_ENABLED).")
+            return
+        interval = int(os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400"))
+
+        def _worker():
+            time.sleep(60)
+            while True:
+                try:
+                    with flask_app.app_context():
+                        run_retention_pass()
+                except Exception:
+                    logger.exception("Scheduled retention pass failed")
+                time.sleep(interval)
+
+        threading.Thread(
+            target=_worker,
+            daemon=True,
+            name="retention-scheduler",
+        ).start()
+        logger.info(
+            "Retention scheduler started (interval=%ss, first run after 60s startup delay).",
+            interval,
+        )
+
+    _start_retention_scheduler(app)
 
     return app
 
