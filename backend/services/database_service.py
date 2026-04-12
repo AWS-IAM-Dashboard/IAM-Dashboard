@@ -209,6 +209,7 @@ class DatabaseService:
                 except Exception:
                     pass
             raise
+            raise
         finally:
             if session is not None:
                 try:

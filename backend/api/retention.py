@@ -4,6 +4,7 @@ Data retention: DynamoDB age-based deletes + PostgreSQL cleanup.
 Optional HTTP trigger (POST) when RETENTION_RUN_KEY is set.
 """
 
+import hmac
 import logging
 import os
 
@@ -44,7 +45,7 @@ class RetentionCleanupResource(Resource):
                 "message": "Set RETENTION_RUN_KEY to enable HTTP-triggered retention runs.",
             }, 503
         supplied = request.headers.get("X-Retention-Run-Key", "").strip()
-        if supplied != expected:
+        if not hmac.compare_digest(supplied, expected):
             return {"error": "forbidden"}, 403
         try:
             days = int(request.args.get("days", "90"))
@@ -52,5 +53,9 @@ class RetentionCleanupResource(Resource):
                 days = 90
         except ValueError:
             days = 90
-        result = run_retention_pass(days=days)
-        return result, 200
+        try:
+            result = run_retention_pass(days=days)
+            return result, 200
+        except Exception:
+            logger.exception("Retention pass failed")
+            return {"error": "Retention pass failed"}, 500

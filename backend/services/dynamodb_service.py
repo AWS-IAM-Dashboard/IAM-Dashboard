@@ -276,6 +276,8 @@ class DynamoDBService:
 
         Uses the correct primary key for scan results vs IAM findings tables.
         """
+        if days <= 0:
+            raise ValueError("days must be positive")
         cutoff_dt = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
         ) - timedelta(days=days)
@@ -287,7 +289,6 @@ class DynamoDBService:
         if not is_scan and not is_findings:
             logger.warning("delete_old_records: unsupported table name %s", table_name)
             return 0
-
         deleted_count = 0
         scan_kwargs: Dict[str, Any] = {}
 

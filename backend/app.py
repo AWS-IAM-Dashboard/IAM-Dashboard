@@ -55,6 +55,65 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _parse_retention_interval_seconds() -> int:
+    """Parse RETENTION_SCHEDULER_INTERVAL_SEC with a safe minimum."""
+    raw_interval = os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400")
+    try:
+        interval = int(raw_interval)
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid RETENTION_SCHEDULER_INTERVAL_SEC=%r; defaulting to 86400s",
+            raw_interval,
+        )
+        interval = 86400
+    if interval <= 0:
+        logger.warning(
+            "Non-positive RETENTION_SCHEDULER_INTERVAL_SEC=%r; defaulting to 86400s",
+            raw_interval,
+        )
+        interval = 86400
+    if interval < 60:
+        logger.warning(
+            "RETENTION_SCHEDULER_INTERVAL_SEC=%r too small; clamping to 60s",
+            raw_interval,
+        )
+        interval = 60
+    return interval
+
+
+def start_retention_scheduler(flask_app: Flask) -> None:
+    """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval."""
+    if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
+        "1",
+        "true",
+        "yes",
+    ):
+        logger.info("Retention scheduler disabled (RETENTION_SCHEDULER_ENABLED).")
+        return
+    interval = _parse_retention_interval_seconds()
+
+    def _worker():
+        """Run retention on startup delay, then loop with ``interval`` sleeps."""
+        time.sleep(60)
+        while True:
+            try:
+                with flask_app.app_context():
+                    run_retention_pass()
+            except Exception:
+                logger.exception("Scheduled retention pass failed")
+            time.sleep(interval)
+
+    threading.Thread(
+        target=_worker,
+        daemon=True,
+        name="retention-scheduler",
+    ).start()
+    logger.info(
+        "Retention scheduler started (interval=%ss, first run after 60s startup delay).",
+        interval,
+    )
+
+
 def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__, static_folder='../static')
@@ -146,48 +205,10 @@ def create_app():
         database_service.init_db()
         logger.info("Database initialized")
 
-    def _start_retention_scheduler(flask_app: Flask) -> None:
-        """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval."""
-        if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
-            "1",
-            "true",
-            "yes",
-        ):
-            logger.info("Retention scheduler disabled (RETENTION_SCHEDULER_ENABLED).")
-            return
-        raw_interval = os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400")
-        try:
-            interval = int(raw_interval)
-        except (TypeError, ValueError):
-            interval = 86400
-        if interval <= 0:
-            interval = 86400
-
-        def _worker():
-            """Run retention on startup delay, then loop with ``interval`` sleeps."""
-            time.sleep(60)
-            while True:
-                try:
-                    with flask_app.app_context():
-                        run_retention_pass()
-                except Exception:
-                    logger.exception("Scheduled retention pass failed")
-                time.sleep(interval)
-
-        threading.Thread(
-            target=_worker,
-            daemon=True,
-            name="retention-scheduler",
-        ).start()
-        logger.info(
-            "Retention scheduler started (interval=%ss, first run after 60s startup delay).",
-            interval,
-        )
-
     if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and os.environ.get(
         "WERKZEUG_RUN_MAIN", "false"
     ) != "true":
-        _start_retention_scheduler(app)
+        start_retention_scheduler(app)
 
     return app
 
