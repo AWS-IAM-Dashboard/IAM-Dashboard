@@ -36,6 +36,7 @@ class RetentionCleanupResource(Resource):
     """POST /api/v1/system/retention — on-demand retention (requires RETENTION_RUN_KEY)."""
 
     def post(self):
+        """Run a retention pass when ``X-Retention-Run-Key`` matches ``RETENTION_RUN_KEY``."""
         expected = os.environ.get("RETENTION_RUN_KEY", "").strip()
         if not expected:
             return {

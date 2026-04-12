@@ -22,6 +22,7 @@ def _compute_expires_at_epoch(days: int = _DEFAULT_RETENTION_DAYS) -> int:
 
 
 def _parse_item_time_epoch(value: Any) -> Optional[float]:
+    """Parse DynamoDB item timestamp fields to UTC epoch seconds, or None if unparseable."""
     if value is None:
         return None
     if isinstance(value, (int, float)):
