@@ -61,6 +61,7 @@ class DatabaseService:
     """Service for database operations"""
     
     def __init__(self):
+        """Create SQLAlchemy engine and session factory from ``DATABASE_URL``."""
         self.database_url = os.environ.get('DATABASE_URL', 'sqlite:///cybersecurity.db')
         self.engine = create_engine(self.database_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)

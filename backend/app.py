@@ -118,19 +118,23 @@ def create_app():
     # Serve static files (React frontend)
     @app.route('/')
     def serve_frontend():
+        """Serve the React SPA entry (``index.html``) at ``/``."""
         return send_from_directory(app.static_folder, 'index.html')
 
     @app.route('/<path:path>')
     def serve_static(path):
+        """Serve built static assets for client-side routes."""
         return send_from_directory(app.static_folder, path)
 
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):
+        """Return a JSON body for HTTP 404 responses."""
         return jsonify({'error': 'Not found'}), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        """Return a JSON body for HTTP 500 responses."""
         return jsonify({'error': 'Internal server error'}), 500
 
     # Initialize database
@@ -139,6 +143,7 @@ def create_app():
         logger.info("Database initialized")
 
     def _start_retention_scheduler(flask_app: Flask) -> None:
+        """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval."""
         if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
             "1",
             "true",
@@ -149,6 +154,7 @@ def create_app():
         interval = int(os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400"))
 
         def _worker():
+            """Run retention on startup delay, then loop with ``interval`` sleeps."""
             time.sleep(60)
             while True:
                 try:
