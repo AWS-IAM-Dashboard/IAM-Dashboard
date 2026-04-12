@@ -335,49 +335,54 @@ The voice agent reuses the existing **AI-3 guardrails pipeline** (see `Guardrail
 
 ---
 
-### Phase 2 — AWS Setup (Next)
-- [ ] AWS Console → Bedrock → Model Access → enable Claude 3 Haiku (free, ~2 min)
-- [ ] Add IAM permissions to your role:
-  - `bedrock:InvokeModel`
-  - `transcribe:StartStreamTranscription`
-  - `polly:SynthesizeSpeech`
-- [ ] Check free tier status at `console.aws.amazon.com/billing/home#/freetier`
-- [ ] Add `BEDROCK_MODEL_ID` to `.env` and `env.example`
-- [ ] Verify: `aws bedrock list-foundation-models --region us-east-1`
+### ✅ Phase 2 — AWS Setup (COMPLETE)
+- [x] Bedrock API key generated from AWS Console → Bedrock → API keys
+- [x] `BEDROCK_API_KEY` added to `.env`
+- [x] `BEDROCK_MODEL_ID=anthropic.claude-haiku-4-5` added to `.env` (Claude 4.5 Haiku — near-frontier performance at Haiku pricing, available on Bedrock since Oct 2025)
+- [x] `AWS_DEFAULT_REGION=us-east-1` confirmed in `.env`
+- [x] `AmazonBedrockFullAccess`, `AmazonTranscribeFullAccess`, `AmazonPollyFullAccess` attached to IAM user
+- [x] Credential strategy decided: long-term Bedrock API key in `.env` for local Docker dev, IAM role for production Lambda
 
-**Deliverable:** AWS permissions confirmed, Bedrock model accessible
+**Status:** AWS credentials configured, Bedrock model accessible
 
 ---
 
-### Phase 3 — Backend Endpoints (Next)
-- [ ] Create `backend/voice_agent.py`
-- [ ] `/api/voice/transcribe` — accepts audio blob → Amazon Transcribe → returns text
-- [ ] `/api/voice/respond` — intent + findings context → Claude (Bedrock) → guardrails → returns structured response
-- [ ] `/api/voice/synthesize` — text → Amazon Polly Neural → returns MP3
-- [ ] Add `voice-agent` service to `docker-compose.yml`
-- [ ] Add `Dockerfile.voice`
-- [ ] Test each endpoint with curl/Postman
+### ✅ Phase 3 — Backend Wired to Claude (COMPLETE)
+- [x] `BEDROCK_API_KEY` and `BEDROCK_MODEL_ID` passed into `app` container via `docker-compose.yml`
+- [x] `_get_bedrock_client()` added to `backend/api/ir.py` — uses Bedrock API key auth via `boto3`
+- [x] `_invoke_claude(prompt)` helper added — returns `None` on failure (triggers mock fallback)
+- [x] `/api/v1/llm/triage` — now calls Claude with finding context, returns real triage summary
+- [x] `/api/v1/llm/root-cause` — now calls Claude for root cause narrative
+- [x] `/api/v1/llm/runbook` — now calls Claude for markdown IR runbook with IDENTIFY/CONTAIN/ERADICATE/RECOVER phases
+- [x] Live/mock toggle — `model: "anthropic.claude-haiku-4-5"` in response = live, `model: "mock"` = fallback
+- [x] `VITE_IR_API_BASE=http://localhost:3001/api/v1` added to `.env`
+- [x] `VITE_FLASK_PROXY_TARGET=http://app:5000` added to `.env` — fixes Vite proxy forwarding to Flask in Docker
+- [x] `VITE_LLM_MAX_CONCURRENT=2` added to `.env` — prevents Bedrock flooding across concurrent finding rows
+- [x] Verified Flask health at `localhost:5001/api/v1/health` ✅
+- [x] Verified `/api/v1/llm/triage` returns mock data when no Bedrock key present ✅
 
-**Deliverable:** All 3 endpoints working in Docker
+**Status:** All 3 LLM endpoints wired to Claude, live/mock fallback working
 
 ---
 
-### Phase 4 — Upgrade Argus to AWS APIs (Next)
-- [ ] Swap browser `SpeechSynthesisUtterance` → Polly Neural voice in `VoiceIRAgent.tsx`
-- [ ] Swap `webkitSpeechRecognition` → Amazon Transcribe for higher accuracy
-- [ ] Wire Claude (Bedrock) responses into `buildResponse()` for dynamic LLM answers
-- [ ] End-to-end test: "Hey Argus, brief me" → Transcribe → Claude → Polly audio
+### Phase 4 — Upgrade Argus Voice to AWS APIs (Next)
+- [ ] Wire `VoiceIRAgent.tsx` intents (`briefing`, `critical`, `high`, `latest`) to call `/api/v1/llm/triage` and speak back Claude's response
+- [ ] Swap browser `SpeechSynthesisUtterance` → Amazon Polly Neural voice
+- [ ] Optionally swap `webkitSpeechRecognition` → Amazon Transcribe for higher accuracy
+- [ ] End-to-end test: "Hey Argus, brief me" → Claude triage → Polly audio
 
-**Deliverable:** Full AWS-powered pipeline replacing browser APIs
+**Deliverable:** Argus voice responses powered by Claude instead of hardcoded `buildResponse()`
 
 ---
 
 ### Phase 5 — Testing & Polish (Final)
-- [ ] Test all 11 intents with AWS APIs
-- [ ] Test edge cases — no findings, bad audio, API timeouts
+- [ ] Test "Generate AI overview" in `FindingDetailPanel` with real findings
+- [ ] Test all 11 Argus voice intents end-to-end
+- [ ] Test edge cases — no findings, bad audio, Bedrock timeout
 - [ ] Verify AI-3 guardrails fire on Claude responses
-- [ ] Swap `BEDROCK_MODEL_ID` to Claude 3.5 Sonnet for production quality
-- [ ] Cross-browser test (Chrome required for Web Speech API fallback)
+- [ ] Swap `BEDROCK_MODEL_ID` to Claude 3.5 Sonnet for production quality comparison
+- [ ] Cross-browser test (Chrome required for Web Speech API)
+- [ ] Rebuild frontend with `docker-compose build --no-cache frontend` after all env changes
 
 **Deliverable:** Argus production-ready
 
@@ -388,10 +393,10 @@ The voice agent reuses the existing **AI-3 guardrails pipeline** (see `Guardrail
 | Phase | Status | Focus | Owner |
 |---|---|---|---|
 | Phase 1 — UI/UX | ✅ Complete | VoiceIRAgent.tsx, Web Speech API, browser TTS | Frontend |
-| Phase 2 — AWS Setup | 🔲 Next | Bedrock access, IAM permissions | DevOps/Security |
-| Phase 3 — Backend | 🔲 Next | voice_agent.py, 3 endpoints, Docker | Backend |
-| Phase 4 — AWS Upgrade | 🔲 Next | Swap browser APIs → Transcribe + Polly + Claude | Frontend + Backend |
-| Phase 5 — Testing | 🔲 Next | Guardrails, edge cases, production model | AI team + QA |
+| Phase 2 — AWS Setup | ✅ Complete | Bedrock API key, IAM permissions, env vars | DevOps/Security |
+| Phase 3 — Backend | ✅ Complete | Claude wired to /llm/triage, /llm/root-cause, /llm/runbook | Backend |
+| Phase 4 — AWS Voice Upgrade | 🔲 Next | Wire Argus voice → Claude responses + Polly TTS | Frontend + Backend |
+| Phase 5 — Testing | 🔲 Next | End-to-end, guardrails, edge cases, production model | AI team + QA |
 
 ---
 
