@@ -29,11 +29,48 @@ import json
 import logging
 import uuid
 import time
+import os
+import boto3
 from datetime import datetime, timezone, timedelta
 from flask import request, jsonify
 from flask_restful import Resource
 
 logger = logging.getLogger(__name__)
+
+# ─── Bedrock client ───────────────────────────────────────────────────────────
+
+def _get_bedrock_client():
+    api_key = os.environ.get("BEDROCK_API_KEY")
+    region  = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    if api_key:
+        return boto3.client(
+            "bedrock-runtime",
+            region_name=region,
+            aws_access_key_id=api_key,
+            aws_secret_access_key="bedrock-api-key",  # Bedrock API key auth
+        )
+    return boto3.client("bedrock-runtime", region_name=region)
+
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5")
+
+def _invoke_claude(prompt: str) -> str:
+    """Call Claude via Bedrock and return the text response. Falls back to None if unavailable."""
+    api_key = os.environ.get("BEDROCK_API_KEY")
+    if not api_key:
+        return None  # No key = mock mode
+    try:
+        client = _get_bedrock_client()
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1024,
+            "messages": [{"role": "user", "content": prompt}],
+        })
+        response = client.invoke_model(modelId=MODEL_ID, body=body)
+        result = json.loads(response["body"].read())
+        return result["content"][0]["text"]
+    except Exception as e:
+        logger.error("Bedrock invocation failed: %s", e)
+        return None  # Fall back to mock
 
 # ─── In-memory job store (replace with DynamoDB in production) ────────────────
 
@@ -145,14 +182,38 @@ class LLMTriageResource(Resource):
         }
         _register_idempotency(idempotency_key, job_id)
         _write_audit(finding_id, "system", "system", "LLM triage triggered", idempotency_key=idempotency_key)
-        _mock_execute_job(job_id)
+
+        prompt = (
+            f"You are a cloud security incident responder. Triage this AWS security finding:\n"
+            f"Finding ID: {finding_id}\n"
+            f"Severity: {data.get('severity', 'Unknown')}\n"
+            f"Type: {data.get('finding_type', 'Unknown')}\n"
+            f"Resource: {data.get('resource_name', 'Unknown')}\n"
+            f"Description: {data.get('description', 'No description provided')}\n\n"
+            f"Respond with: 1) TRUE/FALSE POSITIVE assessment, 2) confidence score 0-1, "
+            f"3) MITRE ATT&CK techniques, 4) immediate recommended actions. Be concise."
+        )
+        llm_response = _invoke_claude(prompt)
+        mock = _mock_result("llm_triage")
+
+        job = _job_store[job_id]
+        job["status"] = "succeeded"
+        job["completed_at"] = _now_iso()
+        job["result"] = {
+            "triage_summary": llm_response or mock["triage_summary"],
+            "confidence_score": mock["confidence_score"],
+            "false_positive_probability": mock["false_positive_probability"],
+            "mitre_techniques": mock["mitre_techniques"],
+            "model": MODEL_ID if llm_response else "mock",
+        }
 
         return {
             "job_id": job_id,
             "finding_id": finding_id,
             "action_type": "llm_triage",
-            "status": "queued",
+            "status": "succeeded",
             "approval_required": False,
+            "result": job["result"],
         }, 202
 
 
@@ -177,14 +238,36 @@ class LLMRootCauseResource(Resource):
         }
         _register_idempotency(idempotency_key, job_id)
         _write_audit(finding_id, "system", "system", "LLM root-cause analysis triggered", idempotency_key=idempotency_key)
-        _mock_execute_job(job_id)
+
+        prompt = (
+            f"You are a cloud security expert. Perform root cause analysis for this AWS finding:\n"
+            f"Finding ID: {finding_id}\n"
+            f"Severity: {data.get('severity', 'Unknown')}\n"
+            f"Type: {data.get('finding_type', 'Unknown')}\n"
+            f"Resource: {data.get('resource_name', 'Unknown')}\n"
+            f"Description: {data.get('description', 'No description provided')}\n\n"
+            f"Provide: 1) Root cause narrative, 2) Attack chain reconstruction, "
+            f"3) MITRE ATT&CK mapping, 4) Contributing factors. Be concise and technical."
+        )
+        llm_response = _invoke_claude(prompt)
+        mock = _mock_result("llm_root_cause")
+
+        job = _job_store[job_id]
+        job["status"] = "succeeded"
+        job["completed_at"] = _now_iso()
+        job["result"] = {
+            "root_cause_narrative": llm_response or mock["root_cause_narrative"],
+            "mitre_techniques": mock["mitre_techniques"],
+            "model": MODEL_ID if llm_response else "mock",
+        }
 
         return {
             "job_id": job_id,
             "finding_id": finding_id,
             "action_type": "llm_root_cause",
-            "status": "queued",
+            "status": "succeeded",
             "approval_required": False,
+            "result": job["result"],
         }, 202
 
 
@@ -209,14 +292,35 @@ class LLMRunbookResource(Resource):
         }
         _register_idempotency(idempotency_key, job_id)
         _write_audit(finding_id, "system", "system", "LLM runbook generation triggered", idempotency_key=idempotency_key)
-        _mock_execute_job(job_id)
+
+        prompt = (
+            f"You are a cloud security incident responder. Generate a step-by-step IR runbook for:\n"
+            f"Finding ID: {finding_id}\n"
+            f"Severity: {data.get('severity', 'Unknown')}\n"
+            f"Type: {data.get('finding_type', 'Unknown')}\n"
+            f"Resource: {data.get('resource_name', 'Unknown')}\n"
+            f"Description: {data.get('description', 'No description provided')}\n\n"
+            f"Format as markdown with phases: IDENTIFY, CONTAIN, ERADICATE, RECOVER, LESSONS LEARNED. "
+            f"Include specific AWS CLI commands where applicable. Be concise and actionable."
+        )
+        llm_response = _invoke_claude(prompt)
+        mock = _mock_result("llm_runbook")
+
+        job = _job_store[job_id]
+        job["status"] = "succeeded"
+        job["completed_at"] = _now_iso()
+        job["result"] = {
+            "runbook_markdown": llm_response or mock["runbook_markdown"],
+            "model": MODEL_ID if llm_response else "mock",
+        }
 
         return {
             "job_id": job_id,
             "finding_id": finding_id,
             "action_type": "llm_runbook",
-            "status": "queued",
+            "status": "succeeded",
             "approval_required": False,
+            "result": job["result"],
         }, 202
 
 

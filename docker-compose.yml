@@ -13,9 +13,12 @@ services:
     environment:
       # Dev-only mode switch for frontend data sources:
       # - mock: UI uses local fixtures (no backend required)
-      # - live: UI calls backend API (default http://localhost:3001)
+      # - live: /scan → API Gateway via Vite proxy; IR/LLM → Flask via /api/v1 proxy (see vite.config)
       - VITE_DATA_MODE=${VITE_DATA_MODE:-live}
       - VITE_API_URL=${VITE_API_URL:-http://localhost:3001}
+      - VITE_IR_API_BASE=${VITE_IR_API_BASE:-http://localhost:3001/api/v1}
+      - VITE_FLASK_PROXY_TARGET=${VITE_FLASK_PROXY_TARGET:-http://app:5000}
+      - VITE_LLM_MAX_CONCURRENT=${VITE_LLM_MAX_CONCURRENT:-2}
       # Keep compatibility with older env naming if someone still exports it.
       - VITE_API_GATEWAY_URL=${VITE_API_GATEWAY_URL:-}
     networks:

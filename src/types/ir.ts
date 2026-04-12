@@ -203,6 +203,11 @@ export interface IRActionRequest {
   dry_run?: boolean;
   parameters?: Record<string, unknown>;
   idempotency_key?: string;
+  /** POST /llm/* — backend prompt fields */
+  severity?: string;
+  finding_type?: string;
+  resource_name?: string;
+  description?: string;
 }
 
 export interface IRActionResponse {

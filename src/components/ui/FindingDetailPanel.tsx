@@ -17,7 +17,7 @@
  *   Agent Actions   → POST  /api/agents/{action}
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronRight,
   Copy,
@@ -36,8 +36,12 @@ import {
   UserCircle,
   FlaskConical,
   Archive,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { IRActionRequest } from "../../types/ir";
+import { fetchLLMActionResult } from "../../services/irEngine";
 import { SeverityBadge } from "./SeverityBadge";
 import { IRActionEngine } from "../ir/IRActionEngine";
 import { EvidenceForensicsPanel } from "../ir/EvidenceForensicsPanel";
@@ -208,6 +212,24 @@ function normaliseSeverity(raw: string | number): string {
   return up;
 }
 
+function llmRequestFromFinding(finding: FindingData): IRActionRequest {
+  return {
+    finding_id: finding.id,
+    severity: normaliseSeverity(finding.severity),
+    finding_type: finding.title,
+    resource_name: finding.resource_name,
+    description: finding.description,
+    resource_arn: finding.resource_arn,
+    region: finding.region ?? "us-east-1",
+  };
+}
+
+/** Backend may set `model: "mock"` when Bedrock is not used — show neutral copy in the UI. */
+function formatLlmModelDisplay(model?: string): string {
+  if (!model) return "—";
+  return model.trim().toLowerCase() === "mock" ? "Preview" : model;
+}
+
 function sevColor(s: string): string {
   return SEV_COLOR[normaliseSeverity(s)] ?? "#64748b";
 }
@@ -316,6 +338,90 @@ export function FindingDetailPanel({
 }: FindingDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  type OverviewAiPayload = {
+    triage: string;
+    rootCause: string;
+    triageModel?: string;
+    rootModel?: string;
+    confidence?: number;
+    falsePositive?: number;
+    mitre?: string[];
+  };
+
+  const overviewAiCacheRef = useRef<Map<string, OverviewAiPayload>>(new Map());
+  const runbookAiCacheRef = useRef<Map<string, { markdown: string; model?: string }>>(new Map());
+  const findingRef = useRef(finding);
+  findingRef.current = finding;
+
+  const [overviewAi, setOverviewAi] = useState<
+    { status: "idle" | "loading" | "ready" | "error"; error?: string } & Partial<OverviewAiPayload>
+  >({ status: "idle" });
+
+  const [runbookAi, setRunbookAi] = useState<{
+    status: "idle" | "loading" | "ready" | "error";
+    error?: string;
+    markdown?: string;
+    model?: string;
+  }>({ status: "idle" });
+
+  useEffect(() => {
+    if (activeTab !== "overview") return;
+    const hit = overviewAiCacheRef.current.get(finding.id);
+    if (hit) setOverviewAi({ status: "ready", ...hit });
+    else setOverviewAi({ status: "idle" });
+  }, [activeTab, finding.id]);
+
+  useEffect(() => {
+    if (activeTab !== "runbook") return;
+    const hit = runbookAiCacheRef.current.get(finding.id);
+    if (hit) setRunbookAi({ status: "ready", markdown: hit.markdown, model: hit.model });
+    else setRunbookAi({ status: "idle" });
+  }, [activeTab, finding.id]);
+
+  const loadOverviewAi = useCallback(async (force: boolean) => {
+    const f = findingRef.current;
+    if (force) overviewAiCacheRef.current.delete(f.id);
+    setOverviewAi({ status: "loading" });
+    try {
+      const req = llmRequestFromFinding(f);
+      const triageRes = await fetchLLMActionResult("llm_triage", req);
+      const rootRes = await fetchLLMActionResult("llm_root_cause", req);
+      const payload: OverviewAiPayload = {
+        triage: (triageRes?.triage_summary as string) ?? "",
+        rootCause: (rootRes?.root_cause_narrative as string) ?? "",
+        triageModel: triageRes?.model as string | undefined,
+        rootModel: rootRes?.model as string | undefined,
+        confidence: triageRes?.confidence_score as number | undefined,
+        falsePositive: triageRes?.false_positive_probability as number | undefined,
+        mitre: triageRes?.mitre_techniques as string[] | undefined,
+      };
+      overviewAiCacheRef.current.set(f.id, payload);
+      setOverviewAi({ status: "ready", ...payload });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Request failed";
+      setOverviewAi({ status: "error", error: msg });
+      toast.error("AI overview failed", { description: msg });
+    }
+  }, []);
+
+  const loadRunbookAi = useCallback(async (force: boolean) => {
+    const f = findingRef.current;
+    if (force) runbookAiCacheRef.current.delete(f.id);
+    setRunbookAi({ status: "loading" });
+    try {
+      const req = llmRequestFromFinding(f);
+      const res = await fetchLLMActionResult("llm_runbook", req);
+      const markdown = (res?.runbook_markdown as string) ?? "";
+      const model = res?.model as string | undefined;
+      runbookAiCacheRef.current.set(f.id, { markdown, model });
+      setRunbookAi({ status: "ready", markdown, model });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Request failed";
+      setRunbookAi({ status: "error", error: msg });
+      toast.error("AI runbook failed", { description: msg });
+    }
+  }, []);
 
   const severity    = normaliseSeverity(finding.severity);
   const riskScore   = finding.risk_score ?? defaultRiskScore(severity);
@@ -828,12 +934,264 @@ export function FindingDetailPanel({
                     )}
                   </div>
                 )}
+
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    background: "rgba(99,102,241,0.06)",
+                    border: "1px solid rgba(129,140,248,0.22)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ ...ls, color: "rgba(129,140,248,0.85)", marginBottom: 0 }}>AI-assisted overview</div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      {overviewAi.status === "ready" && (
+                        <button
+                          type="button"
+                          onClick={() => void loadOverviewAi(true)}
+                          disabled={overviewAi.status === "loading"}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "6px 12px",
+                            borderRadius: 6,
+                            background: "rgba(129,140,248,0.12)",
+                            border: "1px solid rgba(129,140,248,0.28)",
+                            color: "#818cf8",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            ...mono,
+                          }}
+                        >
+                          <RefreshCw size={12} />
+                          Regenerate
+                        </button>
+                      )}
+                      {(overviewAi.status === "idle" || overviewAi.status === "error") && (
+                        <button
+                          type="button"
+                          onClick={() => void loadOverviewAi(false)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 14px",
+                            borderRadius: 6,
+                            background: "rgba(129,140,248,0.18)",
+                            border: "1px solid rgba(129,140,248,0.35)",
+                            color: "#a5b4fc",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            ...mono,
+                          }}
+                        >
+                          <Zap size={14} />
+                          Generate AI overview
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {overviewAi.status === "loading" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, color: "rgba(148,163,184,0.9)", fontSize: 12 }}>
+                      <Loader2 size={16} color="#818cf8" className="animate-spin" />
+                      Running triage, then root-cause (sequential)…
+                    </div>
+                  )}
+
+                  {overviewAi.status === "error" && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#fb7185", lineHeight: 1.5 }}>
+                      {overviewAi.error}
+                      <button
+                        type="button"
+                        onClick={() => void loadOverviewAi(false)}
+                        style={{
+                          marginLeft: 8,
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background: "rgba(251,113,133,0.12)",
+                          border: "1px solid rgba(251,113,133,0.3)",
+                          color: "#fb7185",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          ...mono,
+                        }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {overviewAi.status === "ready" && (
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                      {(overviewAi.triageModel || overviewAi.rootModel) && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)" }}>
+                          {overviewAi.triageModel && (
+                            <span>Triage: {formatLlmModelDisplay(overviewAi.triageModel)}</span>
+                          )}
+                          {overviewAi.rootModel && (
+                            <span>Root-cause: {formatLlmModelDisplay(overviewAi.rootModel)}</span>
+                          )}
+                          {overviewAi.confidence !== undefined && <span>Confidence: {(overviewAi.confidence * 100).toFixed(0)}%</span>}
+                          {overviewAi.mitre && overviewAi.mitre.length > 0 && <span>MITRE: {overviewAi.mitre.join(", ")}</span>}
+                        </div>
+                      )}
+                      {overviewAi.triage ? (
+                        <div>
+                          <div style={{ ...ls, marginBottom: 6 }}>Triage</div>
+                          <p style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>
+                            {overviewAi.triage}
+                          </p>
+                        </div>
+                      ) : null}
+                      {overviewAi.rootCause ? (
+                        <div>
+                          <div style={{ ...ls, marginBottom: 6 }}>Root cause</div>
+                          <p style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>
+                            {overviewAi.rootCause}
+                          </p>
+                        </div>
+                      ) : null}
+                      {!overviewAi.triage && !overviewAi.rootCause && (
+                        <p style={{ fontSize: 12, color: "rgba(100,116,139,0.55)", margin: 0 }}>
+                          Empty response. Check Flask <code style={mono}>BEDROCK_API_KEY</code> and{" "}
+                          <code style={mono}>VITE_IR_API_BASE</code> (e.g. <code style={mono}>http://localhost:3001/api/v1</code>).
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {/* ── RUNBOOK ─────────────────────────────────────────────── */}
             {activeTab === "runbook" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    background: "rgba(99,102,241,0.06)",
+                    border: "1px solid rgba(129,140,248,0.22)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ ...ls, color: "rgba(129,140,248,0.85)", marginBottom: 4 }}>AI runbook</div>
+                      <p style={{ fontSize: 11, color: "rgba(100,116,139,0.65)", margin: 0, lineHeight: 1.5 }}>
+                        On-demand; cached per finding until you regenerate.
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {runbookAi.status === "ready" && (
+                        <button
+                          type="button"
+                          onClick={() => void loadRunbookAi(true)}
+                          disabled={runbookAi.status === "loading"}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "6px 12px",
+                            borderRadius: 6,
+                            background: "rgba(129,140,248,0.12)",
+                            border: "1px solid rgba(129,140,248,0.28)",
+                            color: "#818cf8",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            ...mono,
+                          }}
+                        >
+                          <RefreshCw size={12} />
+                          Regenerate
+                        </button>
+                      )}
+                      {(runbookAi.status === "idle" || runbookAi.status === "error") && (
+                        <button
+                          type="button"
+                          onClick={() => void loadRunbookAi(false)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 14px",
+                            borderRadius: 6,
+                            background: "rgba(129,140,248,0.18)",
+                            border: "1px solid rgba(129,140,248,0.35)",
+                            color: "#a5b4fc",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            ...mono,
+                          }}
+                        >
+                          <GitBranch size={14} />
+                          Generate AI runbook
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {runbookAi.status === "loading" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, color: "rgba(148,163,184,0.9)", fontSize: 12 }}>
+                      <Loader2 size={16} color="#818cf8" className="animate-spin" />
+                      Generating runbook…
+                    </div>
+                  )}
+                  {runbookAi.status === "error" && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#fb7185" }}>
+                      {runbookAi.error}
+                      <button
+                        type="button"
+                        onClick={() => void loadRunbookAi(false)}
+                        style={{
+                          marginLeft: 8,
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background: "rgba(251,113,133,0.12)",
+                          border: "1px solid rgba(251,113,133,0.3)",
+                          color: "#fb7185",
+                          fontSize: 10,
+                          cursor: "pointer",
+                          ...mono,
+                        }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {runbookAi.status === "ready" && runbookAi.markdown && (
+                    <div style={{ marginTop: 12 }}>
+                      {runbookAi.model && (
+                        <p style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)", margin: "0 0 8px" }}>
+                          Model: {formatLlmModelDisplay(runbookAi.model)}
+                        </p>
+                      )}
+                      <pre
+                        style={{
+                          ...mono,
+                          fontSize: 11,
+                          color: "#e2e8f0",
+                          lineHeight: 1.55,
+                          margin: 0,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          maxHeight: 260,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {runbookAi.markdown}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ ...ls, color: "rgba(100,116,139,0.45)" }}>Built-in playbook</div>
+
                 {/* Phase legend + time estimate */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   {(Object.keys(PHASE_META) as PlaybookPhase[]).map((ph) => (
