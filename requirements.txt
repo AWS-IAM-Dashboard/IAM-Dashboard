@@ -24,7 +24,7 @@ Redis==7.4.0
 # Install with: pip install -r requirements.txt -r requirements-postgres.txt for Docker/Postgres
 
 # Monitoring and logging
-prometheus-client==0.19.0
+prometheus-client==0.25.0
 structlog==23.2.0
 
 # Development and testing
