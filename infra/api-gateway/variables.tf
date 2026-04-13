@@ -28,6 +28,16 @@ variable "stage_name" {
   default     = "v1"
 }
 
+variable "auth_lambda_function_name" {
+  description = "Function name of the auth Lambda (looked up via data source)"
+  type        = string
+}
+
+variable "scanner_lambda_function_name" {
+  description = "Function name of the scanner Lambda (looked up via data source)"
+  type        = string
+}
+
 variable "cors_allowed_origins" {
   description = "List of allowed CORS origins (no wildcards). Override via root module var.allowed_urls."
   type        = list(string)
@@ -46,21 +56,46 @@ variable "cors_allowed_methods" {
 }
 
 variable "cors_allowed_headers" {
-  description = "List of allowed CORS headers"
+  description = "Allowed request headers for CORS"
   type        = list(string)
-  default     = ["Content-Type", "Authorization"]
+  default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
 
+# Stage default_route_settings apply to individual scan routes (POST /scan/* except /scan/full).
 variable "throttling_burst_limit" {
-  description = "API Gateway throttling burst limit"
+  description = "Burst limit (concurrent bucket) for individual scan routes; steady rate is throttling_rate_limit RPS."
   type        = number
-  default     = 100
+  default     = 50
 }
 
 variable "throttling_rate_limit" {
-  description = "API Gateway throttling rate limit"
+  description = "Steady-state requests per second for individual scan routes (POST /scan/* except /scan/full)."
   type        = number
-  default     = 50
+  default     = 25
+}
+
+variable "throttling_scan_full_burst_limit" {
+  description = "Burst limit for POST /scan/full (runs all scanners; kept low to reduce abuse and cost)."
+  type        = number
+  default     = 10
+}
+
+variable "throttling_scan_full_rate_limit" {
+  description = "Steady-state RPS for POST /scan/full."
+  type        = number
+  default     = 5
+}
+
+variable "throttling_auth_burst_limit" {
+  description = "Burst limit for auth routes (login/logout/session)."
+  type        = number
+  default     = 70
+}
+
+variable "throttling_auth_rate_limit" {
+  description = "Steady-state RPS for auth routes."
+  type        = number
+  default     = 35
 }
 
 variable "lambda_function_arn" {

@@ -20,6 +20,7 @@ from api.grafana import GrafanaResource
 from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
+from api.scan_history import ScanHistoryResource
 from api.ir import (
     LLMTriageResource,
     LLMRootCauseResource,
@@ -35,6 +36,8 @@ from api.ir import (
     IREvidenceResource,
     IRAuditResource,
 )
+from api.tts import TTSSynthesizeResource
+from api.voice_intent import VoiceIntentResource
 
 # Import services
 from services.aws_service import AWSService
@@ -86,6 +89,7 @@ def create_app():
     # Register API resources
     api.add_resource(HealthResource, '/health')
     api.add_resource(MetricsResource, '/metrics')
+    api.add_resource(ScanHistoryResource, '/scan-history')
     api.add_resource(DashboardResource, '/dashboard')
     api.add_resource(IAMResource, '/aws/iam')
     api.add_resource(EC2Resource, '/aws/ec2')
@@ -108,6 +112,8 @@ def create_app():
     api.add_resource(IRForensicsResource,         '/ir/forensics/<string:finding_id>')
     api.add_resource(IREvidenceResource,          '/ir/evidence/<string:finding_id>')
     api.add_resource(IRAuditResource,             '/ir/audit')
+    api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
+    api.add_resource(VoiceIntentResource,         '/voice/intent')
 
     # Serve static files (React frontend)
     @app.route('/')

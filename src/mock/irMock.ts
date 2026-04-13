@@ -16,6 +16,7 @@ import type {
   ApprovalRequest,
   ForensicsCapture,
   EvidenceRecord,
+  PlaybookStep,
 } from "../types/ir";
 
 // ─── In-memory job store ──────────────────────────────────────────────────────
@@ -78,34 +79,58 @@ function mockResult(type: IRActionType, findingId: string): IRActionResult {
 
     case "llm_runbook":
       return {
-        runbook_markdown: `## IR Runbook — ${findingId}
-
-### Phase 1 — IDENTIFY (15 min)
-1. Confirm finding is true positive via CloudTrail lookup
-2. Identify all resources touched since first_seen
-3. Cross-reference source IP against threat intel feeds
-
-\`\`\`bash
-aws cloudtrail lookup-events \\
-  --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIA... \\
-  --start-time $(date -u -d '-24 hours' +%FT%TZ) \\
-  --max-results 50
-\`\`\`
-
-### Phase 2 — CONTAIN (30 min)
-1. **Revoke access key** — use IR Engine → IAM Revoke Key action
-2. **Isolate EC2 instance** if used — use IR Engine → EC2 Isolate action
-
-### Phase 3 — REMEDIATE (60 min)
-1. Rotate all credentials in affected account
-2. Review IAM policies for least-privilege
-3. Enable CloudTrail log validation
-4. Enable MFA on root account
-
-### Phase 4 — VERIFY (20 min)
-1. Re-run Security Hub scan
-2. Confirm no active sessions from suspicious IP
-3. Update ticket and close workflow`,
+        runbook_steps: [
+          {
+            step: 1,
+            phase: "IDENTIFY" as PlaybookStep["phase"],
+            title: "Validate Finding via CloudTrail",
+            description: `Confirm true positive for ${findingId}. Query CloudTrail for API calls from the suspicious principal within the finding window and cross-reference source IPs against threat intel.`,
+            commands: [
+              "# Lookup events by access key",
+              `aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIA... --start-time $(date -u -d '-24 hours' +%FT%TZ) --max-results 50`,
+              "# Cross-reference source IP against threat intel feeds",
+              "aws guardduty list-findings --detector-id DETECTOR_ID --finding-criteria '{\"Criterion\":{\"service.action.awsApiCallAction.remoteIpDetails.ipAddressV4\":{\"Eq\":[\"SOURCE_IP\"]}}}'",
+            ],
+            estimated_time: "15",
+          },
+          {
+            step: 2,
+            phase: "CONTAIN" as PlaybookStep["phase"],
+            title: "Revoke Compromised Credentials",
+            description: "Immediately disable the access key to stop ongoing access. Use IR Engine → IAM Revoke Key for approval-gated permanent revocation.",
+            commands: [
+              "# Disable key (reversible — safe first step)",
+              "aws iam update-access-key --access-key-id AKIA... --status Inactive --user-name USERNAME",
+              "# Tag resource for IR tracking",
+              "aws resourcegroupstaggingapi tag-resources --resource-arn-list RESOURCE_ARN --tags IncidentId=IR-001,ContainedAt=$(date -u +%FT%TZ)",
+            ],
+            estimated_time: "10",
+          },
+          {
+            step: 3,
+            phase: "REMEDIATE" as PlaybookStep["phase"],
+            title: "Rotate Credentials and Harden IAM",
+            description: "Issue a new key for legitimate workloads, apply least-privilege policy, enable MFA, and audit IAM trust boundaries to prevent recurrence.",
+            commands: [
+              "aws iam create-access-key --user-name USERNAME",
+              "aws iam list-attached-user-policies --user-name USERNAME",
+              "# Apply least-privilege — remove wildcard actions",
+              "aws iam create-virtual-mfa-device --virtual-mfa-device-name USERNAME-mfa --outfile /tmp/mfa-qr.png --bootstrap-method QRCodePNG",
+            ],
+            estimated_time: "60",
+          },
+          {
+            step: 4,
+            phase: "VERIFY" as PlaybookStep["phase"],
+            title: "Confirm Closure and Re-scan",
+            description: "Re-run the scanner, verify no active sessions from the suspicious principal, resolve the Security Hub finding, and close the workflow ticket.",
+            commands: [
+              "aws iam list-access-keys --user-name USERNAME",
+              "aws securityhub batch-update-findings --finding-identifiers ProductArn=PRODUCT_ARN,Id=FINDING_ID --note Text='Remediated by IR workflow',UpdatedBy=analyst --workflow Status=RESOLVED",
+            ],
+            estimated_time: "20",
+          },
+        ] satisfies PlaybookStep[],
       };
 
     case "aws_ec2_isolate":

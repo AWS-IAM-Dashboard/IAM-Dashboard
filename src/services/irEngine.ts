@@ -22,6 +22,7 @@ import type {
   IRActionType,
   IRActionRequest,
   IRActionResponse,
+  IRActionResult,
   IRJobStatusResponse,
   ForensicsCapture,
   EvidenceRecord,
@@ -36,7 +37,9 @@ import {
   mockEvidenceRecord,
 } from "../mock/irMock";
 
-const API_BASE_URL =
+/** IR/LLM base (Flask /api/v1). Split from VITE_API_URL so /scan can stay on API Gateway via Vite proxy. */
+const IR_API_BASE_URL =
+  import.meta.env.VITE_IR_API_BASE ||
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_GATEWAY_URL ||
   "https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1";
@@ -44,13 +47,37 @@ const API_BASE_URL =
 const DATA_MODE = (import.meta.env.VITE_DATA_MODE || "live").toLowerCase();
 const IS_MOCK = DATA_MODE === "mock";
 
+const _parsedMax = Number(import.meta.env.VITE_LLM_MAX_CONCURRENT);
+const LLM_MAX_CONCURRENT = Number.isFinite(_parsedMax) && _parsedMax > 0 ? Math.floor(_parsedMax) : 2;
+let llmInFlight = 0;
+const llmWaitQueue: Array<() => void> = [];
+
+async function withLlmLimit<T>(fn: () => Promise<T>): Promise<T> {
+  while (llmInFlight >= LLM_MAX_CONCURRENT) {
+    await new Promise<void>((resolve) => {
+      llmWaitQueue.push(resolve);
+    });
+  }
+  llmInFlight++;
+  try {
+    return await fn();
+  } finally {
+    llmInFlight--;
+    llmWaitQueue.shift()?.();
+  }
+}
+
+function isLlmActionType(t: IRActionType): boolean {
+  return t === "llm_triage" || t === "llm_root_cause" || t === "llm_runbook";
+}
+
 // ─── Internal fetch helper ────────────────────────────────────────────────────
 
 async function irFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+  const url = `${IR_API_BASE_URL}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -59,8 +86,15 @@ async function irFetch<T>(
     },
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    const text = await res.text();
+    let detail = res.statusText;
+    try {
+      const err = JSON.parse(text) as { message?: string; error?: string };
+      detail = err.message || err.error || detail;
+    } catch {
+      if (text.trim()) detail = text.trim().slice(0, 240);
+    }
+    throw new Error(`${detail} (${res.status})`);
   }
   return res.json() as Promise<T>;
 }
@@ -102,6 +136,21 @@ function requiresApproval(type: IRActionType): boolean {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
+ * Run an LLM IR action. Live Flask returns `result` on POST; mock mode may need polling.
+ * LLM calls share a global concurrency limit (VITE_LLM_MAX_CONCURRENT).
+ */
+export async function fetchLLMActionResult(
+  actionType: "llm_triage" | "llm_root_cause" | "llm_runbook",
+  request: IRActionRequest
+): Promise<IRActionResult | undefined> {
+  const response = await triggerIRAction(actionType, request);
+  if (response.result) return response.result;
+  if (!response.job_id) return undefined;
+  const final = await pollUntilDone(response.job_id, () => {}, 400, 30);
+  return final?.result;
+}
+
+/**
  * Trigger an IR action. Returns the initial job state.
  * For high-impact actions, returns status=pending_approval with an approval object.
  */
@@ -123,10 +172,16 @@ export async function triggerIRAction(
     idempotency_key: idempotencyKey,
   };
 
-  return irFetch<IRActionResponse>(endpoint, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const post = () =>
+    irFetch<IRActionResponse>(endpoint, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+  if (isLlmActionType(actionType)) {
+    return withLlmLimit(post);
+  }
+  return post();
 }
 
 /**

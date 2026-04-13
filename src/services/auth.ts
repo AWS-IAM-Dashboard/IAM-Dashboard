@@ -3,7 +3,7 @@
  * Handles session-cookie auth calls against the standalone BFF auth API.
  */
 
-const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_API_URL || "";
+const AUTH_API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 // Represents the authenticated user information returned by the auth API.
 export interface AuthUser {

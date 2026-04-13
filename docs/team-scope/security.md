@@ -67,7 +67,7 @@ Week 6 March 24 – March 30
 - Test throttling behavior.
 - Document scaling considerations.
 
-Dev will configure API Gateway usage plans.
+Dev will configure API Gateway throttling (HTTP API: per-route RPS/burst in Terraform; per-day caps need REST usage plans or app/WAF if required).
 Jade will test throttling edge cases.
 Sebas will monitor logs during load testing.
 Tibo will document rate limiting configuration.

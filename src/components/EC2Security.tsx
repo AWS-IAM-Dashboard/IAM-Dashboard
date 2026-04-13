@@ -431,8 +431,24 @@ export function EC2Security() {
       setScanResult({ scan_id: response.scan_id, status: response.status === "completed" ? "Completed" : "Failed", progress: 100, account_id: response.results?.account_id || "N/A", region: response.region, total_instances: response.results?.instances?.total || 0, findings: response.results?.findings || mockFindings, scan_summary: { running_instances: response.results?.instances?.running || 0, stopped_instances: response.results?.instances?.stopped || 0, publicly_accessible: response.results?.instances?.public || 0, unencrypted_volumes: response.results?.instances?.unencrypted_volumes || 0, critical_findings: 0, high_findings: 0, medium_findings: 0, low_findings: 0 } });
       setIsScanning(false); addScanResult(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error"); setIsScanning(false);
-      toast.error("Scan failed — showing demo data");
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(msg);
+      setScanResult(null)
+      setIsScanning(false);
+      const normalized = msg.toLowerCase();
+      if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
+        toast.error('Permission denied', {
+          description: msg,
+          duration: 8000,
+          style: { color: '#ff0040', borderColor: 'rgba(255,0,64,0.4)' },
+        });
+      } else {
+        toast.error("Scan failed — showing demo data");
+      }
     }
   };
 

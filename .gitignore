@@ -152,6 +152,7 @@ temp/
 *.tfstate
 *.tfstate.*
 .terraform/
+**/.terraform/
 
 # Lambda vendored deps (install at build: pip install -r requirements.txt -t .)
 infra/lambda/boto3/
@@ -205,6 +206,11 @@ nul
 # File I use to think
 temp.txt
 temp.md
+RBAC_Planning.json
+RBAC_Implementing.json
+auth-cookies.txt
+admin-cookies.txt
+Images
 
 # Merge / patch artifacts
 *.orig

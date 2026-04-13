@@ -106,4 +106,3 @@ variable "auth_lambda_function_name" {
   type        = string
   default     = "test-BFF"
 }
-

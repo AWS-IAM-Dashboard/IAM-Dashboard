@@ -538,6 +538,15 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       try {
         response = await scanFull('us-east-1');
       } catch (apiError) {
+        const msg = apiError instanceof Error ? apiError.message : String(apiError);
+        const normalized = msg.toLowerCase();
+        if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
+          throw apiError;
+        }
         // Even if API throws, create a completed response with empty results
         // API call failed, using fallback response
         response = {
@@ -613,6 +622,26 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       }, 300);
       
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const normalized = msg.toLowerCase();
+      if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
+        toast.error('Permission denied', {
+          description: msg,
+          duration: 8000,
+          style: { color: '#ff0040', borderColor: 'rgba(255,0,64,0.4)' },
+        });
+        setIsScanning(false);
+        setScanProgress(0);
+        if (scanIntervalRef.current) {
+          clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+        }
+        return;
+      }
       // This should NEVER happen for full scan, but just in case...
       // Unexpected error in handleQuickScan
       
@@ -1940,6 +1969,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </button>
         ))}
       </div>
+
     </div>
   );
 }
