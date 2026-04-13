@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X, Shield, LayoutDashboard, Users, Layers, Eye,
   Activity, BookOpen, Settings, ChevronRight, Play,
@@ -471,6 +471,10 @@ export type OnboardingWizardProps = {
 export function OnboardingWizard({ open, onOpenChange, onNavigate, onStartTour }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
 
+  useEffect(() => {
+    if (open) setStep(0);
+  }, [open]);
+
   const goTo = (tab: string) => {
     if (onNavigate) onNavigate(tab);
     onOpenChange(false);
@@ -588,8 +592,8 @@ export function OnboardingWizard({ open, onOpenChange, onNavigate, onStartTour }
                       width: "100%", display: "flex", alignItems: "center", gap: 9,
                       padding: "8px 14px 8px 13px",
                       background: isActive ? "rgba(0,255,136,0.055)" : "transparent",
-                      borderLeft: `3px solid ${isActive ? "#00ff88" : "transparent"}`,
                       border: "none",
+                      borderLeft: `3px solid ${isActive ? "#00ff88" : "transparent"}`,
                       cursor: "pointer", textAlign: "left",
                       transition: "background 0.15s, border-color 0.15s",
                     }}

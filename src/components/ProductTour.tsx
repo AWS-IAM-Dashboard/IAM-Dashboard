@@ -1,8 +1,8 @@
 /**
  * ProductTour — Spotlight-based guided walkthrough
  *
- * 5-step focused tour: Security Overview → IR/Audit Mode → Triage Queue
- * → AI Runbooks → Argus Voice Agent.
+ * 4-step focused tour: Security Overview → IR/Audit Mode → Triage Queue
+ * → Argus Voice Agent.
  *
  * Tooltip placement supports top / bottom / right, with automatic fallback
  * when the preferred side has insufficient viewport space.
