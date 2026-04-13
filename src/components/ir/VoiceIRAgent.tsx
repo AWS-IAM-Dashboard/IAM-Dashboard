@@ -861,7 +861,8 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
       } else {
         setMessages(p => p.filter(m => m.id !== loadId));
       }
-    } catch {
+    } catch (err) {
+      console.warn("[VoiceIRAgent] LLM triage fetch failed:", err);
       setMessages(p => p.filter(m => m.id !== loadId));
     }
   }, []);
@@ -878,7 +879,8 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
       });
 
       const statusLabel = result.approval_required ? "PENDING APPROVAL" : "EXECUTING";
-      const spoken = `${confirm.label} initiated. Job ${result.job_id.slice(-6).toUpperCase()}. Status: ${statusLabel}.`;
+      const jobSuffix = typeof result.job_id === "string" ? result.job_id.slice(-6).toUpperCase() : "UNKNOWN";
+      const spoken = `${confirm.label} initiated. Job ${jobSuffix}. Status: ${statusLabel}.`;
 
       setMessages(p => [
         ...p.filter(m => m.id !== runId),

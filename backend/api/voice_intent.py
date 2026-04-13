@@ -15,6 +15,7 @@ import logging
 from flask import request, jsonify
 from flask_restful import Resource
 from api.ir import _invoke_claude
+from api.text_utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
@@ -85,14 +86,7 @@ class VoiceIntentResource(Resource):
             logger.warning("VoiceIntent: _invoke_claude returned None for utterance %r", utterance[:80])
             return _BEDROCK_UNAVAILABLE, 503
 
-        # Strip accidental code fences (same guard used in _parse_runbook_steps)
-        text = raw.strip()
-        if text.startswith("```"):
-            lines = text.splitlines()
-            text = "\n".join(
-                line for line in lines[1:]
-                if not line.strip().startswith("```")
-            ).strip()
+        text = strip_code_fences(raw)
 
         try:
             result = json.loads(text)

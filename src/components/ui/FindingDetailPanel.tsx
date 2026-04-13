@@ -455,7 +455,7 @@ export function FindingDetailPanel({
       const steps: PlaybookStep[] =
         Array.isArray(rawSteps) &&
         rawSteps.length > 0 &&
-        rawSteps.every(s => s && typeof s === "object" && VALID_PHASES.includes((s as PlaybookStep).phase))
+        rawSteps.every(s => s && typeof s === "object" && VALID_PHASES.includes((s as PlaybookStep).phase) && Array.isArray((s as PlaybookStep).commands))
           ? rawSteps
           : [];
       if (steps.length === 0) {

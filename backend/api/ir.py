@@ -30,16 +30,25 @@ import logging
 import uuid
 import time
 import os
-import boto3
 from datetime import datetime, timezone, timedelta
 from flask import request, jsonify
 from flask_restful import Resource
+from api.text_utils import strip_code_fences
+
+try:
+    import boto3
+    _BOTO3_OK = True
+except ImportError as _boto3_err:
+    boto3 = None  # type: ignore[assignment]
+    _BOTO3_OK = False
 
 logger = logging.getLogger(__name__)
 
 # ─── Bedrock client ───────────────────────────────────────────────────────────
 
 def _get_bedrock_client():
+    if not _BOTO3_OK:
+        raise RuntimeError("boto3 is not installed — cannot create Bedrock client")
     api_key = os.environ.get("BEDROCK_API_KEY")
     region  = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
     if api_key:
@@ -95,14 +104,7 @@ def _parse_runbook_steps(raw: str | None) -> list[dict] | None:
     """
     if not raw:
         return None
-    text = raw.strip()
-    # Strip accidental code fences Claude sometimes emits despite instruction
-    if text.startswith("```"):
-        lines = text.splitlines()
-        text = "\n".join(
-            line for line in lines[1:]
-            if not line.strip().startswith("```")
-        ).strip()
+    text = strip_code_fences(raw)
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
@@ -120,8 +122,12 @@ def _parse_runbook_steps(raw: str | None) -> list[dict] | None:
         if phase not in VALID_PHASES:
             logger.warning("Runbook step %d has invalid phase: %r", i, phase)
             return None
+        try:
+            step_num = int(item.get("step", i + 1))
+        except (TypeError, ValueError):
+            step_num = i + 1
         step = {
-            "step": int(item.get("step", i + 1)),
+            "step": step_num,
             "phase": phase,
             "title": str(item.get("title", ""))[:80],
             "description": str(item.get("description", ""))[:400],

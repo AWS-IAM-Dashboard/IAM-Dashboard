@@ -24,7 +24,7 @@ Argus responds verbally (Polly when configured, else browser TTS) and can show a
 
 **Not shipped:** There is **no** “Hey Argus” toggle, **no** `continuous: true` passive listening, and **no** wake-phrase stripping in `VoiceIRAgent.tsx` (those were removed; see file header comment in source).
 
-```
+```text
 Panel open → user presses mic (or types / taps quick command)
         │
         ▼
@@ -46,7 +46,7 @@ processCommand → intent match → buildResponse → Polly (preferred) / browse
 
 > **Shipped path** — STT is entirely in-browser (Web Speech API). Amazon Transcribe is **not** active in the current implementation; it remains a future optional upgrade (see Phase 4).
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (React)                         │
 │                                                                 │
