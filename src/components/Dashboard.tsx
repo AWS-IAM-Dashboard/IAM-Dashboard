@@ -901,7 +901,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         {/* Right: mode toggle + progress + refresh + scan */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
           {/* Mode toggle */}
-          <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: 2, gap: 2 }}>
+          <div data-tour="mode-toggle" style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: 2, gap: 2 }}>
             {([["ir", "IR Mode"], ["audit", "Audit"]] as const).map(([m, label]) => (
               <button
                 key={m}
@@ -947,6 +947,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             <RefreshCw size={14} style={statsLoading ? { animation: "spin 1s linear infinite" } : {}} />
           </button>
           <button
+            data-tour="scan-button"
             onClick={handleQuickScan}
             disabled={isScanning}
             className="scan-btn"
@@ -1113,7 +1114,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 16, alignItems: "stretch" }}>
 
             {/* ── TRIAGE QUEUE ─── */}
-            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            <div data-tour="triage-queue" style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
 
               {/* Header */}
               <div style={{ position: "relative", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>

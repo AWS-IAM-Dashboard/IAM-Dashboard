@@ -1232,6 +1232,7 @@ export function VoiceIRAgent({ onNavigate }: VoiceIRAgentProps) {
 
       {/* ── Header pill ── */}
       <button
+        data-tour="argus-trigger"
         onClick={() => setIsOpen(o => !o)}
         title="ARGUS Voice IR Agent (` to toggle)"
         style={{

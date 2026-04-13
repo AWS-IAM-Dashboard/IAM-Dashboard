@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { useAuth } from "../context/AuthContext";
 import { OnboardingWizard } from "../components/OnboardingWizard";
+import { ProductTour } from "../components/ProductTour";
 import { isOnboardingCompleted, markOnboardingCompleted } from "../utils/onboardingStorage";
 
 function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
@@ -89,6 +90,7 @@ export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     const username = auth.user?.username;
@@ -113,6 +115,12 @@ export function DashboardApp() {
     },
     [auth.user?.username],
   );
+
+  const handleStartTour = useCallback(() => {
+    setShowTour(true);
+    // Navigate to the dashboard so the first tour step can find its target
+    setActiveTab("dashboard");
+  }, []);
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
@@ -214,6 +222,12 @@ export function DashboardApp() {
           <OnboardingWizard
             open={showOnboarding}
             onOpenChange={handleOnboardingOpenChange}
+            onNavigate={setActiveTab}
+            onStartTour={handleStartTour}
+          />
+          <ProductTour
+            active={showTour}
+            onClose={() => setShowTour(false)}
             onNavigate={setActiveTab}
           />
         </div>
