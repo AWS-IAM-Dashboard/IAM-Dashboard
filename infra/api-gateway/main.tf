@@ -73,6 +73,28 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_rate_limit  = var.throttling_rate_limit
   }
 
+  # Overrides default_route_settings for expensive or user-facing routes.
+  route_settings {
+    route_key              = "POST /scan/full"
+    throttling_burst_limit = var.throttling_scan_full_burst_limit
+    throttling_rate_limit  = var.throttling_scan_full_rate_limit
+  }
+  route_settings {
+    route_key              = "POST /auth/login"
+    throttling_burst_limit = var.throttling_auth_burst_limit
+    throttling_rate_limit  = var.throttling_auth_rate_limit
+  }
+  route_settings {
+    route_key              = "POST /auth/logout"
+    throttling_burst_limit = var.throttling_auth_burst_limit
+    throttling_rate_limit  = var.throttling_auth_rate_limit
+  }
+  route_settings {
+    route_key              = "GET /auth/session"
+    throttling_burst_limit = var.throttling_auth_burst_limit
+    throttling_rate_limit  = var.throttling_auth_rate_limit
+  }
+
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.apigw_access.arn
     format = jsonencode({
