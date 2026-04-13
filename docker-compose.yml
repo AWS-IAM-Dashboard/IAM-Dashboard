@@ -37,6 +37,9 @@ services:
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Multi-account support — set these to enable cross-account scanning
+      - AWS_MANAGEMENT_ACCOUNT_ID=${AWS_MANAGEMENT_ACCOUNT_ID:-}
+      - CROSS_ACCOUNT_ROLE_NAME=${CROSS_ACCOUNT_ROLE_NAME:-SecurityAuditRole-test}
       - SMTP_HOST=${SMTP_HOST:-mailhog}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - SMTP_USERNAME=${SMTP_USERNAME:-}

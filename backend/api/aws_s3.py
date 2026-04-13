@@ -1,147 +1,108 @@
 """
-AWS S3 API endpoints for storage security analysis
+AWS S3 API endpoints for storage security analysis.
+Supports multi-account scanning via optional account_id query parameter.
+When account_id is provided, an assumed-role session is used for that account.
 """
 
+import logging
 from flask_restful import Resource, reqparse
 from services.aws_service import AWSService
-import logging
+from services.organizations_service import OrganizationsService
 
 logger = logging.getLogger(__name__)
 
+
 class S3Resource(Resource):
     """S3 security analysis endpoint"""
-    
+
     def __init__(self):
-        self.aws_service = AWSService()
+        self.org_service = OrganizationsService()
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument('region', type=str, help='AWS region')
-        self.parser.add_argument('bucket_name', type=str, help='Specific bucket name')
-    
+        self.parser.add_argument('region', type=str, location='args', help='AWS region')
+        self.parser.add_argument('bucket_name', type=str, location='args',
+                                 help='Specific bucket name')
+        # account_id is optional — defaults to management account (backward compatible)
+        self.parser.add_argument('account_id', type=str, location='args',
+                                 help='Target AWS account ID')
+
     def get(self):
-        """Get S3 security analysis"""
+        """Get S3 security analysis, optionally scoped to a specific account."""
         try:
             args = self.parser.parse_args()
             region = args.get('region', 'us-east-1')
-            bucket_name = args.get('bucket_name')
-            
-            # Get S3 analysis data
+            account_id = args.get('account_id')
+
+            # Resolve the boto3 session — assumed-role session for member accounts,
+            # default session for the management account or when no account_id given
+            session = self.org_service.get_session_for_account(account_id) \
+                if account_id else None
+            aws_service = AWSService(session=session)
+
+            # Fetch S3 analysis once and pass the result to helpers to avoid
+            # making redundant API calls for each sub-section
+            s3_analysis = aws_service.get_s3_analysis(region)
+            buckets = s3_analysis.get('buckets', {})
+
             s3_data = {
-                'buckets': self._analyze_buckets(region, bucket_name),
-                'bucket_policies': self._analyze_bucket_policies(region),
-                'encryption': self._analyze_encryption(region),
-                'versioning': self._analyze_versioning(region),
-                'logging': self._analyze_logging(region),
-                'security_findings': self._get_security_findings(region),
-                'recommendations': self._get_recommendations(region)
+                'account_id': account_id,
+                'buckets': buckets,
+                'encryption': {
+                    'buckets_with_encryption': buckets.get('with_encryption', 0),
+                    'buckets_without_encryption': buckets.get('without_encryption', 0)
+                },
+                'versioning': {
+                    'buckets_with_versioning': buckets.get('with_versioning', 0),
+                    'buckets_without_versioning': buckets.get('without_versioning', 0)
+                },
+                'logging': self._analyze_logging(),
+                'security_findings': self._get_security_findings(aws_service, region),
+                'recommendations': self._get_recommendations()
             }
-            
+
             return s3_data, 200
-            
+
+        except RuntimeError as e:
+            # STS AssumeRole failure — return 403 per spec
+            logger.error(f"Account session error: {str(e)}")
+            return {'error': str(e)}, 403
         except Exception as e:
             logger.error(f"Error analyzing S3: {str(e)}")
             return {'error': 'Failed to analyze S3 configuration'}, 500
-    
-    def _analyze_buckets(self, region, bucket_name=None):
-        """Analyze S3 buckets for security issues"""
+
+    def _analyze_logging(self):
+        """S3 logging analysis — not yet implemented, returns unsupported marker"""
+        return {'unsupported': True}
+
+    def _get_security_findings(self, aws_service, region):
+        """
+        Get S3-specific security findings from Security Hub.
+        Uses AwsS3 prefix to match all S3 resource types (AwsS3Bucket, AwsS3Object, etc.)
+        """
         try:
-            # This would use boto3 to analyze S3 buckets
-            return {
-                'total_buckets': 0,
-                'public_buckets': 0,
-                'private_buckets': 0,
-                'buckets_without_encryption': 0,
-                'buckets_without_versioning': 0,
-                'buckets_without_logging': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing buckets: {str(e)}")
-            return {}
-    
-    def _analyze_bucket_policies(self, region):
-        """Analyze S3 bucket policies for security issues"""
-        try:
-            # This would use boto3 to analyze bucket policies
-            return {
-                'total_buckets_with_policies': 0,
-                'buckets_with_public_read': 0,
-                'buckets_with_public_write': 0,
-                'buckets_with_restrictive_policies': 0,
-                'buckets_without_policies': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing bucket policies: {str(e)}")
-            return {}
-    
-    def _analyze_encryption(self, region):
-        """Analyze S3 encryption configuration"""
-        try:
-            # This would use boto3 to analyze encryption
-            return {
-                'buckets_with_sse': 0,
-                'buckets_with_sse_kms': 0,
-                'buckets_with_sse_s3': 0,
-                'buckets_without_encryption': 0,
-                'buckets_with_encryption_at_rest': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing encryption: {str(e)}")
-            return {}
-    
-    def _analyze_versioning(self, region):
-        """Analyze S3 versioning configuration"""
-        try:
-            # This would use boto3 to analyze versioning
-            return {
-                'buckets_with_versioning': 0,
-                'buckets_without_versioning': 0,
-                'buckets_with_mfa_delete': 0,
-                'buckets_with_lifecycle_policies': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing versioning: {str(e)}")
-            return {}
-    
-    def _analyze_logging(self, region):
-        """Analyze S3 logging configuration"""
-        try:
-            # This would use boto3 to analyze logging
-            return {
-                'buckets_with_logging': 0,
-                'buckets_without_logging': 0,
-                'buckets_with_access_logging': 0,
-                'buckets_with_cloudtrail_logging': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing logging: {str(e)}")
-            return {}
-    
-    def _get_security_findings(self, region):
-        """Get S3 security findings"""
-        try:
-            # This would integrate with AWS Security Hub and Macie
-            return []
-        except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
-            return []
-    
-    def _get_recommendations(self, region):
-        """Get S3 security recommendations"""
-        try:
-            # This would provide security recommendations
+            all_findings = aws_service.get_security_hub_findings(region)
             return [
-                {
-                    'type': 'Public Access',
-                    'priority': 'High',
-                    'description': 'Block public access to S3 buckets',
-                    'impact': 'Prevents unauthorized access to data'
-                },
-                {
-                    'type': 'Encryption',
-                    'priority': 'High',
-                    'description': 'Enable encryption for all S3 buckets',
-                    'impact': 'Protects data at rest'
-                }
+                f for f in all_findings
+                if isinstance(f, dict) and
+                any(str(r.get('Type', '')).startswith('AwsS3')
+                    for r in f.get('Resources', []))
             ]
         except Exception as e:
-            logger.error(f"Error getting recommendations: {str(e)}")
+            logger.error(f"Error getting S3 security findings: {str(e)}")
             return []
+
+    def _get_recommendations(self):
+        """Get S3 security recommendations"""
+        return [
+            {
+                'type': 'Public Access',
+                'priority': 'High',
+                'description': 'Block public access to S3 buckets',
+                'impact': 'Prevents unauthorized access to data'
+            },
+            {
+                'type': 'Encryption',
+                'priority': 'High',
+                'description': 'Enable encryption for all S3 buckets',
+                'impact': 'Protects data at rest'
+            }
+        ]

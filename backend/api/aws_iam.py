@@ -1,133 +1,131 @@
 """
-AWS IAM API endpoints for identity and access management analysis
+AWS IAM API endpoints for identity and access management analysis.
+Supports multi-account scanning via optional account_id query parameter.
+When account_id is provided, an assumed-role session is used for that account.
 """
 
+import logging
 from flask_restful import Resource, reqparse
 from services.aws_service import AWSService
-import logging
+from services.organizations_service import OrganizationsService
 
 logger = logging.getLogger(__name__)
 
+
 class IAMResource(Resource):
     """IAM analysis and security endpoint"""
-    
+
     def __init__(self):
-        self.aws_service = AWSService()
+        self.org_service = OrganizationsService()
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument('region', type=str, help='AWS region')
-        self.parser.add_argument('scan_type', type=str, choices=['full', 'quick'], default='quick')
-    
+        self.parser.add_argument('region', type=str, location='args', help='AWS region')
+        self.parser.add_argument('scan_type', type=str, location='args',
+                                 choices=['full', 'quick'], default='quick')
+        # account_id is optional — defaults to management account (backward compatible)
+        self.parser.add_argument('account_id', type=str, location='args',
+                                 help='Target AWS account ID')
+
     def get(self):
-        """Get IAM security analysis"""
+        """Get IAM security analysis, optionally scoped to a specific account."""
         try:
             args = self.parser.parse_args()
             region = args.get('region', 'us-east-1')
-            scan_type = args.get('scan_type', 'quick')
-            
-            # Get IAM analysis data
+            account_id = args.get('account_id')
+
+            # Resolve the boto3 session — assumed-role session for member accounts,
+            # default session for the management account or when no account_id given
+            session = self.org_service.get_session_for_account(account_id) \
+                if account_id else None
+            aws_service = AWSService(session=session)
+
+            # Fetch IAM analysis once and pass the cached result to helpers to
+            # avoid making redundant API calls for each sub-section
+            iam_report = aws_service.get_iam_analysis(region)
+
             iam_data = {
-                'users': self._analyze_users(region),
-                'roles': self._analyze_roles(region),
-                'policies': self._analyze_policies(region),
-                'access_keys': self._analyze_access_keys(region),
-                'security_findings': self._get_security_findings(region),
-                'recommendations': self._get_recommendations(region)
+                'account_id': account_id,
+                'users': self._analyze_users(iam_report),
+                'roles': self._analyze_roles(iam_report),
+                'policies': self._analyze_policies(iam_report),
+                'access_keys': self._analyze_access_keys(),
+                'security_findings': self._get_security_findings(aws_service, region),
+                'recommendations': self._get_recommendations()
             }
-            
+
             return iam_data, 200
-            
+
+        except RuntimeError as e:
+            # STS AssumeRole failure — return 403 per spec
+            logger.error(f"Account session error: {str(e)}")
+            return {'error': str(e)}, 403
         except Exception as e:
             logger.error(f"Error analyzing IAM: {str(e)}")
             return {'error': 'Failed to analyze IAM configuration'}, 500
-    
-    def _analyze_users(self, region):
-        """Analyze IAM users for security issues"""
+
+    def _analyze_users(self, iam_report):
+        """Extract user metrics from the pre-fetched IAM analysis result"""
         try:
-            # This would use boto3 to analyze IAM users
-            return {
-                'total_users': 0,
-                'users_with_mfa': 0,
-                'users_without_mfa': 0,
-                'inactive_users': 0,
-                'users_with_admin_access': 0,
-                'users_with_console_access': 0
-            }
+            return iam_report.get('users', {})
         except Exception as e:
             logger.error(f"Error analyzing users: {str(e)}")
             return {}
-    
-    def _analyze_roles(self, region):
-        """Analyze IAM roles for security issues"""
+
+    def _analyze_roles(self, iam_report):
+        """Extract role metrics from the pre-fetched IAM analysis result"""
         try:
-            # This would use boto3 to analyze IAM roles
-            return {
-                'total_roles': 0,
-                'cross_account_roles': 0,
-                'roles_with_excessive_permissions': 0,
-                'unused_roles': 0,
-                'roles_with_external_trust': 0
-            }
+            return iam_report.get('roles', {})
         except Exception as e:
             logger.error(f"Error analyzing roles: {str(e)}")
             return {}
-    
-    def _analyze_policies(self, region):
-        """Analyze IAM policies for security issues"""
+
+    def _analyze_policies(self, iam_report):
+        """Extract policy metrics from the pre-fetched IAM analysis result"""
         try:
-            # This would use boto3 to analyze IAM policies
-            return {
-                'total_policies': 0,
-                'inline_policies': 0,
-                'managed_policies': 0,
-                'policies_with_wildcards': 0,
-                'overly_permissive_policies': 0
-            }
+            return iam_report.get('policies', {})
         except Exception as e:
             logger.error(f"Error analyzing policies: {str(e)}")
             return {}
-    
-    def _analyze_access_keys(self, region):
-        """Analyze access keys for security issues"""
+
+    def _analyze_access_keys(self):
+        """Access key analysis placeholder — not yet available from get_iam_analysis"""
+        return {
+            'total_access_keys': 0,
+            'active_access_keys': 0,
+            'inactive_access_keys': 0,
+            'old_access_keys': 0,
+            'unused_access_keys': 0
+        }
+
+    def _get_security_findings(self, aws_service, region):
+        """
+        Get IAM-specific security findings from Security Hub.
+        Uses AwsIam prefix to match all IAM resource types (AwsIamUser, AwsIamRole, etc.)
+        """
         try:
-            # This would use boto3 to analyze access keys
-            return {
-                'total_access_keys': 0,
-                'active_access_keys': 0,
-                'inactive_access_keys': 0,
-                'old_access_keys': 0,
-                'unused_access_keys': 0
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing access keys: {str(e)}")
-            return {}
-    
-    def _get_security_findings(self, region):
-        """Get IAM security findings"""
-        try:
-            # This would integrate with AWS Security Hub and Access Analyzer
-            return []
-        except Exception as e:
-            logger.error(f"Error getting security findings: {str(e)}")
-            return []
-    
-    def _get_recommendations(self, region):
-        """Get IAM security recommendations"""
-        try:
-            # This would provide security recommendations
+            all_findings = aws_service.get_security_hub_findings(region)
             return [
-                {
-                    'type': 'MFA',
-                    'priority': 'High',
-                    'description': 'Enable MFA for all users',
-                    'impact': 'Reduces risk of unauthorized access'
-                },
-                {
-                    'type': 'Access Keys',
-                    'priority': 'Medium',
-                    'description': 'Rotate access keys regularly',
-                    'impact': 'Reduces risk of compromised credentials'
-                }
+                f for f in all_findings
+                if isinstance(f, dict) and
+                any(str(r.get('Type', '')).startswith('AwsIam')
+                    for r in f.get('Resources', []))
             ]
         except Exception as e:
-            logger.error(f"Error getting recommendations: {str(e)}")
+            logger.error(f"Error getting IAM security findings: {str(e)}")
             return []
+
+    def _get_recommendations(self):
+        """Get IAM security recommendations"""
+        return [
+            {
+                'type': 'MFA',
+                'priority': 'High',
+                'description': 'Enable MFA for all users',
+                'impact': 'Reduces risk of unauthorized access'
+            },
+            {
+                'type': 'Access Keys',
+                'priority': 'Medium',
+                'description': 'Rotate access keys regularly',
+                'impact': 'Reduces risk of compromised credentials'
+            }
+        ]

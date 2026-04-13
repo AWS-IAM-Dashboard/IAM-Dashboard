@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 class AWSService:
     """Service for AWS integrations"""
     
-    def __init__(self):
-        self.session = boto3.Session()
+    def __init__(self, session: boto3.Session = None):
+        # Accept an optional pre-built session (e.g. from STS AssumeRole).
+        # Falls back to the default boto3 session (management account creds from env).
+        self.session = session or boto3.Session()
         self.regions = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1']
         
     def get_client(self, service_name: str, region: str = 'us-east-1'):
