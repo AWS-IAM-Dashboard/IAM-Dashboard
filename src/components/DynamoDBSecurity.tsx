@@ -25,6 +25,7 @@ import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 
 interface DynamoDBSecurityFinding {
@@ -443,6 +444,12 @@ export function DynamoDBSecurity() {
     setActiveTab(prev => ({ ...prev, [id]: prev[id] ?? "runbook" }));
   };
 
+  const handleResetFilters = () => {
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  };
+
   const findings = scanResult?.findings ?? mockDynamoDBFindings;
 
   useEffect(() => {
@@ -638,10 +645,12 @@ export function DynamoDBSecurity() {
         </div>
 
         {filteredFindings.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center" }}>
-            <Database size={40} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 14, margin: 0 }}>No findings match your filters</p>
-          </div>
+          <ScanEmptyState
+            variant="no-results"
+            icon={Database}
+            serviceName="DynamoDB"
+            onAction={handleResetFilters}
+          />
         ) : (
           filteredFindings.map((finding, idx) => {
             const expanded = expandedRows.has(finding.id);

@@ -25,6 +25,7 @@ import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 
 type ResourceType = "VPC" | "Subnet" | "SecurityGroup" | "NACL" | "RouteTable" | "Peering";
@@ -431,6 +432,12 @@ export function VPCSecurity() {
     setActiveTab(prev => ({ ...prev, [id]: prev[id] ?? "runbook" }));
   };
 
+  const handleResetFilters = () => {
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  };
+
   const findings = scanResult?.findings ?? mockVPCFindings;
 
   useEffect(() => {
@@ -628,10 +635,12 @@ export function VPCSecurity() {
         </div>
 
         {filteredFindings.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center" }}>
-            <Network size={40} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 14, margin: 0 }}>No findings match your filters</p>
-          </div>
+          <ScanEmptyState
+            variant="no-results"
+            icon={Network}
+            serviceName="VPC & Network"
+            onAction={handleResetFilters}
+          />
         ) : (
           filteredFindings.map((finding, idx) => {
             const expanded = expandedRows.has(finding.id);

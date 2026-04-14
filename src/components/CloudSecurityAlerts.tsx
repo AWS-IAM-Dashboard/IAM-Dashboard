@@ -10,6 +10,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { toast } from "sonner";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
@@ -606,28 +607,19 @@ export function CloudSecurityAlerts() {
 
           {/* ── Empty state ── */}
           {filtered.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-20 rounded-2xl"
-              style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <Shield className="h-10 w-10 mb-4" style={{ color: "rgba(0,255,136,0.25)" }} />
-              <p className="text-sm font-medium text-slate-400">
-                {alerts.length === 0 ? "No alerts yet" : "No alerts match your filters"}
-              </p>
-              <p className="text-xs mt-1.5" style={{ color: "rgba(71,85,105,0.9)" }}>
-                {alerts.length === 0
-                  ? "Run a security scan from the dashboard to populate the queue."
-                  : "Try broadening your filters."}
-              </p>
-              {(sevFilter !== "all" || statusFilter !== "all" || serviceFilter !== "all" || search) && (
-                <button
-                  onClick={() => { setSevFilter("all"); setStatusFilter("all"); setServiceFilter("all"); setSearch(""); }}
-                  className="mt-4 text-xs px-3.5 py-1.5 rounded-lg"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(148,163,184,0.8)" }}
-                >
-                  Clear all filters
-                </button>
-              )}
+            <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12 }}>
+              <ScanEmptyState
+                variant={alerts.length === 0 ? "pre-scan" : "no-results"}
+                icon={Bell}
+                serviceName="Security Alerts"
+                title={alerts.length === 0 ? "No alerts yet" : undefined}
+                subtitle={alerts.length === 0
+                  ? "Run a security scan from the dashboard to populate the alert queue with real-time findings."
+                  : undefined}
+                onAction={alerts.length === 0
+                  ? undefined
+                  : () => { setSevFilter("all"); setStatusFilter("all"); setServiceFilter("all"); setSearch(""); }}
+              />
             </div>
           ) : (
 

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 
 interface GuardDutyFinding {
   id: string;
@@ -288,7 +289,11 @@ export function GuardDuty() {
   const highCount = findings.filter((f) => f.severity >= 6 && f.severity < 8).length;
   const suppressedCount = 0; // no suppressed field in mock; placeholder
 
-  // Filter logic
+  const handleResetFilters = () => {
+    setSelectedSeverity("all");
+    setSelectedCategory("all");
+  };
+
   const filteredFindings = findings.filter((f) => {
     if (selectedSeverity === "high" && f.severity < 8) return false;
     if (selectedSeverity === "medium" && (f.severity < 6 || f.severity >= 8)) return false;
@@ -580,21 +585,16 @@ export function GuardDuty() {
 
         {/* Empty state */}
         {filteredFindings.length === 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column" as const,
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "64px 24px",
-              gap: 12,
-            }}
-          >
-            <Shield size={48} color={C.muted} style={{ opacity: 0.35 }} />
-            <p style={{ fontSize: 14, color: C.muted, margin: 0, textAlign: "center" as const }}>
-              No threats match the current filters
-            </p>
-          </div>
+          <ScanEmptyState
+            variant={findings.length === 0 ? "pre-scan" : "no-results"}
+            icon={Shield}
+            serviceName="GuardDuty"
+            title={findings.length === 0 ? "No GuardDuty threats detected" : "No threats match your filters"}
+            subtitle={findings.length === 0
+              ? "Run a scan to detect threats, anomalous behaviour, and potential compromises in your AWS environment."
+              : undefined}
+            onAction={findings.length === 0 ? undefined : handleResetFilters}
+          />
         )}
 
         {/* Rows */}

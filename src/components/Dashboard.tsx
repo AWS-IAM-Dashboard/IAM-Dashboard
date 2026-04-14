@@ -18,6 +18,7 @@ import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFil
 import { FindingsTableToolbar } from "./FindingsTableToolbar";
 import { FindingsTablePagination } from "./FindingsTablePagination";
 import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { GlobePulse, AWS_REGION_MARKERS } from "./ui/cobe-globe-pulse";
 import { SeverityBadge } from "./ui/SeverityBadge";
 
@@ -1184,11 +1185,15 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
               {/* Rows */}
               {triageFindings.length === 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
-                  <Shield style={{ width: 40, height: 40, color: "rgba(0,255,136,0.2)", marginBottom: 16 }} />
-                  <p style={{ fontSize: 13, fontWeight: 500, color: "rgba(148,163,184,0.5)", margin: 0 }}>Queue is clear</p>
-                  <p style={{ fontSize: 11, color: "rgba(100,116,139,0.35)", margin: "6px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Run a security scan to populate the queue.</p>
-                </div>
+                <ScanEmptyState
+                  variant="pre-scan"
+                  icon={Shield}
+                  serviceName="Triage Queue"
+                  title="Queue is clear"
+                  subtitle="Run a full security scan to populate the triage queue with prioritised findings."
+                  onAction={handleQuickScan}
+                  actionLabel="Run full scan"
+                />
               ) : triageFindings.map((finding: any, idx: number) => {
                 const score = calcPriority(finding);
                 const sev = finding.severity ?? "Medium";
@@ -1402,7 +1407,11 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: 12 }}>Attack Surface</div>
                 {blastRadiusData.length === 0 ? (
-                  <p style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", textAlign: "center" as const, fontFamily: "'JetBrains Mono', monospace" }}>no data — run a scan</p>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 12px", textAlign: "center" }}>
+                    <Target size={24} style={{ color: "rgba(100,116,139,0.25)", marginBottom: 8 }} />
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(100,116,139,0.45)", margin: 0 }}>No attack surface data</p>
+                    <p style={{ fontSize: 10, color: "rgba(100,116,139,0.3)", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Run a scan to map your blast radius</p>
+                  </div>
                 ) : blastRadiusData.map(({ name, value }, idx) => {
                   const maxVal = Math.max(...blastRadiusData.map(d => d.value));
                   const pct = Math.min(100, (value / maxVal) * 100);
