@@ -217,6 +217,52 @@ def _target_account_from_scan_params(params: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def is_service_linked_role(role_name: str, role_arn: str) -> bool:
+    """
+    AWS service-linked roles are AWS-managed and generally not actionable:
+    - Name often starts with AWSServiceRoleFor*
+    - ARN path usually contains :role/aws-service-role/
+    """
+    rn = (role_name or "").strip()
+    ra = (role_arn or "").strip()
+    return rn.startswith("AWSServiceRoleFor") or (":role/aws-service-role/" in ra)
+
+
+def is_test_resource(name: str) -> bool:
+    """Heuristic for intentional test/demo resources created by project scripts."""
+    n = (name or "").strip().lower()
+    return n.startswith("test-") or n.startswith("demo-")
+
+
+def is_demo_identity(name: str, scan_params: Dict[str, Any]) -> bool:
+    """
+    Heuristic for lab/demo identities that are expected to violate best practices.
+    Kept intentionally configurable to avoid hiding real production issues.
+    """
+    prefixes = scan_params.get("demo_identity_prefixes")
+    if not isinstance(prefixes, list) or not prefixes:
+        prefixes = ["cyber-"]
+    nn = (name or "").strip().lower()
+    return any(nn.startswith(str(p).lower()) for p in prefixes)
+
+
+def _tags_match(tags: list, key: str, value: str) -> bool:
+    if not key or value is None:
+        return False
+    for t in tags or []:
+        if t.get("Key") == key and t.get("Value") == value:
+            return True
+    return False
+
+
+def is_in_scope_by_name(name: str, scan_params: Dict[str, Any]) -> bool:
+    prefixes = scan_params.get("scope_name_prefixes")
+    if not isinstance(prefixes, list) or not prefixes:
+        return True
+    nn = (name or "").strip().lower()
+    return any(nn.startswith(str(p).lower()) for p in prefixes)
+
+
 def _cors_allowed_origins_set() -> set:
     raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     return {o.strip() for o in raw.split(',') if o.strip()}
@@ -1162,7 +1208,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         suppress_demo_identities = bool(scan_params.get("suppress_demo_identity_findings", ENVIRONMENT != "prod"))
         scope_tag_key = scan_params.get("scope_tag_key")
         scope_tag_value = scan_params.get("scope_tag_value")
-        
+
         # List users
         users = iam.list_users()
         user_list = users.get('Users', [])
@@ -1179,16 +1225,14 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         
         # Get account ID
         account_id = sts.get_caller_identity().get('Account', 'N/A')
-        
+        users_considered = 0
+
         for user in user_list:
             user_name = user['UserName']
             user_arn = user.get('Arn', f'arn:aws:iam::{account_id}:user/{user_name}')
-            
+
             try:
                 if suppress_test_resources and is_test_resource(user_name):
-                    continue
-                if suppress_demo_identities and is_demo_identity(user_name, scan_params):
-                    # Demo/lab identities are expected to be noncompliant; suppress to reduce noise.
                     continue
                 if not is_in_scope_by_name(user_name, scan_params):
                     continue
@@ -1198,71 +1242,71 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         if not _tags_match(user_tags, str(scope_tag_key), str(scope_tag_value)):
                             continue
                     except ClientError:
-                        # If we can't read tags, fall back to name-only scoping.
-                        pass
+                        continue
 
-                # Check MFA
-                mfa_devices = iam.list_mfa_devices(UserName=user_name)
-                if not mfa_devices.get('MFADevices'):
-                    users_without_mfa += 1
-                    high_findings += 1
-                    findings.append({
-                        'severity': 'High',
-                        'type': 'user',
-                        'resource_name': user_name,
-                        'resource_arn': user_arn,
-                        'description': f'IAM user "{user_name}" does not have MFA enabled',
-                        'recommendation': 'Enable MFA for this user to enhance account security',
-                        'finding_type': 'missing_mfa'
-                    })
-                else:
-                    users_with_mfa += 1
-                
-                # Check access keys
-                access_keys = iam.list_access_keys(UserName=user_name)
-                key_metadata = access_keys.get('AccessKeyMetadata', [])
-                
-                for key in key_metadata:
-                    key_id = key.get('AccessKeyId')
-                    key_status = key.get('Status')
-                    create_date = key.get('CreateDate')
-                    
-                    # Check if key is old (over 90 days)
-                    if create_date:
-                        from datetime import datetime, timezone
-                        key_age = (datetime.now(timezone.utc) - create_date.replace(tzinfo=timezone.utc)).days
-                        if key_age > 90:
-                            medium_findings += 1
-                            findings.append({
-                                'severity': 'Medium',
-                                'type': 'access_key',
-                                'resource_name': mask_sensitive_data(f'{user_name}/{key_id}'),
-                                'resource_arn': mask_sensitive_data(user_arn),
-                                'description': mask_sensitive_data(f'Access key {key_id} for user "{user_name}" is {key_age} days old'),
-                                'recommendation': 'Rotate access keys every 90 days for security best practices',
-                                'finding_type': 'old_access_key'
-                            })
-                    
-                    # Check last used
-                    try:
-                        last_used = iam.get_access_key_last_used(AccessKeyId=key_id)
-                        last_used_date = last_used.get('AccessKeyLastUsed', {}).get('LastUsedDate')
-                        if last_used_date:
-                            days_since_use = (datetime.now(timezone.utc) - last_used_date.replace(tzinfo=timezone.utc)).days
-                            if days_since_use > 90:
-                                low_findings += 1
+                users_considered += 1
+                suppress_demo_noise = suppress_demo_identities and is_demo_identity(user_name, scan_params)
+
+                # MFA / access keys / inactive console use: suppress for configured demo identities only.
+                if not suppress_demo_noise:
+                    mfa_devices = iam.list_mfa_devices(UserName=user_name)
+                    if not mfa_devices.get('MFADevices'):
+                        users_without_mfa += 1
+                        high_findings += 1
+                        findings.append({
+                            'severity': 'High',
+                            'type': 'user',
+                            'resource_name': user_name,
+                            'resource_arn': user_arn,
+                            'description': f'IAM user "{user_name}" does not have MFA enabled',
+                            'recommendation': 'Enable MFA for this user to enhance account security',
+                            'finding_type': 'missing_mfa'
+                        })
+                    else:
+                        users_with_mfa += 1
+
+                    access_keys = iam.list_access_keys(UserName=user_name)
+                    key_metadata = access_keys.get('AccessKeyMetadata', [])
+
+                    for key in key_metadata:
+                        key_id = key.get('AccessKeyId')
+                        key_status = key.get('Status')
+                        create_date = key.get('CreateDate')
+
+                        if create_date:
+                            from datetime import datetime, timezone
+                            key_age = (datetime.now(timezone.utc) - create_date.replace(tzinfo=timezone.utc)).days
+                            if key_age > 90:
+                                medium_findings += 1
                                 findings.append({
-                                    'severity': 'Low',
+                                    'severity': 'Medium',
                                     'type': 'access_key',
                                     'resource_name': mask_sensitive_data(f'{user_name}/{key_id}'),
                                     'resource_arn': mask_sensitive_data(user_arn),
-                                    'description': mask_sensitive_data(f'Access key {key_id} has not been used in {days_since_use} days'),
-                                    'recommendation': 'Consider removing unused access keys',
-                                    'finding_type': 'unused_access_key'
+                                    'description': mask_sensitive_data(f'Access key {key_id} for user "{user_name}" is {key_age} days old'),
+                                    'recommendation': 'Rotate access keys every 90 days for security best practices',
+                                    'finding_type': 'old_access_key'
                                 })
-                    except ClientError:
-                        pass  # Skip if we can't get last used info
-                
+
+                        try:
+                            last_used = iam.get_access_key_last_used(AccessKeyId=key_id)
+                            last_used_date = last_used.get('AccessKeyLastUsed', {}).get('LastUsedDate')
+                            if last_used_date:
+                                days_since_use = (datetime.now(timezone.utc) - last_used_date.replace(tzinfo=timezone.utc)).days
+                                if days_since_use > 90:
+                                    low_findings += 1
+                                    findings.append({
+                                        'severity': 'Low',
+                                        'type': 'access_key',
+                                        'resource_name': mask_sensitive_data(f'{user_name}/{key_id}'),
+                                        'resource_arn': mask_sensitive_data(user_arn),
+                                        'description': mask_sensitive_data(f'Access key {key_id} has not been used in {days_since_use} days'),
+                                        'recommendation': 'Consider removing unused access keys',
+                                        'finding_type': 'unused_access_key'
+                                    })
+                        except ClientError:
+                            pass  # Skip if we can't get last used info
+
                 # Check for admin policies
                 try:
                     attached_policies = iam.list_attached_user_policies(UserName=user_name)
@@ -1284,9 +1328,8 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                             break
                 except ClientError:
                     pass  # Skip if we can't check policies
-                
-                # Check password last used
-                if user.get('PasswordLastUsed'):
+
+                if not suppress_demo_noise and user.get('PasswordLastUsed'):
                     from datetime import datetime, timezone
                     last_used = user['PasswordLastUsed'].replace(tzinfo=timezone.utc)
                     days_inactive = (datetime.now(timezone.utc) - last_used).days
@@ -1305,7 +1348,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             except ClientError as e:
                 logger.warning(f"Error analyzing user {user_name}: {str(e)}")
                 continue
-        
+
         # List roles
         roles = iam.list_roles()
         role_list = roles.get('Roles', [])
@@ -1326,12 +1369,13 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             'gitlab.com': 'GitLab CI',
             'circleci.com': 'CircleCI'
         }
-        
+
+        roles_considered = 0
         # Analyze roles for infrastructure security
         for role in role_list[:100]:  # Increased limit to analyze more roles
             role_name = role['RoleName']
             role_arn = role.get('Arn', f'arn:aws:iam::{account_id}:role/{role_name}')
-            
+
             try:
                 if suppress_test_resources and is_test_resource(role_name):
                     continue
@@ -1345,8 +1389,9 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                         if not _tags_match(role_tags, str(scope_tag_key), str(scope_tag_value)):
                             continue
                     except ClientError:
-                        pass
+                        continue
 
+                roles_considered += 1
                 # Get role details including trust policy
                 role_details = iam.get_role(RoleName=role_name)
                 assume_role_policy = role_details.get('Role', {}).get('AssumeRolePolicyDocument', {})
@@ -1519,13 +1564,13 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         return {
             'account_id': account_id,
             'users': {
-                'total': len(user_list),
+                'total': users_considered,
                 'with_mfa': users_with_mfa,
                 'without_mfa': users_without_mfa,
                 'inactive': inactive_users
             },
             'roles': {
-                'total': len(role_list)
+                'total': roles_considered
             },
             'policies': {
                 'total': len(policy_list)
