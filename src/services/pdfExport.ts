@@ -511,7 +511,7 @@ ${topRisksNestedHtml}
       <p><strong>Account:</strong> ${formatAccountForPdf(data)}</p>
       <p><strong>Scan ID:</strong> ${data.scan_id}</p>
       <p><strong>Scanner Type:</strong> ${data.scanner_type.toUpperCase()}</p>
-      <p><strong>Scanner Version:</strong> ${data.scanner_version}</p>
+      <p><strong>Scanner Version:</strong> ${escapeHtml(data.scanner_version)}</p>
       <p><strong>Region:</strong> ${data.region}</p>
       <p><strong>Status:</strong> ${data.status}</p>
       <p><strong>Generated:</strong> ${date}</p>
