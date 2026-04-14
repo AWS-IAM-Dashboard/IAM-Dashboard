@@ -9,7 +9,8 @@ import { PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { Play, AlertTriangle, CheckCircle, Clock, Shield, HardDrive, Zap, RefreshCw, Cloud, Users, Network, Database, ArrowUpRight, Activity, Target, ChevronDown, ChevronRight, AlertOctagon, TrendingUp, TrendingDown, Server, Cpu, BarChart2, Lock } from "lucide-react";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { scanFull, getDashboardData, getSecurityHubSummary, type ScanResponse, type DashboardData } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useAwsAccount } from "../context/AwsAccountContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { toast } from "sonner";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
@@ -192,7 +193,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const scanIntervalRef = useRef<number | null>(null);
-  const { addScanResult, getAllScanResults, scanResults: scanResultsMap, scanResultsVersion } = useScanResults();
+  const { selectedAccount } = useAwsAccount();
+  const { addScanResult, scanResults, scanResultsVersion } = useActiveScanResults();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   
   const [stats, setStats] = useState({
@@ -217,12 +219,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const statsRef = useRef(stats);
   const wasScanning = useRef(false);
   const [scanDelta, setScanDelta] = useState<{ critical: number; high: number; total: number; compliance: number } | null>(null);
-
-  // Get scan results - convert Map to array, re-compute when version changes
-  const scanResults = useMemo(() => {
-    const results = Array.from(scanResultsMap.values());
-    return results;
-  }, [scanResultsVersion, scanResultsMap]); // Re-compute when version changes
 
   const generateWeeklyTrends = useCallback((summary: any, compliance: any) => {
     // Generate placeholder weekly trends based on current compliance score
@@ -501,6 +497,13 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   }, [allFindings]);
 
   const handleQuickScan = async () => {
+    if (!selectedAccount) {
+      toast.error("No AWS account is available", {
+        description: "Connect at least one account to run scans.",
+      });
+      return;
+    }
+
     // Clear any existing interval
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
@@ -535,6 +538,15 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       try {
         response = await scanFull('us-east-1');
       } catch (apiError) {
+        const msg = apiError instanceof Error ? apiError.message : String(apiError);
+        const normalized = msg.toLowerCase();
+        if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
+          throw apiError;
+        }
         // Even if API throws, create a completed response with empty results
         // API call failed, using fallback response
         response = {
@@ -610,6 +622,26 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       }, 300);
       
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const normalized = msg.toLowerCase();
+      if (normalized.includes("forbidden") ||
++        normalized.includes("permission") ||
++        normalized.includes("authentication required") ||
++        normalized.includes("unauthorized") ||
+         normalized.includes("accessdenied")) {
+        toast.error('Permission denied', {
+          description: msg,
+          duration: 8000,
+          style: { color: '#ff0040', borderColor: 'rgba(255,0,64,0.4)' },
+        });
+        setIsScanning(false);
+        setScanProgress(0);
+        if (scanIntervalRef.current) {
+          clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+        }
+        return;
+      }
       // This should NEVER happen for full scan, but just in case...
       // Unexpected error in handleQuickScan
       
@@ -1937,6 +1969,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </button>
         ))}
       </div>
+
     </div>
   );
 }

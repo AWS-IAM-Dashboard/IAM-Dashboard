@@ -28,7 +28,7 @@ The Lambda role (`iam-dashboard-lambda-role`) has permissions for:
 
 - **CloudWatch Logs**: Create log groups/streams, write logs
 - **S3**: PutObject, GetObject, ListBucket on `iam-dashboard-project` and `iam-dashboard-scan-results-*`
-- **DynamoDB**: PutItem, GetItem, UpdateItem, Query, Scan on `iam-dashboard-*` tables
+- **DynamoDB**: PutItem, GetItem, UpdateItem, Query, DeleteItem, Scan on `iam-dashboard-*` tables
 - **AWS Security Services**: Full permissions for security scanning
   - Security Hub: GetFindings, BatchImportFindings, GetInsights, GetComplianceSummary
   - GuardDuty: ListDetectors, GetDetector, ListFindings, GetFindings, DescribeFindings
@@ -73,7 +73,8 @@ Terraform will automatically:
 
 The Lambda function automatically receives these environment variables:
 
-- `DYNAMODB_TABLE_NAME`: Name of DynamoDB table (from variable)
+- `DYNAMODB_TABLE_NAME`: Name of DynamoDB table that stores scan results
+- `SESSION_TABLE_NAME`: Name of DynamoDB table that holds user session cookies
 - `S3_BUCKET_NAME`: Name of S3 bucket (from variable)
 - `PROJECT_NAME`: Project name for tagging
 - `ENVIRONMENT`: Environment name (dev, staging, prod)
@@ -130,6 +131,37 @@ The Lambda function supports the following scanner types:
   }
 }
 ```
+
+## 🔐 Authentication and RBAC
+
+### Session Authentication
+
+HTTP-triggered invocations (via API Gateway) require a valid session cookie named `iamdash_session`.
+The Lambda reads this cookie from the request and looks up the session record in the DynamoDB table
+configured by `SESSION_TABLE_NAME`. Missing or expired sessions are rejected with a **401 Unauthorized**.
+
+Direct Lambda invocations (not via API Gateway) bypass session auth entirely.
+
+### Group-Based RBAC
+
+Authenticated requests are checked against the `groups` field stored in the session record.
+Each Cognito group maps to a permitted scanner type:
+
+| Group | Permitted scanner type |
+|---|---|
+| `admin` | All scanner types, including `full` |
+| `iam` | `iam` |
+| `ec2` | `ec2` |
+| `s3` | `s3` |
+| `securityhub` | `security-hub` |
+| `guardduty` | `guardduty` |
+| `config` | `config` |
+| `inspector` | `inspector` |
+| `macie` | `macie` |
+
+- Users in multiple groups can run all their permitted scanner types.
+- Users with no matching group receive a **403 Forbidden**.
+- Only `admin` can run the `full` scan.
 
 ## 🏷️ Tags
 

@@ -11,7 +11,7 @@ import { StatCard } from "./ui/StatCard";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface AWSIAMFinding {
   id: string;
@@ -181,7 +181,7 @@ export function AWSIAMScan() {
   const [pageSize] = useState(10);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   // Initialise workflow state when findings arrive; seed from INITIAL_IAM_WORKFLOWS blueprint
   useEffect(() => {

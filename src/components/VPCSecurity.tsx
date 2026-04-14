@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { scanEC2, type ScanResponse } from "../services/api";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
@@ -342,7 +342,7 @@ export function VPCSecurity() {
   const [assigneeByFinding, setAssigneeByFinding] = useState<Record<string, string>>({});
   const [ticketByFinding, setTicketByFinding] = useState<Record<string, string>>({});
   const [workflows, setWorkflows] = useState<Record<string, WorkflowData>>({});
-  const { addScanResult } = useScanResults();
+  const { addScanResult } = useActiveScanResults();
 
   // Auto-load mock data on mount
   useEffect(() => {

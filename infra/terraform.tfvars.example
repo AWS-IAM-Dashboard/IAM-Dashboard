@@ -2,3 +2,14 @@ aws_region  = "us-east-1"
 environment = "dev"
 project_name = "IAMDash"
 
+# Browser origins for CORS (scanner + auth API Gateway, scanner Lambda). No paths; no "*".
+# Must include every URL where the SPA is served. Keep in sync with Cognito callback URLs.
+# allowed_urls = [
+#   "http://localhost:3001",
+#   "http://localhost:5173",
+#   "https://your-app.cloudfront.net",
+# ]
+# cognito_allowed_urls = [
+#   "http://localhost:3001/",
+#   "https://your-app.cloudfront.net/",
+# ]

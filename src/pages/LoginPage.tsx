@@ -1,12 +1,8 @@
 import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-<<<<<<< HEAD
 import { useNavigate, Link } from "react-router-dom";
-=======
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
->>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
 import logoImage from "@/assets/logo.png";
 
 export function LoginPage() {
@@ -88,13 +84,9 @@ export function LoginPage() {
           <div className="mb-6 space-y-3">
             <button
               type="button"
-<<<<<<< HEAD
-              className="group relative flex w-full min-h-[44px] items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
-              aria-label="Continue with Google"
-=======
               disabled
-              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
->>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
+              className="group relative flex w-full min-h-[44px] cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              aria-label="Continue with Google"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
               <svg className="relative z-10 h-5 w-5" viewBox="0 0 24 24">
@@ -120,13 +112,9 @@ export function LoginPage() {
 
             <button
               type="button"
-<<<<<<< HEAD
-              className="group relative flex w-full min-h-[44px] items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white transition-all hover:border-green-500/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
-              aria-label="Continue with GitHub"
-=======
               disabled
-              className="group relative flex w-full cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
->>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
+              className="group relative flex w-full min-h-[44px] cursor-not-allowed items-center justify-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/50 transition-all"
+              aria-label="Continue with GitHub"
             >
               <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 transition-transform duration-700 group-hover:translate-x-[100%]"></div>
               <Github className="relative z-10 h-5 w-5" aria-hidden />
@@ -212,12 +200,8 @@ export function LoginPage() {
 
             <button
               type="submit"
-<<<<<<< HEAD
-              className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
-=======
               disabled={isSubmitting}
-              className="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
->>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
+              className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
             >
               <span className="relative z-10">{isSubmitting ? "Signing In..." : "Sign In"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />

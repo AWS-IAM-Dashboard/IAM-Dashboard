@@ -290,7 +290,7 @@ This is **expected behavior**, not failure.
 | S20 | (SEMESTER) Gitleaks baseline & allowlist | M3 |
 | S21 | (SEMESTER) IAM least-privilege audit (Lambda, GitHub Actions) | M5 |
 | S22 | (SEMESTER) Security headers on API responses | M4 |
-| S23 | (SEMESTER) Rate limiting on API Gateway | M5 |
+| S23 | (SEMESTER) Rate limiting on API Gateway — [implementation & task record](../infra/S23-API-Gateway-rate-limiting.md) | M5 |
 | S24 | (SEMESTER) Audit logging for sensitive actions | M5 |
 | S25 | (SEMESTER) CORS configuration review | M3 |
 | S26 | (SEMESTER) Remediation content security review (pairs with AI) | M4 |

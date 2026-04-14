@@ -1,20 +1,32 @@
 import { useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { Skeleton } from "./ui/skeleton";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, AreaChart, Area } from "recharts";
 import {
-  ShieldCheck,
-  ShieldAlert,
-  RefreshCcw,
-  Download,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  ChevronRight,
-  Info,
   BadgeCheck,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Download,
+  ExternalLink,
+  Info,
+  RefreshCcw,
+  ShieldAlert,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
-import { useScanResults } from "../context/ScanResultsContext";
+import { useActiveScanResults } from "../hooks/useActiveScanResults";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { maskSensitiveData } from "../utils/security";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
@@ -183,7 +195,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
   const [activeFramework, setActiveFramework] = useState(FRAMEWORKS[0].id);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedControl, setExpandedControl] = useState<string | null>(null);
-  const { getAllScanResults, scanResultsVersion } = useScanResults();
+  const { getAllScanResults, scanResultsVersion } = useActiveScanResults();
 
   const scanResults = useMemo(() => getAllScanResults(), [scanResultsVersion, getAllScanResults]);
 

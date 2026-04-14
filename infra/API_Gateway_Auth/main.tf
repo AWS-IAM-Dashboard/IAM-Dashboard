@@ -37,6 +37,11 @@ resource "aws_apigatewayv2_stage" "auth" {
   name        = var.stage_name
   auto_deploy = true
 
+  default_route_settings {
+    throttling_burst_limit = var.throttling_burst_limit
+    throttling_rate_limit  = var.throttling_rate_limit
+  }
+
   tags = {
     Name      = "${var.api_name}-${var.stage_name}"
     Project   = var.project_name

@@ -1,8 +1,12 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  /** Vite dev server proxies /api/v1 → Flask. Docker frontend: VITE_FLASK_PROXY_TARGET=http://app:5000 */
+  const flaskProxyTarget = env.VITE_FLASK_PROXY_TARGET || 'http://127.0.0.1:5001';
+
   const { default: tailwindcss } = await import('@tailwindcss/vite');
   return {
     plugins: [react(), tailwindcss()],
@@ -59,9 +63,20 @@ export default defineConfig(async () => {
       host: true,
       proxy: {
         '/auth': {
-          target: 'https://cpjm170lui.execute-api.us-east-1.amazonaws.com',
+          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
           changeOrigin: true,
           rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+        '/scan': {
+          target: 'https://erh3a09d7l.execute-api.us-east-1.amazonaws.com',
+          changeOrigin: true,
+          rewrite: (requestPath) => `/v1${requestPath}`,
+          headers: { 'Origin': 'http://localhost:3001' },
+        },
+        '/api/v1': {
+          target: flaskProxyTarget,
+          changeOrigin: true,
         },
       },
       watch: {

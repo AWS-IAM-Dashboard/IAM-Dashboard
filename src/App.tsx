@@ -37,21 +37,7 @@ function AppRouter() {
 export default function App() {
   return (
     <BrowserRouter>
-<<<<<<< HEAD
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/app" element={<DashboardApp />} />
-        <Route path="/dashboard" element={<Navigate replace to="/app" />} />
-        <Route path="*" element={<Navigate replace to="/" />} />
-      </Routes>
-=======
       <AppRouter />
->>>>>>> 66239f3c73c77c3cb969ecc789ed234653bad1cd
     </BrowserRouter>
   );
 }

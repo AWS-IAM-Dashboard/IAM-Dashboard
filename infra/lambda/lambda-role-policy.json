@@ -43,6 +43,13 @@
     {
       "Effect": "Allow",
       "Action": [
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:562559071105:table/iam-dashboard-auth-sessions-test"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "securityhub:GetFindings",
         "securityhub:BatchImportFindings",
         "securityhub:GetInsights",

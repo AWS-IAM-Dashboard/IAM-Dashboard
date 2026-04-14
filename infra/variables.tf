@@ -84,7 +84,7 @@ variable "cognito_allowed_urls" {
 }
 
 variable "allowed_urls" {
-  description = "Allowed sign-out URLs for Cognito app client"
+  description = "Browser origins allowed for CORS on API Gateway (scanner + auth HTTP APIs) and scanner Lambda responses. Must match SPA URLs (scheme + host + port, no path). Align with cognito_allowed_urls for the same deployments."
   type        = list(string)
   default     = ["http://localhost:3001", "https://d33ytnxd7i6mo9.cloudfront.net", "http://localhost:5173", "http://localhost:5001"]
 }
@@ -106,4 +106,3 @@ variable "auth_lambda_function_name" {
   type        = string
   default     = "test-BFF"
 }
-

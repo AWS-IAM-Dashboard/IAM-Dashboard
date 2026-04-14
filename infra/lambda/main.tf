@@ -80,6 +80,7 @@ resource "aws_lambda_function" "scanner" {
         S3_BUCKET_NAME      = var.s3_bucket_name
         PROJECT_NAME        = var.project_name
         ENVIRONMENT         = var.environment
+        SESSION_TABLE_NAME  = var.session_table_name
       }
     )
   }
@@ -97,4 +98,18 @@ resource "aws_lambda_function" "scanner" {
   }
 
   depends_on = [aws_iam_role_policy.lambda_policy]
+}
+
+# Scanner Lambda logs (structured SENSITIVE_AUDIT lines + platform messages)
+resource "aws_cloudwatch_log_group" "scanner_lambda" {
+  name              = "/aws/lambda/${var.lambda_function_name}"
+  retention_in_days = 365
+
+  tags = {
+    Name      = "${var.lambda_function_name}-logs"
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+    Purpose   = "audit-scanner"
+  }
 }
