@@ -8,7 +8,10 @@ export interface ScanResultData {
   scanner_type: string;
   region: string;
   status: string;
-  timestamp: string;
+  timestamp: string;  
+  aws_account_id?: string;        // 12-digit AWS account id (for PDF header)
+  aws_account_label?: string;     // Friendly name from AwsAccountContext (for PDF header)
+  scanner_version?: string;       // Scanner version (for PDF header)
   results?: any;
   findings?: any[];
   scan_summary?: {
@@ -194,14 +197,99 @@ function extractScanSummary(data: ScanResultData): ScanResultData['scan_summary'
   return {};
 }
 
+function formatAccountForPdf(data: ScanResultData): string {
+  const id = data.aws_account_id?.trim();
+  const label = data.aws_account_label?.trim();
+  if (label && id) return `${escapeHtml(label)} (${escapeHtml(id)})`;
+  if (id) return escapeHtml(id);
+  if (label) return escapeHtml(label);
+  return "—";
+}
+
+/** Map severities to sort order (lower = more severe). */
+const SEVERITY_ORDER: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+function severityRank(severity: string | undefined): number {
+  const s = (severity || "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SEVERITY_ORDER, s)
+    ? SEVERITY_ORDER[s]
+    : 4;
+}
+
+/** CSS classes .critical / .high / .medium / .low must exist in the report <style>. */
+function severityColorClass(severity: string | undefined): string {
+  const s = (severity || "").toLowerCase();
+  if (s === "critical") return "critical";
+  if (s === "high") return "high";
+  if (s === "medium") return "medium";
+  if (s === "low") return "low";
+  return "sev-other";
+}
+
+/** Escape text so finding titles/descriptions can't break HTML. */
+function escapeHtml(raw: string | undefined | null): string {
+  if (raw == null) return "";
+  return String(raw)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Total findings: prefer live list length; if empty, use severity counts from summary. */
+function getTotalFindingsCount(
+  findings: any[],
+  summary: ScanResultData["scan_summary"] | undefined
+): number {
+  if (findings.length > 0) return findings.length;
+  const s = summary || {};
+  return (
+    (s.critical_findings || 0) +
+    (s.high_findings || 0) +
+    (s.medium_findings || 0) +
+    (s.low_findings || 0)
+  );
+}
+
+/** Highest severity first, then higher risk_score first. */
+function pickTopRisks(findings: any[], n: number): any[] {
+  return [...findings]
+    .sort((a, b) => {
+      const ra = severityRank(a.severity);
+      const rb = severityRank(b.severity);
+      if (ra !== rb) return ra - rb;
+      const sa = Number(a.risk_score) || 0;
+      const sb = Number(b.risk_score) || 0;
+      return sb - sa;
+    })
+    .slice(0, n);
+}
+
+/**
+ * One line hint under the severity cards that points readers to Top risks when present,
+ * otherwise to the severity tables.
+ */
+function buildExecutiveNarrative(top5: any[]): string {
+  return top5.length > 0
+      ? "Key items to review first are listed under Top risks below."
+      : "Use the severity breakdown and detailed tables to prioritize remediation.";
+}
+
 /**
  * Generate HTML content for the PDF report
  */
 function generateReportHTML(data: ScanResultData, title: string): string {
   const date = new Date(data.timestamp).toLocaleString();
-  const summary = extractScanSummary(data);
+  const summary = { ...(extractScanSummary(data) || {}) };
   const findings = extractFindings(data);
   const reportType = data.scanner_type || 'comprehensive';
+  const totalFindings = getTotalFindingsCount(findings, summary);
+  const topRisks = pickTopRisks(findings, 5);
+  const narrative = buildExecutiveNarrative(topRisks);
   
   // Group findings by severity
   const findingsBySeverity = {
@@ -214,6 +302,16 @@ function generateReportHTML(data: ScanResultData, title: string): string {
       return !['critical', 'high', 'medium', 'low'].includes(sev);
     })
   };
+
+  // Align severity card counts with the findings list used for "Detailed findings"
+  if (findings.length > 0) {
+    Object.assign(summary, {
+      critical_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "critical").length,
+      high_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "high").length,
+      medium_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "medium").length,
+      low_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "low").length,
+    });
+  }
 
   // Generate template-specific content
   let executiveSection = '';
@@ -284,6 +382,40 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     `;
   }
 
+  // HTML for the nested list under "Top risks": either a fallback message or up to 5 rows
+  // (resource, type, description) with severity styled via severityColorClass / escapeHtml
+  const topRisksNestedHtml =
+    topRisks.length === 0
+      ? `<ul style="margin: 6px 0 0 0; padding-left: 22px;"><li>No individual findings in this export; see detailed sections below.</li></ul>`
+      : `<ul style="margin: 6px 0 0 0; padding-left: 22px;">
+${topRisks
+  .map((f: any) => {
+    const resource = escapeHtml(
+      f.resource_name || f.resource_id || f.resource_arn?.split("/").pop() || "Unknown"
+    );
+    const typ = escapeHtml(f.type || f.finding_type || f.resource_type || "—");
+    const rawDesc = f.description || f.title || "No description";
+    const desc = escapeHtml(
+      rawDesc.length > 200 ? `${rawDesc.slice(0, 200)}…` : rawDesc
+    );
+    const sev = escapeHtml(String(f.severity || "—"));
+    const sevClass = severityColorClass(f.severity);
+    return `          <li style="margin: 4px 0;"><span class="${sevClass}"><strong>${sev}</strong></span> — ${resource} (<em>${typ}</em>): ${desc}</li>`;
+  })
+  .join("\n")}
+        </ul>`;
+
+  // HTML for the bullets under "Executive Summary" that list total findings and top risks
+  const executiveSummaryBulletsHtml = `
+    <p style="line-height: 1.5; margin: 18px 0 0 0; font-size: 13px; color: #555;">${narrative}</p>
+    <ul style="margin: 12px 0 0 0; padding-left: 20px;">
+      <li style="margin-bottom: 12px;"><strong>Total findings:</strong> ${totalFindings}</li>
+      <li><strong>Top risks</strong>
+${topRisksNestedHtml}
+      </li>
+    </ul>
+`;
+
   return `
 <!DOCTYPE html>
 <html>
@@ -333,7 +465,6 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     .summary-card h3 {
       margin: 0;
       font-size: 24px;
-      color: #0066cc;
     }
     .summary-card p {
       margin: 5px 0 0 0;
@@ -343,7 +474,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     .critical { color: #ff0040; }
     .high { color: #ff6b35; }
     .medium { color: #ffb000; }
-    .low { color: #00ff88; }
+    .low { color: #00d900; }
+    .sev-other { color: #555; font-weight: bold; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -376,8 +508,10 @@ function generateReportHTML(data: ScanResultData, title: string): string {
   <div class="header">
     <h1>${title}</h1>
     <div class="meta-info">
+      <p><strong>Account:</strong> ${formatAccountForPdf(data)}</p>
       <p><strong>Scan ID:</strong> ${data.scan_id}</p>
       <p><strong>Scanner Type:</strong> ${data.scanner_type.toUpperCase()}</p>
+      <p><strong>Scanner Version:</strong> ${data.scanner_version}</p>
       <p><strong>Region:</strong> ${data.region}</p>
       <p><strong>Status:</strong> ${data.status}</p>
       <p><strong>Generated:</strong> ${date}</p>
@@ -385,7 +519,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
   </div>
 
   <div class="section">
-    <h2>${reportType === 'executive-summary' ? 'Key Metrics' : 'Executive Summary'}</h2>
+    <h2>Executive Summary</h2>
     <div class="summary-grid">
       <div class="summary-card">
         <h3 class="critical">${summary.critical_findings || 0}</h3>
@@ -404,6 +538,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <p>Low Findings</p>
       </div>
     </div>
+    ${executiveSummaryBulletsHtml}
   </div>
 
   ${complianceSection}
@@ -513,7 +648,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     
     ${findingsBySeverity.Low.length > 0 ? `
     <div class="severity-section" style="margin: 20px 0;">
-      <h3 style="color: #00ff88; margin-bottom: 10px;">Low Findings (${findingsBySeverity.Low.length})</h3>
+      <h3 style="color: #00d900; margin-bottom: 10px;">Low Findings (${findingsBySeverity.Low.length})</h3>
       <table>
         <thead>
           <tr>
