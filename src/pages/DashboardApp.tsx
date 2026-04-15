@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 
 function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
@@ -84,6 +84,29 @@ import type { ReportRecord } from "../types/report";
 export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [reportHistory, setReportHistory] = useState<ReportRecord[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => {
+      const next = mq.matches;
+      setIsMobile(next);
+      if (!next) setIsSidebarOpen(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile || !isSidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobile, isSidebarOpen]);
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
@@ -163,13 +186,51 @@ export function DashboardApp() {
   return (
     <ScanResultsProvider>
       <AwsAccountProvider>
-        <div className="flex h-screen flex-col bg-background dark">
-          <Header onNavigate={setActiveTab} activeTab={activeTab} />
-          <div className="flex flex-1 overflow-hidden">
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-            <main className="flex-1 overflow-auto">
-              {renderContent()}
-            </main>
+        <div className={isMobile
+          ? "flex h-dvh min-h-0 max-h-dvh flex-col overflow-hidden bg-background dark"
+          : "flex h-screen flex-col bg-background dark"
+        }>
+          <Header
+            onNavigate={setActiveTab}
+            activeTab={activeTab}
+            onToggleSidebar={isMobile ? () => setIsSidebarOpen((o) => !o) : undefined}
+            isSidebarOpen={isMobile ? isSidebarOpen : undefined}
+          />
+          <div className={isMobile
+            ? "relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
+            : "flex flex-1 overflow-hidden"
+          }>
+            {isMobile && isSidebarOpen ? (
+              <button
+                type="button"
+                className="fixed left-0 right-0 bottom-0 top-16 z-[60] cursor-pointer touch-manipulation bg-black/55 md:hidden"
+                aria-label="Close navigation"
+                onClick={() => setIsSidebarOpen(false)}
+              />
+            ) : null}
+            {isMobile ? (
+              <>
+                <Sidebar
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  isMobile
+                  isOpen={isSidebarOpen}
+                  onClose={() => setIsSidebarOpen(false)}
+                />
+                <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col">
+                  <main className="relative z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                    {renderContent()}
+                  </main>
+                </div>
+              </>
+            ) : (
+              <>
+                <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+                <main className="flex-1 overflow-auto">
+                  {renderContent()}
+                </main>
+              </>
+            )}
           </div>
           <Toaster
             position="top-right"

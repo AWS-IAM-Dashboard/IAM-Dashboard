@@ -1,5 +1,5 @@
 // Network Troubleshooting — connectivity tests, route analysis, DNS
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Wifi, ChevronDown, ChevronRight, Play, Loader2, CheckCircle2, XCircle, Clock, RotateCcw } from "lucide-react";
 import type { ConnectivityTest, RouteEntry, DNSResolution, ConnectivityResult } from "./types";
 import {
@@ -47,36 +47,13 @@ const HOP_COLOR: Record<string, string> = {
 };
 
 // ─── Connectivity Test row ────────────────────────────────────────────────────
-function TestRow({ test }: { test: ConnectivityTest }) {
+function TestRow({ test, isMobile }: { test: ConnectivityTest; isMobile: boolean }) {
   const [open, setOpen] = useState(false);
   const rc = RESULT_COLOR[test.result];
-  return (
-    <>
-      <div
-        className="infra-row"
-        style={{ display: "grid", gridTemplateColumns: "24px 1fr 1fr 80px 70px 100px 80px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? rc : "transparent"}`, transition: "border-color 0.15s" }}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ ...mono, fontSize: 10, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{test.source}</div>
-          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", marginTop: 1 }}>{test.source_type}</div>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ ...mono, fontSize: 10, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{test.destination}</div>
-          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", marginTop: 1 }}>{test.destination_type}</div>
-        </div>
-        <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.6)" }}>{test.protocol}:{test.port}</span>
-        <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.45)" }}>{test.duration_ms >= 10_000 ? `${(test.duration_ms / 1000).toFixed(0)}s` : `${test.duration_ms}ms`}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          {RESULT_ICON[test.result]}
-          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: rc }}>{test.result.toUpperCase()}</span>
-        </div>
-        <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>
-          {new Date(test.ran_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-        </span>
-      </div>
-      {open && (
+  const durLabel = test.duration_ms >= 10_000 ? `${(test.duration_ms / 1000).toFixed(0)}s` : `${test.duration_ms}ms`;
+  const timeStr = new Date(test.ran_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+  const expandedPanel = open && (
         <div style={{ padding: "12px 16px 16px", borderBottom: divider, background: "rgba(0,0,0,0.15)", animation: "fade-in 0.15s ease" }}>
           {/* Path hops */}
           <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 8 }}>
@@ -96,9 +73,9 @@ function TestRow({ test }: { test: ConnectivityTest }) {
                     {hop.index}
                   </span>
                   <div style={{ paddingBottom: 8, minWidth: 0, flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const, minWidth: 0 }}>
                       <span style={{ ...mono, fontSize: 9, padding: "0 5px", height: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${hc}10`, border: `1px solid ${hc}20`, color: hc, flexShrink: 0 }}>{hop.type}</span>
-                      <span style={{ fontSize: 11, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{hop.component}</span>
+                      <span style={{ fontSize: 11, color: "#e2e8f0", minWidth: 0, flex: "1 1 120px", overflowWrap: "anywhere" as const }}>{hop.component}</span>
                       <span style={{ ...mono, fontSize: 9, fontWeight: 700, color: actionColor, marginLeft: "auto", flexShrink: 0 }}>{hop.action}</span>
                     </div>
                     <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", marginTop: 2 }}>{hop.detail}</div>
@@ -110,13 +87,81 @@ function TestRow({ test }: { test: ConnectivityTest }) {
 
           {test.blocking_reason && (
             <div style={{ padding: "8px 12px", borderRadius: 6, background: test.result === "reachable" ? "rgba(0,255,136,0.05)" : "rgba(255,0,64,0.05)", border: `1px solid ${test.result === "reachable" ? "rgba(0,255,136,0.15)" : "rgba(255,0,64,0.15)"}`, marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: test.result === "reachable" ? "rgba(0,255,136,0.7)" : "rgba(255,0,64,0.8)", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: test.result === "reachable" ? "rgba(0,255,136,0.7)" : "rgba(255,0,64,0.8)", lineHeight: 1.5, overflowWrap: "anywhere" as const }}>
                 {test.result === "reachable" ? "Note: " : "Blocked: "}{test.blocking_reason}
               </div>
             </div>
           )}
         </div>
-      )}
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <button
+          type="button"
+          className="infra-row"
+          style={{
+            width: "100%",
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            padding: "10px 12px",
+            borderBottom: divider,
+            cursor: "pointer",
+            borderLeft: `2px solid ${open ? rc : "transparent"}`,
+            transition: "border-color 0.15s",
+          }}
+          onClick={() => setOpen(o => !o)}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ ...mono, fontSize: 10, fontWeight: 600, color: "#e2e8f0", overflowWrap: "anywhere", wordBreak: "break-word" as const }}>{test.source}</div>
+              <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", marginTop: 2 }}>→ {test.destination}</div>
+              <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.35)", marginTop: 2 }}>{test.source_type} · {test.destination_type}</div>
+            </div>
+            <span style={{ color: "rgba(100,116,139,0.4)", display: "flex", flexShrink: 0 }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
+          </div>
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.6)" }}>{test.protocol}:{test.port}</span>
+            <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.45)" }}>{durLabel}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              {RESULT_ICON[test.result]}
+              <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: rc }}>{test.result.toUpperCase()}</span>
+            </div>
+            <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>{timeStr}</span>
+          </div>
+        </button>
+        {expandedPanel}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className="infra-row"
+        style={{ display: "grid", gridTemplateColumns: "24px 1fr 1fr 80px 70px 100px 80px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, cursor: "pointer", borderLeft: `2px solid ${open ? rc : "transparent"}`, transition: "border-color 0.15s" }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span style={{ color: "rgba(100,116,139,0.4)", display: "flex" }}>{open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...mono, fontSize: 10, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{test.source}</div>
+          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", marginTop: 1 }}>{test.source_type}</div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...mono, fontSize: 10, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{test.destination}</div>
+          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", marginTop: 1 }}>{test.destination_type}</div>
+        </div>
+        <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.6)" }}>{test.protocol}:{test.port}</span>
+        <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.45)" }}>{durLabel}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" as const }}>
+          {RESULT_ICON[test.result]}
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: rc }}>{test.result.toUpperCase()}</span>
+        </div>
+        <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>{timeStr}</span>
+      </div>
+      {expandedPanel}
     </>
   );
 }
@@ -126,9 +171,23 @@ const TARGET_COLOR: Record<string, string> = {
   igw: "#00ff88", nat: "#38bdf8", pcx: "#a78bfa", vgw: "#60a5fa", local: "#64748b", tgw: "#8b5cf6", blackhole: "#ff0040", eni: "#ffb000",
 };
 
-function RouteRow({ route }: { route: RouteEntry }) {
+function RouteRow({ route, isMobile }: { route: RouteEntry; isMobile: boolean }) {
   const tc = TARGET_COLOR[route.target_type] ?? "#94a3b8";
   const isBlackhole = route.state === "blackhole";
+  if (isMobile) {
+    return (
+      <div className="infra-row" style={{ padding: "10px 12px", borderBottom: divider, opacity: isBlackhole ? 0.65 : 1 }}>
+        <div style={{ ...mono, fontSize: 11, fontWeight: 600, color: isBlackhole ? "#ff0040" : "#e2e8f0", overflowWrap: "anywhere", wordBreak: "break-word" as const, marginBottom: 6 }}>{route.destination}</div>
+        <div style={{ ...mono, fontSize: 10, color: tc, overflowWrap: "anywhere", wordBreak: "break-word" as const, marginBottom: 6 }}>{route.target}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <span style={{ ...mono, fontSize: 9, padding: "0 6px", height: 16, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${tc}0c`, border: `1px solid ${tc}20`, color: tc }}>{route.target_type}</span>
+          <span style={{ ...mono, fontSize: 9, fontWeight: 700, color: isBlackhole ? "#ff0040" : "#00ff88" }}>{route.state}</span>
+        </div>
+        <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)", overflowWrap: "anywhere" }}>{route.route_table_id}</div>
+        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.45)", marginTop: 4, overflowWrap: "anywhere", wordBreak: "break-word" as const }}>{route.subnet_ids.join(", ")}</div>
+      </div>
+    );
+  }
   return (
     <div className="infra-row" style={{ display: "grid", gridTemplateColumns: "130px 1fr 80px 60px 130px 1fr", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider, opacity: isBlackhole ? 0.65 : 1 }}>
       <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: isBlackhole ? "#ff0040" : "#e2e8f0" }}>{route.destination}</span>
@@ -142,18 +201,32 @@ function RouteRow({ route }: { route: RouteEntry }) {
 }
 
 // ─── DNS row ──────────────────────────────────────────────────────────────────
-function DNSRow({ r }: { r: DNSResolution }) {
+function DNSRow({ r, isMobile }: { r: DNSResolution; isMobile: boolean }) {
   const sc = r.status === "resolved" ? "#00ff88" : r.status === "nxdomain" ? "#ff6b35" : "#ff0040";
+  const latencyWarn = r.latency_ms > 100;
+  const timeStr = new Date(r.ran_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  if (isMobile) {
+    return (
+      <div className="infra-row" style={{ padding: "10px 12px", borderBottom: divider }}>
+        <div style={{ ...mono, fontSize: 10, fontWeight: 600, color: "#e2e8f0", overflowWrap: "anywhere", wordBreak: "break-word" as const, marginBottom: 6 }}>{r.hostname}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{r.resolver.replace("_", " ")}</span>
+          <span style={{ ...mono, fontSize: 10, color: latencyWarn ? "#ffb000" : "rgba(100,116,139,0.6)" }}>{r.latency_ms}ms</span>
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{r.status.toUpperCase()}</span>
+          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>{timeStr}</span>
+        </div>
+        <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.55)", overflowWrap: "anywhere", wordBreak: "break-word" as const }}>{r.resolved_ips.join(", ") || "—"}</div>
+      </div>
+    );
+  }
   return (
     <div className="infra-row" style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px 100px 1fr 80px", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: divider }}>
       <span style={{ ...mono, fontSize: 10, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.hostname}</span>
       <span style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{r.resolver.replace("_", " ")}</span>
-      <span style={{ ...mono, fontSize: 10, color: `${r.latency_ms}ms` > "100ms" ? "#ffb000" : "rgba(100,116,139,0.6)" }}>{r.latency_ms}ms</span>
+      <span style={{ ...mono, fontSize: 10, color: latencyWarn ? "#ffb000" : "rgba(100,116,139,0.6)" }}>{r.latency_ms}ms</span>
       <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: sc }}>{r.status.toUpperCase()}</span>
       <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)" }}>{r.resolved_ips.join(", ") || "—"}</span>
-      <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>
-        {new Date(r.ran_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-      </span>
+      <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>{timeStr}</span>
     </div>
   );
 }
@@ -173,27 +246,29 @@ function QuickTest({ onRun }: { onRun: (src: string, dst: string, port: string) 
   const inputStyle: React.CSSProperties = { ...mono, fontSize: 11, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "6px 10px", color: "#e2e8f0", outline: "none", width: "100%" };
 
   return (
-    <div style={{ padding: "14px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(15,23,42,0.4)", marginBottom: 14 }}>
+    <div className="min-w-0 max-w-full" style={{ padding: "14px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(15,23,42,0.4)", marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: "rgba(148,163,184,0.7)" }}>Run Connectivity Test</span>
         <MockBadge label="SIM ONLY" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px auto", gap: 8, alignItems: "end" }}>
-        <div>
+      <div className="grid w-full min-w-0 grid-cols-1 items-end gap-2 md:grid-cols-[1fr_1fr_88px_auto]">
+        <div className="min-w-0">
           <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Source</div>
           <input style={inputStyle} value={src} onChange={e => setSrc(e.target.value)} placeholder="Instance ID or IP" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Destination</div>
           <input style={inputStyle} value={dst} onChange={e => setDst(e.target.value)} placeholder="Hostname or IP" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>Port</div>
           <input style={inputStyle} value={port} onChange={e => setPort(e.target.value)} placeholder="443" />
         </div>
         <button
+          type="button"
           onClick={run}
           disabled={running}
+          className="w-full justify-center md:w-auto"
           style={{ ...mono, padding: "6px 16px", borderRadius: 5, background: running ? "rgba(255,255,255,0.03)" : "rgba(0,255,136,0.08)", border: `1px solid ${running ? "rgba(255,255,255,0.07)" : "rgba(0,255,136,0.25)"}`, color: running ? "rgba(100,116,139,0.4)" : "#00ff88", fontSize: 11, fontWeight: 600, cursor: running ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" as const }}
         >
           {running ? <><Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> Testing…</> : <><Play size={10} /> Run</>}
@@ -214,8 +289,16 @@ function TH({ children, right = false }: { children: React.ReactNode; right?: bo
 // ─── NetworkTroubleshooting ────────────────────────────────────────────────────
 export function NetworkTroubleshooting() {
   const [section, setSection] = useState<"tests" | "routes" | "dns" | "scenarios">("tests");
+  const [isMobile, setIsMobile] = useState(false);
   const [tests, setTests] = useState(MOCK_CONNECTIVITY_TESTS);
   const [lastTest, setLastTest] = useState<{ src: string; dst: string; port: string } | null>(null);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleRunTest = useCallback((src: string, dst: string, port: string) => {
     setLastTest({ src, dst, port });
@@ -245,14 +328,14 @@ export function NetworkTroubleshooting() {
   const dnsFailed = MOCK_DNS.filter(d => d.status !== "resolved").length;
 
   const SECTIONS = [
-    { id: "tests", label: "Connectivity Tests", accent: "#38bdf8", count: blocked },
-    { id: "routes", label: "Route Analysis", accent: "#a78bfa", count: blackholes },
-    { id: "dns", label: "DNS Resolution", accent: "#00ff88", count: dnsFailed },
-    { id: "scenarios", label: "Scenarios", accent: "#ffb000" },
-  ] as const;
+    { id: "tests" as const, label: "Connectivity Tests", shortLabel: "Tests", accent: "#38bdf8", count: blocked },
+    { id: "routes" as const, label: "Route Analysis", shortLabel: "Routes", accent: "#a78bfa", count: blackholes },
+    { id: "dns" as const, label: "DNS Resolution", shortLabel: "DNS", accent: "#00ff88", count: dnsFailed },
+    { id: "scenarios" as const, label: "Scenarios", shortLabel: "Scenarios", accent: "#ffb000" },
+  ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const }}>
+    <div className="min-w-0 max-w-full" style={{ display: "flex", flexDirection: "column" as const }}>
       <ModuleHeader
         icon={<Wifi size={16} color="#38bdf8" />}
         title="Network Troubleshooting"
@@ -269,15 +352,22 @@ export function NetworkTroubleshooting() {
         { label: "DNS Lookups", value: MOCK_DNS.length },
       ]} />
 
-      {/* Sub-nav */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 12, flexShrink: 0 }}>
+      {/* Sub-nav — 2×2 grid on narrow viewports */}
+      <div
+        className="grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-stretch"
+        style={{ marginBottom: 12, flexShrink: 0, boxSizing: "border-box" as const }}
+      >
         {SECTIONS.map(s => {
           const active = section === s.id;
           return (
-            <button key={s.id} className="infra-btn" onClick={() => setSection(s.id as typeof section)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: active ? `${s.accent}12` : "transparent", border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`, color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono, fontSize: 11, fontWeight: active ? 700 : 500, transition: "all 0.12s" }}
+            <button
+              key={s.id}
+              className="infra-btn min-w-0"
+              onClick={() => setSection(s.id)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "5px 10px", borderRadius: 6, background: active ? `${s.accent}12` : "transparent", border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`, color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono, fontSize: 11, fontWeight: active ? 700 : 500, transition: "all 0.12s" }}
             >
-              {s.label}
+              <span className="hidden min-w-0 truncate sm:inline">{s.label}</span>
+              <span className="sm:hidden">{s.shortLabel}</span>
               {("count" in s) && s.count > 0 && (
                 <span style={{ ...mono, fontSize: 9, fontWeight: 800, padding: "0 4px", height: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${s.accent}18`, border: `1px solid ${s.accent}30`, color: s.accent }}>{s.count}</span>
               )}
@@ -291,38 +381,49 @@ export function NetworkTroubleshooting() {
         <>
           <QuickTest onRun={handleRunTest} />
           {lastTest && (
-            <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <RotateCcw size={9} />
-              Last run: {lastTest.src} → {lastTest.dst}:{lastTest.port} (simulated)
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1" style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", marginBottom: 8 }}>
+              <RotateCcw size={9} className="shrink-0" />
+              <span style={{ overflowWrap: "anywhere" as const }}>
+                Last run: {lastTest.src} → {lastTest.dst}:{lastTest.port} (simulated)
+              </span>
               <MockBadge />
             </div>
           )}
-          <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 1fr 80px 70px 100px 80px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+          <div className="min-w-0 overflow-x-hidden" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+            <div
+              className="hidden md:grid"
+              style={{ gridTemplateColumns: "24px 1fr 1fr 80px 70px 100px 80px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
+            >
               <span /><TH>Source</TH><TH>Destination</TH><TH>Proto:Port</TH><TH>Duration</TH><TH>Result</TH><TH>Time</TH>
             </div>
-            {tests.map(t => <TestRow key={t.id} test={t} />)}
+            {tests.map(t => <TestRow key={t.id} test={t} isMobile={isMobile} />)}
           </div>
         </>
       )}
 
       {/* Routes */}
       {section === "routes" && (
-        <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 80px 60px 130px 1fr", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+        <div className="min-w-0 overflow-x-hidden" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+          <div
+            className="hidden md:grid"
+            style={{ gridTemplateColumns: "130px 1fr 80px 60px 130px 1fr", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
+          >
             <TH>Destination</TH><TH>Target</TH><TH>Type</TH><TH>State</TH><TH>Route Table</TH><TH>Subnets</TH>
           </div>
-          {MOCK_ROUTES.map((r, i) => <RouteRow key={i} route={r} />)}
+          {MOCK_ROUTES.map((r, i) => <RouteRow key={i} route={r} isMobile={isMobile} />)}
         </div>
       )}
 
       {/* DNS */}
       {section === "dns" && (
-        <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px 100px 1fr 80px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+        <div className="min-w-0 overflow-x-hidden" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+          <div
+            className="hidden md:grid"
+            style={{ gridTemplateColumns: "1fr 80px 80px 100px 1fr 80px", gap: 10, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}
+          >
             <TH>Hostname</TH><TH>Resolver</TH><TH>Latency</TH><TH>Status</TH><TH>IPs</TH><TH>Time</TH>
           </div>
-          {MOCK_DNS.map(d => <DNSRow key={d.id} r={d} />)}
+          {MOCK_DNS.map(d => <DNSRow key={d.id} r={d} isMobile={isMobile} />)}
         </div>
       )}
 

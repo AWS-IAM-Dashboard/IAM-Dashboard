@@ -31,10 +31,10 @@ function Section({ title, defaultOpen = false, children }: { title: string; defa
     <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)", marginBottom: 10 }}>
       <button
         onClick={() => setOpen(x => !x)}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", background: "rgba(255,255,255,0.02)", border: "none", cursor: "pointer" }}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", background: "rgba(255,255,255,0.02)", border: "none", cursor: "pointer", minWidth: 0 }}
       >
         {open ? <ChevronDown size={13} color="rgba(100,116,139,0.5)" /> : <ChevronRight size={13} color="rgba(100,116,139,0.5)" />}
-        <span style={{ ...mono, fontSize: 11, fontWeight: 700, color: "#e2e8f0", flex: 1, textAlign: "left" }}>{title}</span>
+        <span style={{ ...mono, fontSize: 11, fontWeight: 700, color: "#e2e8f0", flex: 1, minWidth: 0, textAlign: "left", overflowWrap: "anywhere" }}>{title}</span>
       </button>
       {open && <div style={{ padding: "0 16px 16px" }}>{children}</div>}
     </div>
@@ -124,25 +124,29 @@ export function SOCConfig() {
       />
 
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "8px 14px", borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", flex: 1 }}>
-          Last saved: {config.updated_at ? new Date(config.updated_at).toLocaleString() : "—"}
-        </span>
-        {dirty && <span style={{ ...mono, fontSize: 9, color: "#ffb000" }}>Unsaved changes</span>}
-        <button
-          onClick={handleReset}
-          className="soc-btn"
-          style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 5, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(148,163,184,0.6)", ...mono, fontSize: 10, cursor: "pointer" }}
-        >
-          <RotateCcw size={10} /> Reset to defaults
-        </button>
-        <button
-          onClick={handleSave}
-          className="soc-btn"
-          style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 14px", borderRadius: 5, background: saved ? "rgba(0,255,136,0.1)" : "rgba(0,255,136,0.08)", border: `1px solid ${saved ? "rgba(0,255,136,0.4)" : "rgba(0,255,136,0.2)"}`, color: "#00ff88", ...mono, fontSize: 10, fontWeight: 700, cursor: "pointer" }}
-        >
-          <Save size={10} /> {saved ? "Saved!" : "Save Config"}
-        </button>
+      <div style={{ marginBottom: 14, padding: "8px 14px", borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", flex: "1 1 220px", minWidth: 0, overflowWrap: "anywhere" }}>
+            Last saved: {config.updated_at ? new Date(config.updated_at).toLocaleString() : "—"}
+          </span>
+          {dirty && <span style={{ ...mono, fontSize: 9, color: "#ffb000" }}>Unsaved changes</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+          <button
+            onClick={handleReset}
+            className="soc-btn"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "5px 12px", borderRadius: 5, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(148,163,184,0.6)", ...mono, fontSize: 10, cursor: "pointer", flex: "1 1 150px" }}
+          >
+            <RotateCcw size={10} /> Reset to defaults
+          </button>
+          <button
+            onClick={handleSave}
+            className="soc-btn"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "5px 14px", borderRadius: 5, background: saved ? "rgba(0,255,136,0.1)" : "rgba(0,255,136,0.08)", border: `1px solid ${saved ? "rgba(0,255,136,0.4)" : "rgba(0,255,136,0.2)"}`, color: "#00ff88", ...mono, fontSize: 10, fontWeight: 700, cursor: "pointer", flex: "1 1 150px" }}
+          >
+            <Save size={10} /> {saved ? "Saved!" : "Save Config"}
+          </button>
+        </div>
       </div>
 
       {/* SLA Thresholds */}
@@ -150,9 +154,9 @@ export function SOCConfig() {
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 12 }}>
           {config.thresholds.map(t => (
             <div key={t.severity} style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: `1px solid ${SEV_COLOR[t.severity]}18` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
                 <SeverityBadge severity={t.severity} />
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
                   <span style={{ ...ls, fontSize: 9 }}>Page On-Call</span>
                   <button
                     onClick={() => updateThreshold(t.severity, "page_oncall", !t.page_oncall)}
@@ -162,7 +166,7 @@ export function SOCConfig() {
                   </button>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                 <NumField label="SLA" value={t.sla_hours} unit="hours" onChange={v => updateThreshold(t.severity, "sla_hours", v)} min={1} />
                 <NumField label="Auto-Escalate After" value={t.auto_escalate_hours} unit="hours" onChange={v => updateThreshold(t.severity, "auto_escalate_hours", v)} min={1} />
                 <NumField label="Suppress Duplicate" value={t.auto_suppress_duplicate_hours} unit="hours" onChange={v => updateThreshold(t.severity, "auto_suppress_duplicate_hours", v)} min={0} />
@@ -177,13 +181,8 @@ export function SOCConfig() {
         <div style={{ marginTop: 8 }}>
           {config.routing_rules.map((rule, idx) => (
             <div key={rule.id} style={{ padding: "10px 12px", borderRadius: 7, background: "rgba(255,255,255,0.02)", border: `1px solid rgba(255,255,255,${rule.enabled ? "0.07" : "0.03"})`, marginBottom: 8, opacity: rule.enabled ? 1 : 0.5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                 <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", minWidth: 18 }}>#{idx + 1}</span>
-                <input
-                  value={rule.name}
-                  onChange={e => updateRoutingRule(rule.id, "name", e.target.value)}
-                  style={{ ...mono, fontSize: 11, fontWeight: 700, background: "none", border: "none", outline: "none", color: "#e2e8f0", flex: 1 }}
-                />
                 <button
                   onClick={() => updateRoutingRule(rule.id, "enabled", !rule.enabled)}
                   style={{ background: "none", border: "none", cursor: "pointer", color: rule.enabled ? "#00ff88" : "rgba(100,116,139,0.3)", display: "flex", alignItems: "center" }}
@@ -198,7 +197,15 @@ export function SOCConfig() {
                   <Trash2 size={12} />
                 </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ ...ls, fontSize: 8, marginBottom: 3 }}>Rule Name</div>
+                <input
+                  value={rule.name}
+                  onChange={e => updateRoutingRule(rule.id, "name", e.target.value)}
+                  style={{ ...mono, fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, padding: "5px 7px", color: "#e2e8f0", outline: "none", width: "100%", boxSizing: "border-box" }}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                 <div>
                   <div style={{ ...ls, fontSize: 8, marginBottom: 3 }}>Condition</div>
                   <input
@@ -241,15 +248,15 @@ export function SOCConfig() {
         <div style={{ marginTop: 8 }}>
           {config.escalation_paths.map((ep: EscalationPath) => (
             <div key={ep.id} style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{ep.name}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap", minWidth: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", minWidth: 0, overflowWrap: "anywhere" }}>{ep.name}</span>
                 <SeverityBadge severity={ep.severity} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                 {ep.steps.map((step, si) => (
-                  <div key={si} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <div key={si} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap", minWidth: 0 }}>
                     <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", minWidth: 60 }}>+{step.delay_minutes}m</span>
-                    <span style={{ ...mono, fontSize: 10, color: "#94a3b8" }}>{step.notify}</span>
+                    <span style={{ ...mono, fontSize: 10, color: "#94a3b8", minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word", flex: "1 1 180px" }}>{step.notify}</span>
                     <span style={{ ...mono, fontSize: 9, padding: "1px 7px", borderRadius: 3, background: "rgba(148,163,184,0.07)", border: "1px solid rgba(148,163,184,0.15)", color: "rgba(148,163,184,0.5)" }}>{step.method}</span>
                   </div>
                 ))}
@@ -263,7 +270,7 @@ export function SOCConfig() {
       {/* Retention Policy */}
       <Section title="Log Retention Policy">
         <div style={{ marginTop: 8 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
             {Object.entries(config.retention).map(([key, days]) => (
               <NumField
                 key={key}

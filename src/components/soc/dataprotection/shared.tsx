@@ -83,7 +83,7 @@ export function ExpiryTimeline({
   const statusLabel = daysRemaining < 0 ? `EXPIRED ${Math.abs(daysRemaining)}d ago` : `${daysRemaining}d remaining`;
 
   return (
-    <div style={{ minWidth: 160 }}>
+    <div className="min-w-0 w-full max-w-full">
       {label && <div style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.45)", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 4 }}>{label}</div>}
       <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
         <div style={{
@@ -95,14 +95,14 @@ export function ExpiryTimeline({
         {/* "now" marker */}
         <div style={{ position: "absolute", left: `${pct}%`, top: -1, bottom: -1, width: 2, background: color, borderRadius: 1, transform: "translateX(-50%)", boxShadow: `0 0 4px ${color}` }} />
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-        <span style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.4)" }}>
+      <div className="mt-1.5 grid min-w-0 grid-cols-1 gap-y-1 sm:mt-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-x-2 sm:gap-y-0">
+        <span className="min-w-0 justify-self-start break-words text-left tabular-nums" style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.4)" }}>
           {new Date(issuedAt).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
         </span>
-        <span style={{ ...mono, fontSize: 8.5, fontWeight: 700, color }}>
+        <span className="min-w-0 justify-self-start break-words text-left sm:justify-self-center sm:text-center" style={{ ...mono, fontSize: 8.5, fontWeight: 700, color }}>
           {statusLabel}
         </span>
-        <span style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.4)" }}>
+        <span className="min-w-0 justify-self-start break-words text-left tabular-nums sm:justify-self-end sm:text-right" style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.4)" }}>
           {new Date(expiresAt).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
         </span>
       </div>
@@ -211,26 +211,51 @@ export function PolicyDiff({ lines, title, description }: { lines: PolicyLine[];
 }
 
 // ─── EvidenceAuditCard ────────────────────────────────────────────────────────
+function formatAuditTimestamp(iso: string): { line1: string; line2: string } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { line1: iso, line2: "" };
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(d);
+  return { line1: datePart, line2: timePart };
+}
+
 export function EvidenceAuditCard({ event }: { event: AuditTrailEvent }) {
   const outcomeColor = event.outcome === "success" ? "#00ff88" : event.outcome === "failure" ? "#ff0040" : "#ffb000";
   const actorColor = event.actor_type === "system" ? "#64748b" : event.actor_type === "automation" ? "#38bdf8" : event.actor_type === "external" ? "#ff6b35" : "#00ff88";
+  const { line1, line2 } = formatAuditTimestamp(event.timestamp);
   return (
-    <div style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: divider }}>
+    <div className="flex min-w-0 max-w-full gap-2.5 border-b border-white/[0.06] py-2.5 sm:gap-3">
       <div style={{ width: 28, height: 28, borderRadius: 6, background: `${outcomeColor}0a`, border: `1px solid ${outcomeColor}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         {event.outcome === "success" ? <CheckCircle2 size={12} color={outcomeColor} /> : event.outcome === "failure" ? <AlertTriangle size={12} color={outcomeColor} /> : <Clock size={12} color={outcomeColor} />}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
-          <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: actorColor }}>{event.actor}</span>
-          <span style={{ fontSize: 11, color: "#e2e8f0" }}>{event.action}</span>
-          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", marginLeft: "auto" }}>
-            {new Date(event.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-          </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="shrink-0" style={{ ...mono, fontSize: 10, fontWeight: 600, color: actorColor }}>{event.actor}</span>
+          <span className="min-w-0 flex-1 basis-full text-[11px] leading-snug text-slate-200 sm:basis-auto sm:leading-normal">{event.action}</span>
         </div>
-        <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", lineHeight: 1.4, marginBottom: 3 }}>{event.detail}</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <span style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.4)" }}>SHA: {event.evidence_hash}</span>
-          <span style={{ ...mono, fontSize: 8.5, color: "rgba(100,116,139,0.3)" }}>{event.resource_id}</span>
+        <div className="mt-2 break-words text-[10px] leading-relaxed text-slate-500">{event.detail}</div>
+        <div
+          className="mt-2 inline-flex max-w-full flex-col rounded-md bg-black/20 px-2 py-1"
+          style={{ ...mono }}
+          title={event.timestamp}
+        >
+          <span className="whitespace-nowrap text-[9px] leading-none text-slate-500 tabular-nums">{line1}</span>
+          {line2 ? <span className="mt-0.5 whitespace-nowrap text-[9px] leading-none text-slate-400 tabular-nums">{line2}</span> : null}
+        </div>
+        <div className="mt-2 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-3 sm:gap-y-1">
+          <span className="min-w-0 break-all text-[8px] leading-snug text-slate-500" style={{ ...mono }}>
+            SHA: {event.evidence_hash}
+          </span>
+          <span className="min-w-0 break-all text-[8px] leading-snug text-slate-600" style={{ ...mono }}>
+            {event.resource_id}
+          </span>
         </div>
       </div>
     </div>
@@ -270,11 +295,17 @@ export function BackendHandoff({ endpoints }: { endpoints: Array<{ method: strin
   const [open, setOpen] = useState(false);
   return (
     <div style={{ marginTop: 16, borderRadius: 8, border: "1px dashed rgba(100,116,139,0.2)", overflow: "hidden" }}>
-      <button onClick={() => setOpen(x => !x)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer", textAlign: "left" as const }}>
-        <Link size={11} color="rgba(100,116,139,0.4)" />
-        <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "rgba(100,116,139,0.45)", flex: 1 }}>Backend Integration Requirements ({endpoints.length})</span>
-        <MockBadge label="NOT WIRED" />
-        {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
+      <button onClick={() => setOpen(x => !x)} style={{ width: "100%", display: "flex", flexDirection: "column" as const, alignItems: "stretch", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer", textAlign: "left" as const }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, width: "100%" }}>
+          <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}><Link size={11} color="rgba(100,116,139,0.4)" /></span>
+          <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "rgba(148,163,184,0.82)", minWidth: 0, flex: 1, lineHeight: 1.35, overflowWrap: "anywhere" as const, wordBreak: "break-word" as const }}>Backend Integration Requirements ({endpoints.length})</span>
+          <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}>
+            {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
+          </span>
+        </div>
+        <div style={{ paddingLeft: 19, display: "flex", alignItems: "center" }}>
+          <MockBadge label="NOT WIRED" />
+        </div>
       </button>
       {open && (
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column" as const, gap: 6 }}>
@@ -294,16 +325,18 @@ export function BackendHandoff({ endpoints }: { endpoints: Array<{ method: strin
 // ─── ModuleHeader ─────────────────────────────────────────────────────────────
 export function ModuleHeader({ icon, title, subtitle, accent = "#00ff88", extra }: { icon: React.ReactNode; title: string; subtitle: string; accent?: string; extra?: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexShrink: 0 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${accent}0d`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</div>
-        <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginTop: 2 }}>{subtitle}</div>
+    <div className="mb-4 flex min-w-0 shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: `${accent}0d`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-bold leading-snug tracking-tight text-slate-200 sm:text-base">{title}</div>
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-500 break-words">{subtitle}</div>
+        </div>
       </div>
       {extra}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <Lock size={10} color="rgba(167,139,250,0.4)" />
-        <span style={{ ...mono, fontSize: 9, color: "rgba(167,139,250,0.5)", letterSpacing: "0.06em" }}>FRONTEND ONLY</span>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 pl-12 sm:shrink-0 sm:justify-end sm:pl-0">
+        <Lock size={10} color="rgba(167,139,250,0.4)" className="shrink-0" />
+        <span className="max-w-full shrink-0 text-[8px] sm:text-[9px]" style={{ ...mono, fontWeight: 500, color: "rgba(167,139,250,0.5)", letterSpacing: "0.06em" }}>FRONTEND ONLY</span>
         <MockBadge label="SIMULATED" />
       </div>
     </div>
@@ -313,11 +346,18 @@ export function ModuleHeader({ icon, title, subtitle, accent = "#00ff88", extra 
 // ─── StatStrip ────────────────────────────────────────────────────────────────
 export function StatStrip({ stats }: { stats: Array<{ label: string; value: string | number; color?: string; accent?: boolean }> }) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginBottom: 16 }}>
+    <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-2">
       {stats.map((s, i) => (
-        <div key={i} style={{ padding: "8px 14px", borderRadius: 8, background: s.accent ? `${s.color ?? "#00ff88"}08` : "rgba(15,23,42,0.8)", border: `1px solid ${s.accent ? (s.color ?? "#00ff88") + "22" : "rgba(255,255,255,0.07)"}`, display: "flex", flexDirection: "column" as const, gap: 2, flexShrink: 0 }}>
-          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{s.label}</span>
-          <span style={{ ...mono, fontSize: 18, fontWeight: 700, lineHeight: 1, color: s.color ?? "#e2e8f0" }}>{s.value}</span>
+        <div
+          key={i}
+          className="flex min-w-0 flex-col gap-0.5 rounded-lg px-2.5 py-2 md:min-w-[112px] md:flex-none md:shrink-0 md:px-3.5 md:py-2"
+          style={{
+            background: s.accent ? `${s.color ?? "#00ff88"}08` : "rgba(15,23,42,0.8)",
+            border: `1px solid ${s.accent ? (s.color ?? "#00ff88") + "22" : "rgba(255,255,255,0.07)"}`,
+          }}
+        >
+          <span className="md:text-[9px]" style={{ ...mono, fontSize: 8, color: "rgba(100,116,139,0.5)", letterSpacing: "0.08em", textTransform: "uppercase" as const, whiteSpace: "normal" as const, wordBreak: "normal" as const, lineHeight: 1.2 }}>{s.label}</span>
+          <span className="text-[15px] md:text-lg" style={{ ...mono, fontWeight: 700, lineHeight: 1, color: s.color ?? "#e2e8f0" }}>{s.value}</span>
         </div>
       ))}
     </div>
@@ -346,54 +386,67 @@ export function DPScenarioSimulator({ scenario }: { scenario: DPScenario }) {
   const sc = SEV_COLOR[scenario.severity] ?? "#ffb000";
 
   return (
-    <div style={{ borderRadius: 8, border: `1px solid ${sc}20`, background: `${sc}04`, overflow: "hidden" }}>
-      <div style={{ padding: "10px 14px", borderBottom: `1px solid ${sc}12`, display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 6, background: `${sc}10`, border: `1px solid ${sc}25`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Play size={11} color={sc} />
+    <div className="min-w-0 max-w-full" style={{ borderRadius: 8, border: `1px solid ${sc}20`, background: `${sc}04`, overflow: "hidden" }}>
+      <div
+        className="flex min-w-0 flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-2.5 sm:px-3.5"
+        style={{ borderBottom: `1px solid ${sc}12` }}
+      >
+        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+          <div style={{ width: 28, height: 28, borderRadius: 6, background: `${sc}10`, border: `1px solid ${sc}25`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Play size={11} color={sc} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="break-words text-xs font-semibold leading-snug text-slate-200 sm:text-[12px]">{scenario.name}</div>
+            <div className="mt-0.5 break-words text-[10px] leading-relaxed text-slate-500">{scenario.description}</div>
+          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{scenario.name}</div>
-          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", marginTop: 1 }}>{scenario.description}</div>
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 pl-[38px] sm:pl-0 sm:ml-auto">
+          <MockBadge label="SCENARIO" />
+          <span style={{ display: "inline-flex", alignItems: "center", padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}12`, border: `1px solid ${sc}2e`, color: sc, fontSize: 10, fontWeight: 700, ...mono }}>{scenario.severity}</span>
         </div>
-        <MockBadge label="SCENARIO" />
-        <span style={{ display: "inline-flex", alignItems: "center", padding: "0 8px", height: 18, borderRadius: 999, background: `${sc}12`, border: `1px solid ${sc}2e`, color: sc, fontSize: 10, fontWeight: 700, ...mono }}>{scenario.severity}</span>
       </div>
-      <div style={{ padding: "10px 14px" }}>
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 4, marginBottom: 10 }}>
+      <div className="min-w-0 px-3 py-2.5 sm:px-3.5">
+        <div className="mb-2.5 flex min-w-0 flex-col gap-1">
           {scenario.simulation_steps.map((s, i) => {
             const active = step === i && running;
             const done_ = step > i || (done && step >= i);
             return (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <div key={i} className="flex min-w-0 items-start gap-2">
                 <span style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", background: done_ ? "rgba(0,255,136,0.1)" : active ? `${sc}14` : "rgba(255,255,255,0.04)", border: `1px solid ${done_ ? "rgba(0,255,136,0.25)" : active ? sc + "35" : "rgba(255,255,255,0.08)"}` }}>
                   {done_ ? <CheckCircle2 size={9} color="#00ff88" /> : active ? <Loader2 size={9} color={sc} style={{ animation: "spin 1s linear infinite" }} /> : <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.15)" }} />}
                 </span>
-                <span style={{ fontSize: 11, color: done_ ? "rgba(148,163,184,0.7)" : active ? "#e2e8f0" : "rgba(100,116,139,0.45)", lineHeight: 1.4 }}>{s}</span>
+                <span className="min-w-0 flex-1 break-words text-[11px] leading-snug" style={{ color: done_ ? "rgba(148,163,184,0.7)" : active ? "#e2e8f0" : "rgba(100,116,139,0.45)" }}>{s}</span>
               </div>
             );
           })}
         </div>
         {done && (
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5 min-w-0">
             <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>Expected Findings Generated</div>
             {scenario.expected_findings.map((f, i) => (
-              <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 4 }}>
+              <div key={i} className="mb-1 flex min-w-0 items-start gap-1.5">
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: f.startsWith("CRITICAL") ? "#ff0040" : f.startsWith("HIGH") ? "#ff6b35" : "#ffb000", flexShrink: 0, marginTop: 3 }} />
-                <span style={{ fontSize: 11, color: "rgba(148,163,184,0.65)" }}>{f}</span>
+                <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-slate-400/90">{f}</span>
               </div>
             ))}
-            <div style={{ marginTop: 10 }}>
+            <div className="mt-2.5 min-w-0">
               <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.45)", letterSpacing: "0.1em", textTransform: "uppercase" as const, marginBottom: 6 }}>Remediation Preview</div>
               {scenario.remediation_preview.map((r, i) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 4 }}>
-                  <span style={{ ...mono, fontSize: 10, color: "#00ff88", flexShrink: 0 }}>{i + 1}.</span>
-                  <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)" }}>{r}</span>
+                <div key={i} className="mb-1 flex min-w-0 items-start gap-1.5">
+                  <span className="shrink-0" style={{ ...mono, fontSize: 10, color: "#00ff88" }}>{i + 1}.</span>
+                  <span className="min-w-0 flex-1 break-words text-[11px] leading-snug text-slate-500">{r}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
-        <button onClick={run} disabled={running} style={{ ...mono, padding: "6px 14px", borderRadius: 5, background: running ? "rgba(255,255,255,0.03)" : `${sc}10`, border: `1px solid ${running ? "rgba(255,255,255,0.08)" : sc + "28"}`, color: running ? "rgba(100,116,139,0.4)" : sc, fontSize: 11, fontWeight: 600, cursor: running ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+        <button
+          type="button"
+          onClick={run}
+          disabled={running}
+          className="box-border flex w-full max-w-full flex-wrap items-center justify-center gap-1.5 px-3.5 py-1.5 sm:w-auto sm:justify-start"
+          style={{ ...mono, borderRadius: 5, background: running ? "rgba(255,255,255,0.03)" : `${sc}10`, border: `1px solid ${running ? "rgba(255,255,255,0.08)" : sc + "28"}`, color: running ? "rgba(100,116,139,0.4)" : sc, fontSize: 11, fontWeight: 600, cursor: running ? "not-allowed" : "pointer" }}
+        >
           {running ? <><Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> Running…</> : <><Play size={10} /> {done ? "Re-run Scenario" : "Run Scenario"}</>}
         </button>
       </div>

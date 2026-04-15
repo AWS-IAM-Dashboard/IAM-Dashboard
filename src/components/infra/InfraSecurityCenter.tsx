@@ -1,5 +1,5 @@
 // Infrastructure Security Center — top-level container with 4 sub-tabs
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Globe, Network, Server, Wifi } from "lucide-react";
 import { EdgeSecurity } from "./EdgeSecurity";
 import { NetworkSecurity } from "./NetworkSecurity";
@@ -22,6 +22,7 @@ const flowLogGaps = MOCK_VPC_FLOW_LOGS.filter(v => !v.flow_logs_enabled).length;
 const TABS: {
   id: InfraTab;
   label: string;
+  mobileLabel?: string;
   icon: React.ReactNode;
   accent: string;
   count?: number;
@@ -30,6 +31,7 @@ const TABS: {
   {
     id: "edge",
     label: "Edge Security",
+    mobileLabel: "Edge",
     icon: <Globe size={13} />,
     accent: "#ff6b35",
     count: unprotectedEdge > 0 ? unprotectedEdge : undefined,
@@ -38,6 +40,7 @@ const TABS: {
   {
     id: "network",
     label: "Network Security",
+    mobileLabel: "Network",
     icon: <Network size={13} />,
     accent: "#38bdf8",
     count: openSGFindings > 0 ? openSGFindings : undefined,
@@ -46,6 +49,7 @@ const TABS: {
   {
     id: "compute",
     label: "Compute Security",
+    mobileLabel: "Compute",
     icon: <Server size={13} />,
     accent: "#ff6b35",
     count: criticalCompute > 0 ? criticalCompute : undefined,
@@ -54,6 +58,7 @@ const TABS: {
   {
     id: "troubleshoot",
     label: "Network Troubleshooting",
+    mobileLabel: "Troubleshoot",
     icon: <Wifi size={13} />,
     accent: "#38bdf8",
     count: flowLogGaps > 0 ? flowLogGaps : undefined,
@@ -63,18 +68,28 @@ const TABS: {
 
 export function InfraSecurityCenter() {
   const [activeTab, setActiveTab] = useState<InfraTab>("edge");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <InfraGlobalStyles />
 
       {/* Sub-nav */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 4,
-        paddingBottom: 16, overflowX: "auto", flexShrink: 0,
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        marginBottom: 20,
-      }}>
+      <div
+        className="grid grid-cols-2 gap-2 pb-4 sm:flex sm:items-center sm:gap-1 sm:overflow-x-auto"
+        style={{
+          flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          marginBottom: 20,
+        }}
+      >
         {TABS.map(tab => {
           const isActive = tab.id === activeTab;
           return (
@@ -83,18 +98,25 @@ export function InfraSecurityCenter() {
               onClick={() => setActiveTab(tab.id)}
               className="infra-btn"
               style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 6,
+                display: "flex", alignItems: "center", gap: isMobile ? 4 : 6,
+                flexDirection: isMobile ? "column" : "row",
+                justifyContent: "center",
+                width: "100%",
+                padding: isMobile ? "8px 10px" : "6px 12px", borderRadius: 6,
                 background: isActive ? `${tab.accent}14` : "transparent",
                 border: `1px solid ${isActive ? tab.accent + "35" : "rgba(255,255,255,0.06)"}`,
                 color: isActive ? tab.accent : "rgba(100,116,139,0.5)",
-                cursor: "pointer", whiteSpace: "nowrap",
-                ...mono, fontSize: 11, fontWeight: isActive ? 700 : 500,
+                cursor: "pointer",
+                ...mono, fontSize: isMobile ? 10 : 11, fontWeight: isActive ? 700 : 500,
                 transition: "all 0.12s",
+                minHeight: isMobile ? 54 : 34,
+                minWidth: 0,
               }}
             >
               <span style={{ opacity: isActive ? 1 : 0.55, display: "flex" }}>{tab.icon}</span>
-              {tab.label}
+              <span style={{ textAlign: "center", lineHeight: 1.2, whiteSpace: isMobile ? "normal" : "nowrap" }}>
+                {isMobile ? (tab.mobileLabel ?? tab.label) : tab.label}
+              </span>
               {tab.count !== undefined && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -112,7 +134,7 @@ export function InfraSecurityCenter() {
         })}
 
         {/* Global context badge */}
-        <div style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="col-span-2 flex items-center justify-end gap-2 sm:ml-auto sm:col-span-1" style={{ minWidth: 0 }}>
           <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.35)" }}>Acct 123456789012</span>
           <MockBadge label="FRONTEND MODULE" />
         </div>

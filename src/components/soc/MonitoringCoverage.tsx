@@ -61,11 +61,11 @@ export function MonitoringCoverage() {
         { label: "Services", value: services.length, color: "#94a3b8" },
       ]} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 12 }}>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* Coverage matrix */}
-        <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
+        <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflowX: "auto", overflowY: "hidden", background: "rgba(15,23,42,0.8)" }}>
           {/* Header */}
-          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr 1fr 80px 80px", gap: 0, padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr 1fr 80px 80px", gap: 0, padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)", minWidth: 620 }}>
             <span style={ls}>Service</span>
             {REGIONS.map(r => <span key={r} style={{ ...ls, textAlign: "center" }}>{r.replace("us-", "").replace("eu-", "eu-")}</span>)}
             <span style={{ ...ls, textAlign: "center" }}>Detectors</span>
@@ -81,7 +81,7 @@ export function MonitoringCoverage() {
                 key={svc.id}
                 className="soc-row"
                 onClick={() => setSelected(isSelected ? null : svc)}
-                style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr 1fr 80px 80px", gap: 0, padding: "8px 12px", borderBottom: divider, cursor: "pointer", background: isSelected ? "rgba(56,189,248,0.04)" : "transparent", borderLeft: `2px solid ${isSelected ? "#38bdf8" : "transparent"}`, transition: "border-color 0.1s" }}
+                style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr 1fr 80px 80px", gap: 0, padding: "8px 12px", borderBottom: divider, cursor: "pointer", background: isSelected ? "rgba(56,189,248,0.04)" : "transparent", borderLeft: `2px solid ${isSelected ? "#38bdf8" : "transparent"}`, transition: "border-color 0.1s", minWidth: 620 }}
               >
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>{svc.name}</div>

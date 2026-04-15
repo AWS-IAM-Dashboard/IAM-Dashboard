@@ -20,6 +20,7 @@ import { FindingsTablePagination } from "./FindingsTablePagination";
 import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
 import { GlobePulse, AWS_REGION_MARKERS } from "./ui/cobe-globe-pulse";
 import { SeverityBadge } from "./ui/SeverityBadge";
+import { cn } from "./ui/utils";
 
 // ── Workflow constants — module-level so they aren't recreated every render ──
 const IR_PIPELINE: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
@@ -219,6 +220,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   const statsRef = useRef(stats);
   const wasScanning = useRef(false);
   const [scanDelta, setScanDelta] = useState<{ critical: number; high: number; total: number; compliance: number } | null>(null);
+  /** false = triage/scorecards + primary tables only; true = maps, topology, charts, ops rail, quick nav */
+  const [showExtendedDetails, setShowExtendedDetails] = useState(() => sessionStorage.getItem("dash-extended") === "1");
 
   const generateWeeklyTrends = useCallback((summary: any, compliance: any) => {
     // Generate placeholder weekly trends based on current compliance score
@@ -472,6 +475,10 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     sessionStorage.setItem("dash-mode", mode);
     setExpandedRow(null);
   }, [mode]);
+
+  useEffect(() => {
+    sessionStorage.setItem("dash-extended", showExtendedDetails ? "1" : "0");
+  }, [showExtendedDetails]);
 
   useEffect(() => {
     if (allFindings.length === 0) return;
@@ -872,12 +879,17 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
   }, [allFindings, workflows]);
 
   return (
-    <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+    <div
+      className={cn(
+        "flex min-w-0 flex-col p-3 sm:p-5 md:px-7 md:py-6",
+        showExtendedDetails ? "gap-6 pb-6 sm:pb-8" : "gap-4 pb-0",
+        mode === "ir" && !showExtendedDetails && "max-md:pb-0",
+      )}
+    >
       <DemoModeBanner />
 
-      {/* ── Page Header ──────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const }}>
-        {/* Left: icon + title + subtitle */}
+      {/* ── Page Header — Desktop (md+): original row layout ── */}
+      <div className="hidden md:flex" style={{ alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 8, flexShrink: 0,
@@ -898,21 +910,33 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </div>
         </div>
 
-        {/* Right: mode toggle + progress + refresh + scan */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-          {/* Mode toggle */}
+          <button
+            type="button"
+            onClick={() => setShowExtendedDetails((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 12px", borderRadius: 6,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(148,163,184,0.7)", fontSize: 12, fontWeight: 500, cursor: "pointer",
+            }}
+            title={showExtendedDetails ? "Hide maps, charts, and side panels" : "Show maps, charts, workflow rail, and quick links"}
+          >
+            {showExtendedDetails ? "Essential only" : "Full detail"}
+          </button>
           <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: 2, gap: 2 }}>
             {([["ir", "IR Mode"], ["audit", "Audit"]] as const).map(([m, label]) => (
               <button
                 key={m}
+                type="button"
                 onClick={() => setMode(m)}
                 style={{
                   padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: mode === m ? 700 : 400, cursor: "pointer",
                   background: mode === m ? (m === "ir" ? "rgba(255,0,64,0.12)" : "rgba(14,165,233,0.1)") : "transparent",
                   border: mode === m ? `1px solid ${m === "ir" ? "rgba(255,0,64,0.28)" : "rgba(14,165,233,0.22)"}` : "1px solid transparent",
                   color: mode === m ? (m === "ir" ? "#ff0040" : "#0ea5e9") : "rgba(100,116,139,0.7)",
-                  letterSpacing: "0.04em",
-                  transition: "all 0.12s",
+                  letterSpacing: "0.04em", transition: "all 0.12s",
                 }}
               >{label}</button>
             ))}
@@ -924,15 +948,14 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               borderRadius: 8, padding: "8px 12px",
             }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00ff88", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
-              <span style={{ fontSize: 12, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
-                {scanProgress}%
-              </span>
+              <span style={{ fontSize: 12, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>{scanProgress}%</span>
               <div style={{ width: 80, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
                 <div className="scan-progress-fill" style={{ width: `${scanProgress}%` }} />
               </div>
             </div>
           )}
           <button
+            type="button"
             onClick={refreshStats}
             disabled={statsLoading}
             className="ghost-btn"
@@ -947,6 +970,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             <RefreshCw size={14} style={statsLoading ? { animation: "spin 1s linear infinite" } : {}} />
           </button>
           <button
+            type="button"
             onClick={handleQuickScan}
             disabled={isScanning}
             className="scan-btn"
@@ -960,9 +984,99 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               opacity: isScanning ? 0.7 : 1,
             }}
           >
-            {isScanning
-              ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-              : <Play size={14} />}
+            {isScanning ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={14} />}
+            {isScanning ? "Scanning…" : "Full Security Scan"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Page Header — Mobile (<md): stacked touch-friendly toolbar ── */}
+      <div className="flex flex-col gap-4 md:hidden">
+        <div className="flex justify-start">
+          <div className="flex items-center gap-3 text-left">
+            <div style={{
+              width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+              background: "rgba(0,255,136,0.1)",
+              border: "1px solid rgba(0,255,136,0.22)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Shield size={20} color="#00ff88" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+                Security Overview
+              </h1>
+              <p style={{ fontSize: 12, color: "rgba(100,116,139,0.75)", margin: "4px 0 0", lineHeight: 1.4 }}>
+                Real-time posture · Last scan:{" "}
+                <span style={{ color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>{stats.last_scan}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2"
+          role="toolbar"
+          aria-label="Security overview actions"
+        >
+          <button
+            type="button"
+            onClick={() => setShowExtendedDetails((v) => !v)}
+            className="ghost-btn flex min-h-12 w-full flex-1 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] px-3 text-sm font-semibold text-slate-100 shadow-sm transition-colors hover:border-[#00ff88]/40 hover:bg-white/[0.09] sm:min-w-0"
+            title={showExtendedDetails ? "Hide maps, charts, and side panels" : "Show maps, charts, workflow rail, and quick links"}
+          >
+            {showExtendedDetails ? "Essential only" : "Full detail"}
+          </button>
+
+          <div
+            className="flex min-h-12 w-full flex-[1.4] min-w-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] sm:w-auto"
+            role="group"
+            aria-label="Overview mode"
+          >
+            {([["ir", "IR Mode"], ["audit", "Audit"]] as const).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className="min-h-12 flex-1 px-2 py-3 text-sm font-semibold tracking-wide transition-colors sm:px-4"
+                style={{
+                  background: mode === m ? (m === "ir" ? "rgba(255,0,64,0.22)" : "rgba(14,165,233,0.18)") : "transparent",
+                  color: mode === m ? (m === "ir" ? "#fda4af" : "#7dd3fc") : "rgba(148,163,184,0.95)",
+                  boxShadow: mode === m ? (m === "ir" ? "inset 0 0 0 1px rgba(255,0,64,0.35)" : "inset 0 0 0 1px rgba(14,165,233,0.35)") : "none",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {isScanning && (
+            <div className="flex min-h-12 w-full flex-1 items-center justify-center gap-3 rounded-lg border border-[rgba(0,255,136,0.28)] bg-[rgba(0,255,136,0.08)] px-4 py-2 sm:w-auto">
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#00ff88]" style={{ animation: "pulse 1.5s ease-in-out infinite" }} />
+              <span className="font-mono text-sm font-bold text-[#00ff88]">{scanProgress}%</span>
+              <div className="h-1 min-w-0 flex-1 max-w-[140px] overflow-hidden rounded-full bg-white/[0.1]">
+                <div className="scan-progress-fill h-full rounded-full" style={{ width: `${scanProgress}%` }} />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={refreshStats}
+            disabled={statsLoading}
+            className="ghost-btn flex min-h-12 w-full shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.05] text-slate-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-14"
+            title="Refresh stats"
+          >
+            <RefreshCw size={18} className={statsLoading ? "animate-spin" : ""} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickScan}
+            disabled={isScanning}
+            className="scan-btn flex min-h-12 w-full flex-[1.3] items-center justify-center gap-2 rounded-lg border border-[rgba(0,255,136,0.38)] bg-[rgba(0,255,136,0.12)] px-4 text-sm font-bold text-[#00ff88] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:bg-[rgba(0,255,136,0.18)] disabled:cursor-not-allowed disabled:opacity-70 sm:min-w-0"
+          >
+            {isScanning ? <RefreshCw size={18} className="animate-spin" /> : <Play size={18} />}
             {isScanning ? "Scanning…" : "Full Security Scan"}
           </button>
         </div>
@@ -993,7 +1107,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               { color: Object.values(workflows).filter(w => w.status !== "REMEDIATED" && w.status !== "FALSE_POSITIVE" && w.status !== "RISK_ACCEPTED").length > 0 ? "#ffb000" : "#00ff88", label: "OPEN ACTIONS", value: Object.values(workflows).filter(w => w.status !== "REMEDIATED" && w.status !== "FALSE_POSITIVE" && w.status !== "RISK_ACCEPTED").length, sub: "in workflow", nav: "alerts", deltaKey: null },
             ];
         return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
             {kpiCards.map((card) => {
               let delta: number | null = null;
               let lowerIsBetter = true;
@@ -1011,7 +1125,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   key={card.label}
                   className="kpi-card"
                   onClick={() => onNavigate?.(card.nav)}
-                  style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${card.color}26`, borderRadius: 10, padding: "16px 20px", position: "relative", overflow: "hidden", cursor: "pointer" }}
+                  style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${card.color}26`, borderRadius: 10, padding: "14px 16px", position: "relative", overflow: "hidden", cursor: "pointer" }}
                 >
                   <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${card.color}88, transparent)` }} />
                   <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.7)", letterSpacing: "0.08em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
@@ -1027,7 +1141,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       )}
                     </div>
                   )}
-                  <p style={{ fontSize: 11, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace" }}>{card.sub}</p>
+                  <p className="break-words text-[11px] leading-snug text-slate-500" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{card.sub}</p>
                 </div>
               );
             })}
@@ -1061,7 +1175,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
 
       {/* ── Threat Level Banner (IR mode, shown before posture strip) ── */}
       {mode === "ir" && stats.security_findings > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: threatLevel.bg, border: `1px solid ${threatLevel.border}`, borderRadius: 10 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 8, columnGap: 12, padding: "12px 20px", background: threatLevel.bg, border: `1px solid ${threatLevel.border}`, borderRadius: 10 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700, color: "rgba(100,116,139,0.65)", letterSpacing: "0.14em" }}>THREAT LEVEL</span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: threatLevel.color, letterSpacing: "0.04em" }}>{threatLevel.label}</span>
           <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
@@ -1076,8 +1190,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
         </div>
       )}
 
-      {/* ── Attack Surface Distribution (IR mode only) ────────── */}
-      {mode === "ir" && (
+      {/* ── Attack Surface Distribution (IR mode only, optional) ─ */}
+      {mode === "ir" && showExtendedDetails && (
         <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "16px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1109,18 +1223,24 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       {/* ── IR Mode ────────────────────────────────────────── */}
       {mode === "ir" && (
         <>
-          {/* Main 63/37 grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 16, alignItems: "stretch" }}>
+          {/* Main grid: full width triage in essential mode; + ops rail when extended */}
+          <div
+            className={
+              showExtendedDetails
+                ? "grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_308px] xl:items-start"
+                : "grid grid-cols-1 gap-4"
+            }
+          >
 
             {/* ── TRIAGE QUEUE ─── */}
-            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            <div className="min-w-0 w-full" style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
 
               {/* Header */}
               <div style={{ position: "relative", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(255,0,64,0.9), rgba(255,0,64,0.04))" }} />
                 <div style={{ padding: "16px 20px 0" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Triage Queue</span>
                       {triageFindings.length > 0 && (
                         <span style={{ fontSize: 10, fontWeight: 700, color: "#ff0040", background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.25)", padding: "4px 8px", borderRadius: 999, fontFamily: "'JetBrains Mono', monospace" }}>
@@ -1137,7 +1257,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   </div>
                   {/* Ops situational strip */}
                   {triageFindings.length > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, paddingTop: 8, paddingBottom: 12 }}>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3 pt-2">
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ff0040", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px rgba(255,0,64,0.9)" }} />
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#ff0040", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em" }}>{triageFindings.filter((f: any) => (f.severity ?? "").toUpperCase() === "CRITICAL").length} CRITICAL</span>
@@ -1155,7 +1275,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                         </div>
                       )}
                       {workflowPipeline.some(s => s.count > 0) && (
-                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+                        <div className="flex w-full items-center gap-2 pt-1 sm:ml-auto sm:w-auto sm:pt-0" style={{ marginLeft: "auto" }}>
+                          <span style={{ fontSize: 9, color: "rgba(100,116,139,0.65)", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}>Pipeline</span>
                           {workflowPipeline.filter(s => s.count > 0).map(stage => (
                             <div key={stage.key} style={{ display: "flex", alignItems: "center", gap: 3 }}>
                               <span style={{ width: 4, height: 4, borderRadius: "50%", background: stage.color, display: "inline-block", boxShadow: `0 0 5px ${stage.color}` }} />
@@ -1169,27 +1290,106 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 </div>
               </div>
 
-              {/* Column headers — EC2-identical */}
-              {triageFindings.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 120px 92px 110px 72px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
-                  <div />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingLeft: 12 }}>Alert / Resource</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Severity</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Status</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>SLA</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Assignee</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Risk /10</span>
-                </div>
-              )}
-
-              {/* Rows */}
+              {/* Column headers + rows — scroll horizontally on narrow screens so columns stay readable */}
               {triageFindings.length === 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px" }}>
                   <Shield style={{ width: 40, height: 40, color: "rgba(0,255,136,0.2)", marginBottom: 16 }} />
                   <p style={{ fontSize: 13, fontWeight: 500, color: "rgba(148,163,184,0.5)", margin: 0 }}>Queue is clear</p>
                   <p style={{ fontSize: 11, color: "rgba(100,116,139,0.35)", margin: "6px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Run a security scan to populate the queue.</p>
                 </div>
-              ) : triageFindings.map((finding: any, idx: number) => {
+              ) : (
+                <>
+                {/* Mobile: stacked cards — no horizontal scroll */}
+                <div className="flex flex-col md:hidden">
+                  {triageFindings.map((finding: any, idx: number) => {
+                    const score = calcPriority(finding);
+                    const sev = finding.severity ?? "Medium";
+                    const sevUpper = sev.toUpperCase();
+                    const rowId = finding.id || finding.resource_arn || `ir-${idx}`;
+                    const SLA_HOURS: Record<string, number> = { CRITICAL: 4, HIGH: 24, MEDIUM: 168, LOW: 720 };
+                    const slaHours = SLA_HOURS[sevUpper] ?? 24;
+                    const elapsedHours = finding.timestamp ? (Date.now() - new Date(finding.timestamp).getTime()) / 3600000 : 0;
+                    const slaRemaining = slaHours - elapsedHours;
+                    const slaBreached = slaRemaining < 0;
+                    const wf: WorkflowData = workflows[rowId] ?? {
+                      status: "NEW",
+                      assignee: "",
+                      first_seen: finding.timestamp ?? new Date().toISOString(),
+                      timeline: [],
+                    };
+                    const wfWithSla: WorkflowData = { ...wf, sla_hours_remaining: slaRemaining, sla_breached: slaBreached };
+                    const isExpanded = expandedRow === rowId;
+                    const isLast = idx === triageFindings.length - 1;
+                    return (
+                      <div key={rowId} className="border-b border-white/[0.06]">
+                        <button
+                          type="button"
+                          className="w-full text-left px-4 py-3.5 transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+                          onClick={() => setExpandedRow(isExpanded ? null : rowId)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-semibold text-slate-200">
+                                {finding.resource_name || finding.resource_arn?.split("/").pop() || "Unknown"}
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5 break-words">
+                                {finding.finding_type || finding.type || finding.title || "Security Finding"}
+                              </div>
+                            </div>
+                            <SeverityBadge severity={sev} size="sm" />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <SeverityBadge severity={wf.status} size="sm" />
+                            {wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE" && wf.status !== "RISK_ACCEPTED" ? (
+                              <span className="text-[11px] font-mono font-semibold" style={{ color: slaBreached ? "#ff0040" : slaRemaining < 4 ? "#ffb000" : "#00ff88" }}>
+                                {slaBreached ? `${Math.abs(Math.round(slaRemaining))}h overdue` : slaRemaining < 24 ? `${Math.round(slaRemaining)}h left` : `${Math.round(slaRemaining / 24)}d left`}
+                              </span>
+                            ) : null}
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {wf.assignee ? `Assignee: ${wf.assignee}` : "Unassigned"}
+                            </span>
+                            <span className="text-[12px] font-mono font-bold ml-auto" style={{ color: score >= 9 ? "#ff0040" : score >= 7 ? "#ff6b35" : score >= 5 ? "#ffb000" : "#00ff88" }}>
+                              {score.toFixed(0)}/10
+                            </span>
+                          </div>
+                        </button>
+                        {isExpanded && (
+                          <div className="px-3 pb-3">
+                            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Description</div>
+                              <div className="text-[11px] leading-relaxed text-slate-300">
+                                {finding.description || finding.recommendation || "Security misconfiguration detected."}
+                              </div>
+                              {finding.recommendation ? (
+                                <>
+                                  <div className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Recommendation</div>
+                                  <div className="text-[11px] leading-relaxed text-slate-300">{finding.recommendation}</div>
+                                </>
+                              ) : null}
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                {finding.region ? `Region: ${finding.region}` : ""}
+                                {finding.account_id ? ` · Account: ${finding.account_id}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden md:block w-full overflow-x-auto">
+                  <div className="min-w-[720px]">
+                    <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 120px 92px 110px 72px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+                      <div />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingLeft: 12 }}>Alert / Resource</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Severity</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Status</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>SLA</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Assignee</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.9)", letterSpacing: "0.12em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Risk /10</span>
+                    </div>
+                    {triageFindings.map((finding: any, idx: number) => {
                 const score = calcPriority(finding);
                 const sev = finding.severity ?? "Medium";
                 const sevUpper = sev.toUpperCase();
@@ -1220,8 +1420,8 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                       onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                     >
                       {/* Left severity bar — EC2-identical */}
-                      <div style={{ position: "relative", height: "100%" }}>
-                        <div style={{ position: "absolute", left: 0, width: 4, top: -12, bottom: -12, background: wf.status === "REMEDIATED" ? "#00ff88" : sevColor, borderRadius: "0 2px 2px 0", opacity: 0.85 }} />
+                      <div style={{ position: "relative", alignSelf: "stretch" }}>
+                        <div style={{ position: "absolute", left: 0, width: 4, top: 0, bottom: 0, background: wf.status === "REMEDIATED" ? "#00ff88" : sevColor, borderRadius: "0 2px 2px 0", opacity: 0.85 }} />
                       </div>
 
                       {/* Finding: chevron + resource name + id + finding type */}
@@ -1328,10 +1528,15 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                   </div>
                 );
               })}
+                  </div>
+                </div>
+                </>
+              )}
             </div>
 
-            {/* ── OPERATIONS RAIL ─── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
+            {/* ── OPERATIONS RAIL (full detail only) ─── */}
+            {showExtendedDetails ? (
+            <div className="min-w-0" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
               {/* Workflow Pipeline — unique info, not a KPI duplicate */}
               <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
@@ -1422,7 +1627,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
 
               {/* Responder Board */}
-              <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative", flex: 1, display: "flex", flexDirection: "column" }}>
+              <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(129,140,248,0.7), transparent)" }} />
                 <div style={{ padding: "12px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace" }}>Responder Board</span>
@@ -1430,7 +1635,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                     {TRIAGE_ASSIGNEES.filter(n => Object.values(workflows).some(wf => wf.assignee === n)).length} active
                   </span>
                 </div>
-                <div style={{ flex: 1, overflowY: "auto" }}>
+                <div className="max-h-[min(50vh,360px)] overflow-y-auto">
                   {TRIAGE_ASSIGNEES.map((name, ni) => {
                     const wfVals = Object.values(workflows);
                     const assigned = wfVals.filter(wf => wf.assignee === name && wf.status !== "REMEDIATED" && wf.status !== "FALSE_POSITIVE").length;
@@ -1465,6 +1670,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 </div>
               </div>
             </div>
+            ) : null}
           </div>
         </>
       )}
@@ -1473,7 +1679,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       {mode === "audit" && (
         <>
           {/* Framework Scorecards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
             {(() => {
               const subtitles: Record<string, string> = { "SOC 2": "Type II Controls", "CIS": "Benchmark v8", "NIST": "CSF 2.0", "PCI": "DSS 4.0" };
               const totals: Record<string, number> = { "SOC 2": 96, "CIS": 84, "NIST": 108, "PCI": 112 };
@@ -1544,10 +1750,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             })()}
           </div>
 
-          {/* ── Global Infrastructure Coverage ───────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {showExtendedDetails && (
+          <>
+          {/* ── Global Infrastructure Coverage (globe + region stacked — avoids grid row stretching to globe height) ─ */}
+          <div className="flex min-w-0 flex-col gap-4">
             {/* Globe panel */}
-            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+            <div className="min-w-0" style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
               <div style={{ padding: "16px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
@@ -1567,7 +1775,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             </div>
 
             {/* Region coverage table */}
-            <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+            <div className="min-w-0" style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
               <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Region Coverage</span>
@@ -1624,14 +1832,14 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           {/* ── Availability Zone Topology ──────────────────────────── */}
           <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, rgba(0,255,136,0.88), transparent)" }} />
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="flex flex-col gap-3 border-b border-white/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Availability Zone Topology</span>
                 <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>
                   {AZ_TOPOLOGY.length} regions · {AZ_TOPOLOGY.reduce((s, r) => s + r.azs.length, 0)} AZs
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 {[
                   { dot: "#00ff88", label: "Healthy" },
                   { dot: "#ffb000", label: "No detection" },
@@ -1644,7 +1852,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 ))}
               </div>
             </div>
-            <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-3">
               {AZ_TOPOLOGY.map((reg) => {
                 const totalInstances = reg.azs.reduce((s, az) => s + az.instances, 0);
                 const totalFindings  = reg.azs.reduce((s, az) => s + az.findings,  0);
@@ -1714,16 +1922,16 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </div>
 
           {/* Charts row: Compliance Trend (2/3) + Control Status (1/3) */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:gap-4">
             {/* Compliance Trend — AreaChart */}
             <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div className="relative flex flex-col gap-3 border-b border-white/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #0ea5e988, transparent)" }} />
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Compliance Trend</span>
                   <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace", marginLeft: 10 }}>7-day window</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div className="flex flex-wrap items-center gap-4 sm:gap-4">
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#0ea5e9" }} />
                     <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)" }}>Score %</span>
@@ -1800,153 +2008,199 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Control Failures table — the primary work surface */}
           <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
-            {/* Header */}
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+            {/* Header — title / actions / framework filters in separate rows */}
+            <div className="relative border-b border-white/[0.06] px-4 py-4 sm:px-5 sm:py-4">
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #ff004088, transparent)" }} />
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Control Failures</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 999, padding: "2px 8px" }}>
-                    {controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter).length}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    onClick={() => onNavigate?.("reports")}
-                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
-                  >
-                    <CheckCircle style={{ width: 12, height: 12 }} />
-                    Generate Report
-                  </button>
-                  <button
-                    onClick={() => onNavigate?.("alerts")}
-                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.5)", background: "none", border: "none", cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em", padding: "4px 0", transition: "color 0.1s" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#94a3b8")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(100,116,139,0.5)")}
-                  >VIEW ALL →</button>
-                </div>
-              </div>
-              {/* Framework filter pills */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {(["all", "SOC 2", "CIS", "NIST 800-53", "PCI DSS"] as const).map((fw) => {
-                  const active = auditFrameworkFilter === fw;
-                  const fwColor = fw === "SOC 2" ? "#00ff88" : fw === "CIS" ? "#ffb000" : fw === "NIST 800-53" ? "#0ea5e9" : fw === "PCI DSS" ? "#a855f7" : "#94a3b8";
-                  const count = fw === "all" ? controlFailures.length : controlFailures.filter(c => c.framework === fw).length;
-                  return (
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Control Failures</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.6)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 999, padding: "2px 8px" }}>
+                      {controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter).length}
+                    </span>
+                  </div>
+                  <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end md:w-auto">
                     <button
-                      key={fw}
-                      onClick={() => setAuditFrameworkFilter(fw)}
-                      style={{
-                        fontSize: 10, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.04em",
-                        padding: "3px 10px", borderRadius: 999, cursor: "pointer", transition: "all 0.1s",
-                        color: active ? (fw === "all" ? "#e2e8f0" : fwColor) : "rgba(100,116,139,0.6)",
-                        background: active ? (fw === "all" ? "rgba(255,255,255,0.08)" : `${fwColor}14`) : "rgba(255,255,255,0.03)",
-                        border: active ? `1px solid ${fw === "all" ? "rgba(255,255,255,0.16)" : `${fwColor}30`}` : "1px solid rgba(255,255,255,0.06)",
-                      }}
-                      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}}
-                      onMouseLeave={e => { if (!active) { e.currentTarget.style.color = "rgba(100,116,139,0.6)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}}
+                      type="button"
+                      onClick={() => onNavigate?.("reports")}
+                      className="inline-flex min-h-10 w-full min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-[rgba(0,255,136,0.28)] bg-[rgba(0,255,136,0.1)] px-4 text-xs font-semibold text-[#00ff88] transition-colors hover:border-[rgba(0,255,136,0.45)] hover:bg-[rgba(0,255,136,0.14)] sm:w-auto sm:min-w-[140px]"
                     >
-                      {fw === "all" ? "ALL" : fw} <span style={{ opacity: 0.6 }}>({count})</span>
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                      Generate Report
                     </button>
-                  );
-                })}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.("alerts")}
+                      className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-white/[0.1] bg-white/[0.04] px-4 text-xs font-semibold tracking-wide text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.07] sm:w-auto sm:min-w-[100px]"
+                    >
+                      View all →
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Framework</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(["all", "SOC 2", "CIS", "NIST 800-53", "PCI DSS"] as const).map((fw) => {
+                      const active = auditFrameworkFilter === fw;
+                      const fwColor = fw === "SOC 2" ? "#00ff88" : fw === "CIS" ? "#ffb000" : fw === "NIST 800-53" ? "#0ea5e9" : fw === "PCI DSS" ? "#a855f7" : "#94a3b8";
+                      const count = fw === "all" ? controlFailures.length : controlFailures.filter(c => c.framework === fw).length;
+                      return (
+                        <button
+                          key={fw}
+                          type="button"
+                          onClick={() => setAuditFrameworkFilter(fw)}
+                          className="min-h-9 rounded-full border px-3 py-1.5 text-[11px] font-semibold font-mono tracking-wide transition-colors"
+                          style={{
+                            color: active ? (fw === "all" ? "#e2e8f0" : fwColor) : "rgba(100,116,139,0.75)",
+                            background: active ? (fw === "all" ? "rgba(255,255,255,0.08)" : `${fwColor}18`) : "rgba(255,255,255,0.03)",
+                            borderColor: active ? (fw === "all" ? "rgba(255,255,255,0.2)" : `${fwColor}40`) : "rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          {fw === "all" ? "All" : fw} <span className="opacity-60">({count})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Column headers */}
-            <div style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              <div />
-              {["CONTROL ID", "FAILING CONTROL", "FRAMEWORK", "SEVERITY", "STATUS", "AGE"].map(h => (
-                <div key={h} style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingRight: 12 }}>{h}</div>
-              ))}
-            </div>
+            {/* Column headers + rows — mobile: stacked cards; desktop: wide table + optional inner scroll */}
+            {(() => {
+              const filtered = controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter);
+              if (filtered.length === 0) {
+                return (
+                  <div style={{ padding: "40px 20px", textAlign: "center" as const }}>
+                    <CheckCircle style={{ width: 24, height: 24, color: "#00ff88", margin: "0 auto 10px", display: "block", opacity: 0.5 }} />
+                    <p style={{ fontSize: 13, color: "rgba(100,116,139,0.65)", margin: 0 }}>No control failures for this framework</p>
+                  </div>
+                );
+              }
+              const rowInner = (ctrl: (typeof controlFailures)[number]) => {
+                const sev = (ctrl.severity ?? "").toUpperCase();
+                const sevColor = sev === "CRITICAL" ? "#ff0040" : sev === "HIGH" ? "#ff6b35" : sev === "MEDIUM" ? "#ffb000" : "#00ff88";
+                const sevBg    = sev === "CRITICAL" ? "rgba(255,0,64,0.08)" : sev === "HIGH" ? "rgba(255,107,53,0.08)" : sev === "MEDIUM" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
+                const sevBdr   = sev === "CRITICAL" ? "rgba(255,0,64,0.28)" : sev === "HIGH" ? "rgba(255,107,53,0.28)" : sev === "MEDIUM" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
+                const st = ctrl.status as WorkflowStatus;
+                const stColor  = st === "REMEDIATED" ? "#00ff88" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "#ffb000" : st === "ASSIGNED" ? "#38bdf8" : st === "TRIAGED" ? "#a78bfa" : "#60a5fa";
+                const stBg     = st === "REMEDIATED" ? "rgba(0,255,136,0.06)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.08)" : st === "ASSIGNED" ? "rgba(56,189,248,0.08)" : st === "TRIAGED" ? "rgba(167,139,250,0.08)" : "rgba(96,165,250,0.08)";
+                const stBdr    = st === "REMEDIATED" ? "rgba(0,255,136,0.22)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.28)" : st === "ASSIGNED" ? "rgba(56,189,248,0.28)" : st === "TRIAGED" ? "rgba(167,139,250,0.28)" : "rgba(96,165,250,0.22)";
+                const fwColor  = ctrl.framework === "SOC 2" ? "#00ff88" : ctrl.framework === "CIS" ? "#ffb000" : ctrl.framework === "NIST 800-53" ? "#0ea5e9" : "#a855f7";
+                const ageDays  = parseInt(ctrl.age, 10) || 0;
+                const ageColor = ageDays >= 30 ? "#ff0040" : ageDays >= 14 ? "#ffb000" : "rgba(100,116,139,0.6)";
+                return { sevColor, sevBg, sevBdr, stColor, stBg, stBdr, fwColor, ageColor, ageDays };
+              };
+              return (
+                <>
+                  <div className="flex flex-col border-t border-white/[0.06] md:hidden">
+                    {filtered.map((ctrl) => {
+                      const r = rowInner(ctrl);
+                      return (
+                        <button
+                          key={ctrl.rowId}
+                          type="button"
+                          className="w-full border-b border-white/[0.06] px-4 py-3.5 text-left transition-colors hover:bg-white/[0.04]"
+                          onClick={() => onNavigate?.("alerts")}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 h-8 w-1 shrink-0 rounded-sm" style={{ background: r.sevColor, opacity: 0.75 }} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[11px] font-bold font-mono text-sky-400">{ctrl.controlId}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.fwColor, background: `${r.fwColor}10`, border: `1px solid ${r.fwColor}28`, borderRadius: 999, padding: "2px 8px" }}>{ctrl.framework}</span>
+                              </div>
+                              <div className="mt-1 text-sm font-medium text-slate-200">{ctrl.name}</div>
+                              <div className="mt-0.5 text-[10px] font-mono text-slate-500">{ctrl.resource}</div>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.sevColor, background: r.sevBg, border: `1px solid ${r.sevBdr}`, borderRadius: 999, padding: "2px 8px" }}>{ctrl.severity.toUpperCase()}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.stColor, background: r.stBg, border: `1px solid ${r.stBdr}`, borderRadius: 999, padding: "2px 8px", textTransform: "uppercase" as const }}>{ctrl.status}</span>
+                                <span className="text-[11px] font-mono" style={{ color: r.ageColor, fontWeight: r.ageDays >= 14 ? 700 : 400 }}>{ctrl.age}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-            {/* Rows */}
-            <div style={{ maxHeight: 400, overflowY: "auto" }}>
-              {(() => {
-                const filtered = controlFailures.filter(c => auditFrameworkFilter === "all" || c.framework === auditFrameworkFilter);
-                if (filtered.length === 0) {
-                  return (
-                    <div style={{ padding: "40px 20px", textAlign: "center" as const }}>
-                      <CheckCircle style={{ width: 24, height: 24, color: "#00ff88", margin: "0 auto 10px", display: "block", opacity: 0.5 }} />
-                      <p style={{ fontSize: 13, color: "rgba(100,116,139,0.65)", margin: 0 }}>No control failures for this framework</p>
+                  <div className="hidden w-full overflow-x-auto md:block">
+                    <div className="min-w-[880px]">
+                      <div style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div />
+                        {["CONTROL ID", "FAILING CONTROL", "FRAMEWORK", "SEVERITY", "STATUS", "AGE"].map(h => (
+                          <div key={h} style={{ fontSize: 9, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", paddingRight: 12 }}>{h}</div>
+                        ))}
+                      </div>
+                      <div className="max-h-[400px] overflow-y-auto">
+                        {filtered.map((ctrl) => {
+                          const r = rowInner(ctrl);
+                          return (
+                            <div
+                              key={ctrl.rowId}
+                              onClick={() => onNavigate?.("alerts")}
+                              style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s", cursor: "pointer" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <div style={{ width: 3, height: 32, borderRadius: 2, background: r.sevColor, opacity: 0.7, flexShrink: 0 }} />
+                              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "#60a5fa", paddingRight: 12 }}>{ctrl.controlId}</div>
+                              <div style={{ paddingRight: 16, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 500, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.name}</div>
+                                <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.resource}</div>
+                              </div>
+                              <div style={{ paddingRight: 12 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.fwColor, background: `${r.fwColor}10`, border: `1px solid ${r.fwColor}28`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", whiteSpace: "nowrap" as const }}>{ctrl.framework}</span>
+                              </div>
+                              <div style={{ paddingRight: 12 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.sevColor, background: r.sevBg, border: `1px solid ${r.sevBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em" }}>{ctrl.severity.toUpperCase()}</span>
+                              </div>
+                              <div style={{ paddingRight: 12 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: r.stColor, background: r.stBg, border: `1px solid ${r.stBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", textTransform: "uppercase" as const }}>{ctrl.status}</span>
+                              </div>
+                              <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: r.ageColor, fontWeight: r.ageDays >= 14 ? 700 : 400 }}>{ctrl.age}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
-                }
-                return filtered.map((ctrl) => {
-                  const sev = (ctrl.severity ?? "").toUpperCase();
-                  const sevColor = sev === "CRITICAL" ? "#ff0040" : sev === "HIGH" ? "#ff6b35" : sev === "MEDIUM" ? "#ffb000" : "#00ff88";
-                  const sevBg    = sev === "CRITICAL" ? "rgba(255,0,64,0.08)" : sev === "HIGH" ? "rgba(255,107,53,0.08)" : sev === "MEDIUM" ? "rgba(255,176,0,0.08)" : "rgba(0,255,136,0.06)";
-                  const sevBdr   = sev === "CRITICAL" ? "rgba(255,0,64,0.28)" : sev === "HIGH" ? "rgba(255,107,53,0.28)" : sev === "MEDIUM" ? "rgba(255,176,0,0.28)" : "rgba(0,255,136,0.22)";
-                  // Map WorkflowStatus → design-system workflow palette
-                  const st = ctrl.status as WorkflowStatus;
-                  const stColor  = st === "REMEDIATED" ? "#00ff88" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "#ffb000" : st === "ASSIGNED" ? "#38bdf8" : st === "TRIAGED" ? "#a78bfa" : "#60a5fa";
-                  const stBg     = st === "REMEDIATED" ? "rgba(0,255,136,0.06)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.08)" : st === "ASSIGNED" ? "rgba(56,189,248,0.08)" : st === "TRIAGED" ? "rgba(167,139,250,0.08)" : "rgba(96,165,250,0.08)";
-                  const stBdr    = st === "REMEDIATED" ? "rgba(0,255,136,0.22)" : st === "IN_PROGRESS" || st === "PENDING_VERIFY" ? "rgba(255,176,0,0.28)" : st === "ASSIGNED" ? "rgba(56,189,248,0.28)" : st === "TRIAGED" ? "rgba(167,139,250,0.28)" : "rgba(96,165,250,0.22)";
-                  const fwColor  = ctrl.framework === "SOC 2" ? "#00ff88" : ctrl.framework === "CIS" ? "#ffb000" : ctrl.framework === "NIST 800-53" ? "#0ea5e9" : "#a855f7";
-                  const ageDays  = parseInt(ctrl.age, 10) || 0;
-                  const ageColor = ageDays >= 30 ? "#ff0040" : ageDays >= 14 ? "#ffb000" : "rgba(100,116,139,0.6)";
-                  return (
-                    <div
-                      key={ctrl.rowId}
-                      onClick={() => onNavigate?.("alerts")}
-                      style={{ display: "grid", gridTemplateColumns: "8px 88px 1fr 120px 88px 100px 64px", alignItems: "center", gap: 0, padding: "8px 20px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s", cursor: "pointer" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
-                      {/* Left severity accent bar */}
-                      <div style={{ width: 3, height: 32, borderRadius: 2, background: sevColor, opacity: 0.7, flexShrink: 0 }} />
-                      <div style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: "#60a5fa", paddingRight: 12 }}>{ctrl.controlId}</div>
-                      <div style={{ paddingRight: 16, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.name}</div>
-                        <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "rgba(100,116,139,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{ctrl.resource}</div>
-                      </div>
-                      <div style={{ paddingRight: 12 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: fwColor, background: `${fwColor}10`, border: `1px solid ${fwColor}28`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", whiteSpace: "nowrap" as const }}>{ctrl.framework}</span>
-                      </div>
-                      <div style={{ paddingRight: 12 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: sevColor, background: sevBg, border: `1px solid ${sevBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em" }}>{ctrl.severity.toUpperCase()}</span>
-                      </div>
-                      <div style={{ paddingRight: 12 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: stColor, background: stBg, border: `1px solid ${stBdr}`, borderRadius: 999, padding: "2px 8px", letterSpacing: "0.04em", textTransform: "uppercase" as const }}>{ctrl.status}</span>
-                      </div>
-                      <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: ageColor, fontWeight: ageDays >= 14 ? 700 : 400 }}>{ctrl.age}</div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Footer: audit actions */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.01)" }}>
-              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
+            <div className="flex flex-col gap-4 border-t border-white/[0.06] bg-white/[0.01] px-4 py-4 sm:px-5 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
+              <span className="text-center text-[10px] text-slate-500 font-mono lg:text-left">
                 {controlFailures.filter(c => parseInt(c.age, 10) >= 30).length} overdue · {controlFailures.filter(c => (c.severity ?? "").toUpperCase() === "CRITICAL").length} critical
               </span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:flex lg:w-auto lg:flex-nowrap">
                 <button
+                  type="button"
                   onClick={() => onNavigate?.("compliance")}
-                  style={{ fontSize: 11, fontWeight: 500, color: "rgba(100,116,139,0.7)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#cbd5e1"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = "rgba(100,116,139,0.7)"; }}
-                >Full Compliance View</button>
+                  className="min-h-10 w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-4 text-xs font-medium text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.07] sm:text-sm lg:min-w-[180px]"
+                >
+                  Full compliance view
+                </button>
                 <button
+                  type="button"
                   onClick={() => onNavigate?.("reports")}
-                  style={{ fontSize: 11, fontWeight: 600, color: "#00ff88", background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.22)", borderRadius: 6, padding: "4px 16px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,255,136,0.14)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.36)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,255,136,0.08)"; e.currentTarget.style.borderColor = "rgba(0,255,136,0.22)"; }}
-                >Generate Audit Report →</button>
+                  className="min-h-10 w-full rounded-lg border border-[rgba(0,255,136,0.35)] bg-[rgba(0,255,136,0.1)] px-4 text-xs font-semibold text-[#00ff88] transition-colors hover:border-[rgba(0,255,136,0.5)] hover:bg-[rgba(0,255,136,0.14)] sm:text-sm lg:min-w-[200px]"
+                >
+                  Generate audit report →
+                </button>
               </div>
             </div>
           </div>
         </>
       )}
 
-      {/* ── Quick Nav ─────────────────────────────────────────── */}
+      {/* ── Quick Nav (full detail) ───────────────────────────── */}
+      {showExtendedDetails && (
       <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
         {([
           { label: "IAM",             Icon: Users,        nav: "iam-security"     },
@@ -1969,6 +2223,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </button>
         ))}
       </div>
+      )}
 
     </div>
   );

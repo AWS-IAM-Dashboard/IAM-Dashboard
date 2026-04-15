@@ -407,7 +407,7 @@ export function SecurityHub() {
   });
 
   return (
-    <div style={{ padding: "24px 28px", color: C.text, fontFamily: "DM Sans, sans-serif", minHeight: "100vh" }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6" style={{ color: C.text, fontFamily: "DM Sans, sans-serif", minHeight: "100vh" }}>
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <ScanPageHeader
         icon={<Shield size={20} color="#00ff88" />}
@@ -478,7 +478,7 @@ export function SecurityHub() {
       )}
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" as const }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SharedStatCard label="Total Findings" value={summary.total_findings} accent={C.text} icon={Shield} />
         <SharedStatCard label="Critical" value={summary.critical_findings} accent={C.critical} icon={AlertTriangle} />
         <SharedStatCard label="High" value={summary.high_findings} accent={C.high} icon={AlertTriangle} />
@@ -585,11 +585,13 @@ export function SecurityHub() {
 
       {/* ── Findings table ───────────────────────────────────────────────── */}
       <div
+        className="min-w-0"
         style={{
           background: C.cardBg,
           border: `1px solid ${C.border}`,
           borderRadius: C.borderRadius,
-          overflow: "hidden",
+          overflowX: "auto",
+          overflowY: "hidden",
         }}
       >
         {/* Table header */}
@@ -625,9 +627,10 @@ export function SecurityHub() {
         {/* Column headers */}
         {filteredFindings.length > 0 && (
           <div
+            className="hidden md:grid"
             style={{
-              display: "grid",
               gridTemplateColumns: "4px 1fr 120px 180px 90px 90px 80px",
+              minWidth: 760,
               padding: "8px 16px 8px 0",
               borderBottom: `1px solid ${C.border}`,
               gap: 0,
@@ -688,14 +691,34 @@ export function SecurityHub() {
 
           return (
             <div key={finding.id}>
+              <button
+                type="button"
+                className="block w-full border-b border-white/[0.05] px-3 py-3 text-left md:hidden"
+                onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-slate-200">{finding.title}</div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.product_name}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500">{isExpanded ? "Tap to collapse" : "Tap to expand"}</span>
+                    {isExpanded ? <ChevronUp size={14} color="rgba(100,116,139,0.8)" /> : <ChevronDown size={14} color="rgba(100,116,139,0.8)" />}
+                    <SeverityBadge severity={finding.severity} size="sm" />
+                  </div>
+                </div>
+                <div className="mt-2 truncate font-mono text-[10px] text-slate-500">{finding.resource_id}</div>
+              </button>
+
               {/* Main row */}
               <div
                 onClick={() =>
                   setExpandedRow(isExpanded ? null : finding.id)
                 }
+                className="hidden md:grid"
                 style={{
-                  display: "grid",
                   gridTemplateColumns: "4px 1fr 120px 180px 90px 90px 80px",
+                  minWidth: 760,
                   alignItems: "center",
                   cursor: "pointer",
                   background:
@@ -797,33 +820,45 @@ export function SecurityHub() {
 
               {/* Expanded detail panel */}
               {isExpanded && (
-                <FindingDetailPanel
-                  finding={{
-                    id: finding.id,
-                    title: finding.title,
-                    resource_name: finding.resource_id,
-                    resource_arn: finding.resource_id,
-                    severity: finding.severity,
-                    description: finding.description,
-                    recommendation: undefined,
-                    risk_score: undefined,
-                    compliance_frameworks: undefined,
-                    last_seen: finding.updated_at,
-                    first_seen: finding.created_at,
-                    region: finding.region,
-                    metadata: {
-                      product_name: finding.product_name,
-                      resource_type: finding.resource_type,
-                      compliance_status: finding.compliance_status,
-                    },
-                  }}
-                  workflow={workflows[finding.id]}
-                  onAdvanceStatus={advanceStatus}
-                  onAssign={assignFinding}
-                  onMarkFalsePositive={markFalsePositive}
-                  onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
-                  onClose={() => setExpandedRow(null)}
-                />
+                <>
+                  <div className="md:hidden px-3 pb-3">
+                    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ fontFamily: C.mono }}>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Resource</div>
+                      <div className="break-all text-[11px] text-slate-300">{finding.resource_id}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                    <FindingDetailPanel
+                      finding={{
+                        id: finding.id,
+                        title: finding.title,
+                        resource_name: finding.resource_id,
+                        resource_arn: finding.resource_id,
+                        severity: finding.severity,
+                        description: finding.description,
+                        recommendation: undefined,
+                        risk_score: undefined,
+                        compliance_frameworks: undefined,
+                        last_seen: finding.updated_at,
+                        first_seen: finding.created_at,
+                        region: finding.region,
+                        metadata: {
+                          product_name: finding.product_name,
+                          resource_type: finding.resource_type,
+                          compliance_status: finding.compliance_status,
+                        },
+                      }}
+                      workflow={workflows[finding.id]}
+                      onAdvanceStatus={advanceStatus}
+                      onAssign={assignFinding}
+                      onMarkFalsePositive={markFalsePositive}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
+                      onClose={() => setExpandedRow(null)}
+                    />
+                  </div>
+                </>
               )}
             </div>
           );

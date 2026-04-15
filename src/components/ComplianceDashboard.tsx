@@ -299,12 +299,13 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
 
   return (
     <div
+      className="min-w-0 max-w-full overflow-x-hidden"
       style={{
         padding: embedded ? "0" : "24px",
         display: "flex",
         flexDirection: "column",
         gap: "20px",
-              }}
+      }}
     >
       {/* ── Page header ── */}
       {!embedded && (
@@ -325,23 +326,23 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
       )}
 
       {/* ── Aggregate KPI stats ── */}
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-4">
         {[
           { label: "AVG SCORE", value: `${avgScore}%`, color: avgScore >= 80 ? "#00ff88" : avgScore >= 60 ? "#ffb000" : "#ff0040" },
           { label: "OPEN ACTIONS", value: String(totalOpenActions), color: totalOpenActions > 0 ? "#ffb000" : "#00ff88" },
           { label: "CRITICAL CONTROLS", value: String(totalCritical), color: totalCritical > 0 ? "#ff0040" : "#00ff88" },
           { label: "FRAMEWORKS", value: String(FRAMEWORKS.length), color: "#0ea5e9" },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "12px 20px", position: "relative", overflow: "hidden", flex: 1 }}>
+          <div key={label} style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${color}26`, borderRadius: "10px", padding: "12px 20px", position: "relative", overflow: "hidden", minWidth: 0 }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(90deg, ${color}88, transparent)` }} />
-            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px" }}>{label}</div>
+            <div style={{ fontSize: "10px", fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: "8px", whiteSpace: "normal", wordBreak: "normal", lineHeight: 1.25 }}>{label}</div>
             <div style={{ fontSize: "28px", fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.1 }}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* ── Framework score overview row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {FRAMEWORKS.map((fw) => {
           const isActive = fw.id === activeFramework;
           const color = scoreColor(fw.baseScore);
@@ -391,6 +392,8 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                     color: isActive ? "#e2e8f0" : "rgba(100,116,139,0.7)",
                     fontWeight: 500,
                     lineHeight: 1.3,
+                    wordBreak: "normal",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {fw.name}
@@ -434,9 +437,10 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
       </div>
 
       {/* ── Main content area ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "16px", alignItems: "start" }}>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
         {/* Control evidence table */}
         <div
+          className="min-w-0 max-w-full"
           style={{
             background: "rgba(15,23,42,0.8)",
             border: "1px solid rgba(255,255,255,0.06)",
@@ -445,32 +449,21 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
           }}
         >
           <div
-            style={{
-              padding: "12px 20px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
+            className="flex min-w-0 flex-col gap-3 border-b border-white/[0.06] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-3"
           >
-            <div>
+            <div className="min-w-0">
               <span
-                style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}
+                className="break-words text-[13px] font-semibold leading-snug text-slate-200"
               >
                 Control Evidence — {framework.name}
               </span>
               <span
-                style={{
-                  marginLeft: "8px",
-                  fontSize: "10px",
-                  color: "rgba(100,116,139,0.6)",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
+                className="mt-1 block font-mono text-[10px] text-slate-500 sm:ml-2 sm:mt-0 sm:inline"
               >
                 {framework.version}
               </span>
             </div>
-            <div style={{ display: "flex", gap: "8px", fontSize: "11px" }}>
+            <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-[11px]">
               <span style={{ color: "#00ff88" }}>{passCount} PASS</span>
               <span style={{ color: "rgba(100,116,139,0.5)" }}>/</span>
               <span style={{ color: "#ff0040" }}>{failCount} FAIL</span>
@@ -479,14 +472,17 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
             </div>
           </div>
 
+          <div className="min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+          <div style={{ minWidth: 520 }}>
           {/* Table header */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "80px 1fr 90px 70px 80px",
-              padding: "8px 20px",
+              gridTemplateColumns: "72px minmax(0,1fr) 88px 64px 76px",
+              padding: "8px 16px",
               borderBottom: "1px solid rgba(255,255,255,0.04)",
             }}
+            className="sm:px-5"
           >
             {["Control ID", "Title", "Status", "Severity", "Evidence"].map((h) => (
               <span
@@ -537,9 +533,9 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                   onClick={() => setExpandedControl(isExpanded ? null : ctrl.id)}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "80px 1fr 90px 70px 80px",
+                    gridTemplateColumns: "72px minmax(0,1fr) 88px 64px 76px",
                     width: "100%",
-                    padding: "8px 20px",
+                    padding: "8px 16px",
                     textAlign: "left",
                     background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
                     border: "none",
@@ -553,6 +549,7 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                   onMouseLeave={(e) => {
                     if (!isExpanded) e.currentTarget.style.background = "transparent";
                   }}
+                  className="sm:px-5"
                 >
                   <span
                     style={{
@@ -567,8 +564,10 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
                     style={{
                       fontSize: "12px",
                       color: "#cbd5e1",
-                      paddingRight: "12px",
+                      paddingRight: "8px",
                       lineHeight: 1.4,
+                      minWidth: 0,
+                      overflowWrap: "anywhere" as const,
                     }}
                   >
                     {ctrl.title}
@@ -678,6 +677,8 @@ export function ComplianceDashboard({ onNavigate: _onNavigate, embedded = false 
               </div>
             );
           })}
+          </div>
+          </div>
         </div>
 
         {/* Right rail — open actions */}

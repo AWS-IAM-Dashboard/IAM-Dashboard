@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Shield,
   Lock,
@@ -14,9 +14,16 @@ import {
   Server,
   Database,
   Globe,
+  Menu,
+  X,
+  LogIn,
+  Zap,
+  List,
+  Info,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { MobileQuickBar } from "../components/ui/MobileQuickBar";
 import { useNavigate } from "react-router-dom";
 import logoImage from "@/assets/logo.png";
 import dashboardMockup from "@/assets/dashboard-mockup.png";
@@ -24,6 +31,8 @@ import dashboardMockup from "@/assets/dashboard-mockup.png";
 export function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +41,17 @@ export function LandingPage() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mobileMenuOpen]);
 
   const onGetStarted = () => navigate("/login");
   const onLogin = () => navigate("/login");
@@ -188,7 +208,7 @@ export function LandingPage() {
   const paidServices = awsServices.filter((service) => service.tier === "paid");
 
   return (
-    <div className="selection:bg-green-500/30 selection:text-green-200 min-h-screen overflow-x-hidden bg-black">
+    <div className="selection:bg-green-500/30 selection:text-green-200 min-h-screen overflow-x-hidden bg-black pb-24 md:pb-0">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-green-500 opacity-20 blur-[100px]"></div>
@@ -251,22 +271,72 @@ export function LandingPage() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3 sm:gap-8">
               <button
                 onClick={onLogin}
                 className="hidden text-[16px] font-medium text-gray-300 transition-colors hover:text-white sm:block"
               >
                 Sign In
               </button>
+              <button
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="flex items-center justify-center text-gray-300 transition-colors hover:text-white md:hidden"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
             </div>
           </div>
+
+          {mobileMenuOpen && (
+            <div ref={mobileMenuRef} className="border-t border-white/10 px-4 pb-4 pt-3 md:hidden">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-md px-3 py-2 text-left text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Features
+                </button>
+                <button
+                  onClick={() => {
+                    document.getElementById("solutions")?.scrollIntoView({ behavior: "smooth" });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-md px-3 py-2 text-left text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Solutions
+                </button>
+                <button
+                  onClick={() => {
+                    onAboutClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="rounded-md px-3 py-2 text-left text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  About
+                </button>
+                <button
+                  onClick={() => {
+                    onLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="mt-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-green-400"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       <section className="relative overflow-hidden pb-20 pt-16 lg:pb-32 lg:pt-20">
         <AnimatedBackground />
 
-        <div className="relative z-10 mx-auto max-w-[80%] px-4 pb-16 pt-8 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-16 pt-8 sm:px-6 sm:pb-24 sm:pt-12 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -405,7 +475,7 @@ export function LandingPage() {
       >
         <div className="absolute -z-10 h-full w-full origin-top-left skew-y-3 transform bg-slate-950/50"></div>
 
-        <div className="relative z-10 mx-auto max-w-[80%] px-4 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -458,7 +528,7 @@ export function LandingPage() {
         className="relative py-24"
         id="monitors"
       >
-        <div className="mx-auto max-w-[80%] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -581,7 +651,7 @@ export function LandingPage() {
       >
         <div className="absolute left-1/2 top-1/2 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-500/10 blur-[120px]" />
 
-        <div className="mx-auto max-w-[80%] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-16 lg:grid-cols-2">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
@@ -676,7 +746,7 @@ export function LandingPage() {
         className="relative bg-white/[0.02] py-24"
         id="personas"
       >
-        <div className="mx-auto max-w-[80%] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-3xl font-bold text-white">
               Built for Security Teams
@@ -781,6 +851,20 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
+
+      <MobileQuickBar
+        items={[
+          {
+            key: "features",
+            label: "Features",
+            icon: List,
+            onClick: () => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }),
+          },
+          { key: "about", label: "About", icon: Info, to: "/about" },
+          { key: "start", label: "Start", icon: Zap, to: "/login" },
+          { key: "signin", label: "Sign in", icon: LogIn, to: "/login" },
+        ]}
+      />
     </div>
   );
 }

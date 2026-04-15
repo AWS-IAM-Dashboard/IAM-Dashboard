@@ -499,7 +499,7 @@ export function DynamoDBSecurity() {
   const summary = scanResult?.scan_summary ?? mockDynamoDBSummary;
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6">
       {/* Header */}
       <ScanPageHeader
         icon={<Database size={20} color="#00ff88" />}
@@ -523,7 +523,7 @@ export function DynamoDBSecurity() {
       )}
 
       {/* Stat Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total Tables" value={summary.total_tables} accent="#a78bfa" icon={Database} />
         <StatCard label="Critical Findings" value={summary.critical_findings} accent="#ff0040" icon={AlertTriangle} />
         <StatCard label="High Findings" value={summary.high_findings} accent="#ff6b35" icon={AlertTriangle} />
@@ -532,12 +532,13 @@ export function DynamoDBSecurity() {
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cardStyle, padding: "12px 20px" }}>
+      <div className="min-w-0" style={{ ...cardStyle, padding: "12px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={labelStyle}>Workflow Pipeline</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="overflow-x-auto">
+        <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 680 }}>
           {WORKFLOW_PIPELINE.map((stage, idx) => {
             const meta = WORKFLOW_META[stage];
             const count = pipelineCounts[stage] ?? 0;
@@ -571,6 +572,7 @@ export function DynamoDBSecurity() {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Risk Indicators Strip */}
@@ -589,8 +591,8 @@ export function DynamoDBSecurity() {
       </div>
 
       {/* Filter Bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto" style={{ display: "flex", gap: 6 }}>
           {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map(sev => {
             const active = severityFilter === sev;
             const col = sev === "ALL" ? "#a78bfa" : SEVERITY_COLORS[sev];
@@ -605,7 +607,7 @@ export function DynamoDBSecurity() {
             );
           })}
         </div>
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
           <input
             value={findingSearch}
@@ -626,8 +628,8 @@ export function DynamoDBSecurity() {
       </div>
 
       {/* Findings Table */}
-      <div style={cardStyle}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+      <div className="min-w-0" style={cardStyle}>
+        <div className="hidden md:grid" style={{ gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Table / Finding</span>
           <span style={labelStyle}>Encryption</span>
@@ -650,9 +652,28 @@ export function DynamoDBSecurity() {
             const encInfo = ENCRYPTION_LABEL[finding.encryption_type] ?? { label: finding.encryption_type, color: "#64748b" };
             return (
               <div key={finding.id}>
+                <button
+                  type="button"
+                  className="block w-full border-b border-white/[0.04] px-3 py-3 text-left md:hidden"
+                  onClick={() => toggleRow(finding.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-200">{finding.table_name}</div>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.finding_type}</div>
+                    </div>
+                    <SeverityBadge severity={finding.severity} size="sm" />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{encInfo.label}</span>
+                    <span className="text-[10px] text-slate-500">{finding.point_in_time_recovery ? "PITR On" : "PITR Off"}</span>
+                    <span className="ml-auto font-mono text-[11px] font-bold" style={{ color: finding.risk_score >= 9 ? "#ff0040" : finding.risk_score >= 7 ? "#ff6b35" : finding.risk_score >= 5 ? "#ffb000" : "#00ff88" }}>{finding.risk_score}/10</span>
+                  </div>
+                </button>
                 <div
                   onClick={() => toggleRow(finding.id)}
-                  style={{ display: "grid", gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                  className="hidden md:grid"
+                  style={{ gridTemplateColumns: "4px 1fr 130px 110px 80px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
                   onMouseEnter={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
                   onMouseLeave={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                 >
@@ -718,37 +739,51 @@ export function DynamoDBSecurity() {
                 </div>
 
                 {expanded && (
-                  <FindingDetailPanel
-                    finding={{
-                      id: finding.id,
-                      title: finding.finding_type ?? finding.id,
-                      resource_name: finding.table_name ?? finding.id,
-                      resource_arn: finding.table_arn,
-                      severity: finding.severity,
-                      description: finding.description,
-                      recommendation: finding.recommendation,
-                      risk_score: finding.risk_score,
-                      compliance_frameworks: finding.compliance_frameworks,
-                      last_seen: (finding as any).last_seen ?? (finding as any).last_analyzed,
-                      first_seen: (finding as any).created_date ?? (finding as any).first_seen,
-                      region: finding.region,
-                      metadata: {
-                        "Table Name": finding.table_name,
-                        "Encryption": finding.encryption_type,
-                        "PITR": finding.point_in_time_recovery ? "Enabled" : "Disabled",
-                        "Deletion Protection": finding.deletion_protection ? "Enabled" : "Disabled",
-                        "Streams": finding.stream_enabled ? "Enabled" : "Disabled",
-                        "Global Table": finding.global_table ? "Yes" : "No",
-                      },
-                    }}
-                    workflow={workflows[finding.id]}
-                    onAdvanceStatus={advanceStatus}
-                    onAssign={assignFinding}
-                    onMarkFalsePositive={markFalsePositive}
-                    onCreateTicket={(id) => { toast.success(`Ticket created for ${id}`); }}
-                    onClose={() => toggleRow(finding.id)}
-                    isLast={isLast}
-                  />
+                  <>
+                    <div className="md:hidden px-3 pb-3">
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ ...monoStyle }}>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Table ARN</div>
+                        <div className="break-all text-[11px] text-slate-300">{finding.table_arn}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Recommendation</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.recommendation}</div>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <FindingDetailPanel
+                        finding={{
+                          id: finding.id,
+                          title: finding.finding_type ?? finding.id,
+                          resource_name: finding.table_name ?? finding.id,
+                          resource_arn: finding.table_arn,
+                          severity: finding.severity,
+                          description: finding.description,
+                          recommendation: finding.recommendation,
+                          risk_score: finding.risk_score,
+                          compliance_frameworks: finding.compliance_frameworks,
+                          last_seen: (finding as any).last_seen ?? (finding as any).last_analyzed,
+                          first_seen: (finding as any).created_date ?? (finding as any).first_seen,
+                          region: finding.region,
+                          metadata: {
+                            "Table Name": finding.table_name,
+                            "Encryption": finding.encryption_type,
+                            "PITR": finding.point_in_time_recovery ? "Enabled" : "Disabled",
+                            "Deletion Protection": finding.deletion_protection ? "Enabled" : "Disabled",
+                            "Streams": finding.stream_enabled ? "Enabled" : "Disabled",
+                            "Global Table": finding.global_table ? "Yes" : "No",
+                          },
+                        }}
+                        workflow={workflows[finding.id]}
+                        onAdvanceStatus={advanceStatus}
+                        onAssign={assignFinding}
+                        onMarkFalsePositive={markFalsePositive}
+                        onCreateTicket={(id) => { toast.success(`Ticket created for ${id}`); }}
+                        onClose={() => toggleRow(finding.id)}
+                        isLast={isLast}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             );

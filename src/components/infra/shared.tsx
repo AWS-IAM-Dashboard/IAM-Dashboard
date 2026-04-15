@@ -313,22 +313,28 @@ export function BackendHandoff({ endpoints }: { endpoints: Array<{ method: strin
     <div style={{ marginTop: 16, borderRadius: 8, border: "1px dashed rgba(100,116,139,0.2)", overflow: "hidden" }}>
       <button
         onClick={() => setOpen(x => !x)}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer", textAlign: "left" as const }}
+        style={{ width: "100%", display: "flex", flexDirection: "column" as const, alignItems: "stretch", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer", textAlign: "left" as const }}
       >
-        <Link size={11} color="rgba(100,116,139,0.4)" />
-        <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "rgba(100,116,139,0.45)", flex: 1 }}>
-          Backend Integration Requirements ({endpoints.length})
-        </span>
-        <MockBadge label="NOT WIRED" />
-        {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, width: "100%" }}>
+          <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}><Link size={11} color="rgba(100,116,139,0.4)" /></span>
+          <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "rgba(148,163,184,0.82)", minWidth: 0, flex: 1, lineHeight: 1.35, overflowWrap: "anywhere" as const, wordBreak: "break-word" as const }}>
+            Backend Integration Requirements ({endpoints.length})
+          </span>
+          <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}>
+            {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
+          </span>
+        </div>
+        <div style={{ paddingLeft: 19, display: "flex", alignItems: "center" }}>
+          <MockBadge label="NOT WIRED" />
+        </div>
       </button>
       {open && (
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
           {endpoints.map((ep, i) => (
             <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" as const }}>
               <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: ep.method === "GET" ? "#60a5fa" : ep.method === "POST" ? "#00ff88" : "#a78bfa", flexShrink: 0 }}>{ep.method}</span>
-              <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.7)", flexShrink: 0 }}>{ep.path}</span>
-              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{ep.description}</span>
+              <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.7)", minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" as const }}>{ep.path}</span>
+              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", minWidth: 0 }}>{ep.description}</span>
             </div>
           ))}
         </div>
@@ -344,19 +350,25 @@ export function ModuleHeader({
   icon: React.ReactNode; title: string; subtitle: string; accent?: string; extra?: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexShrink: 0 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${accent}0d`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</div>
-        <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginTop: 2 }}>{subtitle}</div>
-      </div>
-      {extra}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <WifiOff size={10} color="rgba(167,139,250,0.4)" />
-        <span style={{ ...mono, fontSize: 9, color: "rgba(167,139,250,0.5)", letterSpacing: "0.06em" }}>FRONTEND ONLY</span>
-        <MockBadge label="SIMULATED" />
+    <div style={{ marginBottom: 16, flexShrink: 0 }}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: `${accent}0d`, border: `1px solid ${accent}28`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {icon}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</div>
+            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginTop: 2 }}>{subtitle}</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+          {extra}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <WifiOff size={10} color="rgba(167,139,250,0.4)" />
+            <span style={{ ...mono, fontSize: 9, color: "rgba(167,139,250,0.5)", letterSpacing: "0.06em" }}>FRONTEND ONLY</span>
+            <MockBadge label="SIMULATED" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -365,13 +377,13 @@ export function ModuleHeader({
 // ─── StatStrip ────────────────────────────────────────────────────────────────
 export function StatStrip({ stats }: { stats: Array<{ label: string; value: string | number; color?: string; accent?: boolean }> }) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginBottom: 16 }}>
+    <div className="mb-4 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-2">
       {stats.map((s, i) => (
         <div key={i} style={{
           padding: "8px 14px", borderRadius: 8,
           background: s.accent ? `${s.color ?? "#00ff88"}08` : "rgba(15,23,42,0.8)",
           border: `1px solid ${s.accent ? (s.color ?? "#00ff88") + "22" : "rgba(255,255,255,0.07)"}`,
-          display: "flex", flexDirection: "column" as const, gap: 2, flexShrink: 0,
+          display: "flex", flexDirection: "column" as const, gap: 2, minWidth: 0,
         }}>
           <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{s.label}</span>
           <span style={{ ...mono, fontSize: 18, fontWeight: 700, lineHeight: 1, color: s.color ?? "#e2e8f0" }}>{s.value}</span>
@@ -431,16 +443,18 @@ export function ScenarioSimulator({ scenario }: { scenario: Scenario }) {
   return (
     <div style={{ borderRadius: 8, border: `1px solid ${sc}20`, background: `${sc}04`, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "10px 14px", borderBottom: `1px solid ${sc}14`, display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ padding: "10px 14px", borderBottom: `1px solid ${sc}14`, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const }}>
         <div style={{ width: 28, height: 28, borderRadius: 6, background: `${sc}10`, border: `1px solid ${sc}25`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Play size={11} color={sc} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0" }}>{scenario.name}</div>
-          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", marginTop: 1 }}>{scenario.description}</div>
+        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", overflowWrap: "anywhere" }}>{scenario.name}</div>
+          <div style={{ fontSize: 10, color: "rgba(100,116,139,0.55)", marginTop: 1, overflowWrap: "anywhere" }}>{scenario.description}</div>
         </div>
-        <MockBadge label="SCENARIO" />
-        <SeverityChip severity={scenario.severity} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+          <MockBadge label="SCENARIO" />
+          <SeverityChip severity={scenario.severity} />
+        </div>
       </div>
 
       {/* Sim steps */}

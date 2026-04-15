@@ -13,7 +13,7 @@ const COMPLIANCE_ENDPOINTS = [
 
 export function ComplianceEvidence({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const }}>
+    <div className="min-w-0 max-w-full" style={{ display: "flex", flexDirection: "column" as const }}>
       <ModuleHeader
         icon={<BadgeCheck size={16} color="#00ff88" />}
         title="Compliance & Evidence"
@@ -21,7 +21,7 @@ export function ComplianceEvidence({ onNavigate }: { onNavigate?: (tab: string) 
         accent="#00ff88"
       />
 
-      <div style={{
+      <div className="min-w-0 max-w-full overflow-x-hidden" style={{
         borderRadius: 8,
         border: "1px solid rgba(255,255,255,0.07)",
         overflow: "hidden",

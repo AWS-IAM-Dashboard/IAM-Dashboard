@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Search, UserPlus, CheckCircle2, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { SOCAlert, AlertSeverity, AlertStatus } from "./types";
 import { MOCK_ALERTS, ANALYSTS } from "./mockData";
-import { mono, ls, divider, SEV_COLOR, STATUS_COLOR, SeverityPill, StatusPill, SLATimer, EmptyState, BackendHandoff, ModuleHeader, StatStrip, MockBadge } from "./shared";
+import { mono, ls, divider, SEV_COLOR, STATUS_COLOR, SeverityPill, StatusPill, SLATimer, EmptyState, BackendHandoff, ModuleHeader, MockBadge } from "./shared";
 
 const ALL_STATUSES: AlertStatus[] = ["NEW", "ACKNOWLEDGED", "INVESTIGATING", "ESCALATED", "RESOLVED", "SUPPRESSED", "FALSE_POSITIVE"];
 const ALL_SEVERITIES: AlertSeverity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
@@ -21,16 +21,79 @@ function relativeTime(iso: string) {
 interface AlertRowProps {
   alert: SOCAlert;
   isExpanded: boolean;
+  isMobile: boolean;
   onToggle: () => void;
   onStatusChange: (id: string, status: AlertStatus) => void;
   onAssign: (id: string, analyst: string) => void;
   onEscalate: (id: string) => void;
 }
 
-function AlertRow({ alert, isExpanded, onToggle, onStatusChange, onAssign, onEscalate }: AlertRowProps) {
+function AlertRow({ alert, isExpanded, isMobile, onToggle, onStatusChange, onAssign, onEscalate }: AlertRowProps) {
   const [showAssign, setShowAssign] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const sc = SEV_COLOR[alert.severity];
+
+  if (isMobile) {
+    return (
+      <div style={{ borderBottom: divider }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "12px 12px 10px", cursor: "pointer" }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0", lineHeight: 1.35 }}>{alert.title}</div>
+              <div style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.6)", marginTop: 3, wordBreak: "break-word" }}>{alert.resource}</div>
+            </div>
+            <SeverityPill severity={alert.severity} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <StatusPill status={alert.status} />
+            <SLATimer deadline={alert.sla_deadline} breached={alert.sla_breached} />
+            <span style={{ marginLeft: "auto", color: "rgba(100,116,139,0.5)", display: "flex" }}>
+              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </span>
+          </div>
+        </button>
+        {isExpanded && (
+          <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8, background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <label style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.55)" }}>
+                Status
+                <select
+                  value={alert.status}
+                  onChange={(e) => onStatusChange(alert.id, e.target.value as AlertStatus)}
+                  style={{ marginTop: 4, width: "100%", ...mono, fontSize: 10, padding: "5px 22px 5px 8px", borderRadius: 6, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.28)", color: "#c8fce8", outline: "none", appearance: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+                >
+                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                </select>
+              </label>
+              <label style={{ ...mono, fontSize: 10, color: "rgba(100,116,139,0.55)" }}>
+                Assignee
+                <select
+                  value={alert.assignee ?? ""}
+                  onChange={(e) => onAssign(alert.id, e.target.value)}
+                  style={{ marginTop: 4, width: "100%", ...mono, fontSize: 10, padding: "5px 22px 5px 8px", borderRadius: 6, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.28)", color: "#c8fce8", outline: "none", appearance: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+                >
+                  <option value="">Unassigned</option>
+                  {ANALYSTS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </label>
+            </div>
+            {alert.status !== "ESCALATED" && alert.status !== "RESOLVED" && (
+              <button
+                onClick={() => onEscalate(alert.id)}
+                style={{ ...mono, fontSize: 10, fontWeight: 700, padding: "6px 10px", borderRadius: 6, background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", color: "#ff6b35", cursor: "pointer", alignSelf: "flex-start" }}
+              >
+                Escalate
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -167,9 +230,17 @@ function AlertRow({ alert, isExpanded, onToggle, onStatusChange, onAssign, onEsc
 export function AlertQueue() {
   const [alerts, setAlerts] = useState<SOCAlert[]>(MOCK_ALERTS);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [filterSev, setFilterSev] = useState<AlertSeverity | "ALL">("ALL");
   const [filterStatus, setFilterStatus] = useState<AlertStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const filtered = useMemo(() => alerts.filter(a => {
     if (filterSev !== "ALL" && a.severity !== filterSev) return false;
@@ -206,16 +277,35 @@ export function AlertQueue() {
         icon={<AlertTriangle size={16} color="#ff6b35" />}
         title="Alert Queue"
         subtitle="Real-time security alert triage — SLA-tracked, assignable, and escalation-ready."
-        extra={<MockBadge label="FRONTEND MOCK" />}
+        live={false}
       />
 
-      <StatStrip stats={[
-        { label: "Critical", value: stats.critical, color: "#ff0040", accent: stats.critical > 0 },
-        { label: "High", value: stats.high, color: "#ff6b35", accent: stats.high > 0 },
-        { label: "New", value: stats.newCount, color: "#60a5fa", accent: true },
-        { label: "SLA Breach", value: stats.sla_breach, color: "#ff0040", accent: stats.sla_breach > 0 },
-        { label: "Total Active", value: alerts.filter(a => !["RESOLVED","SUPPRESSED","FALSE_POSITIVE"].includes(a.status)).length, color: "#94a3b8" },
-      ]} />
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {[
+          { label: "Critical", value: stats.critical, color: "#ff0040", accent: stats.critical > 0 },
+          { label: "High", value: stats.high, color: "#ff6b35", accent: stats.high > 0 },
+          { label: "New", value: stats.newCount, color: "#60a5fa", accent: true },
+          { label: "SLA Breach", value: stats.sla_breach, color: "#ff0040", accent: stats.sla_breach > 0 },
+          { label: "Total Active", value: alerts.filter(a => !["RESOLVED","SUPPRESSED","FALSE_POSITIVE"].includes(a.status)).length, color: "#94a3b8", accent: false },
+        ].map((s) => (
+          <div
+            key={s.label}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 8,
+              background: s.accent ? `${s.color}0a` : "rgba(15,23,42,0.8)",
+              border: `1px solid ${s.accent ? `${s.color}28` : "rgba(255,255,255,0.07)"}`,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              minWidth: 0,
+            }}
+          >
+            <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{s.label}</span>
+            <span style={{ ...mono, fontSize: 17, fontWeight: 700, lineHeight: 1, color: s.color }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
 
       {/* Filter bar */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
@@ -235,7 +325,7 @@ export function AlertQueue() {
 
         {/* Status filter */}
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as AlertStatus | "ALL")}
-          style={{ ...mono, fontSize: 10, padding: "4px 10px", borderRadius: 6, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", color: "#94a3b8", outline: "none", cursor: "pointer" }}>
+          style={{ ...mono, fontSize: 10, padding: "4px 22px 4px 10px", borderRadius: 6, background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.28)", color: "#c8fce8", outline: "none", cursor: "pointer", appearance: "none", WebkitAppearance: "none", MozAppearance: "none" }}>
           <option value="ALL">All statuses</option>
           {ALL_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
         </select>
@@ -244,7 +334,7 @@ export function AlertQueue() {
       {/* Table */}
       <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
         {/* Table header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
+        <div style={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
           <span style={{ ...ls, width: 16 }} />
           <span style={{ ...ls, width: 90 }}>Severity</span>
           <span style={{ ...ls, flex: 1 }}>Finding</span>
@@ -262,6 +352,7 @@ export function AlertQueue() {
               key={alert.id}
               alert={alert}
               isExpanded={expandedId === alert.id}
+              isMobile={isMobile}
               onToggle={() => setExpandedId(x => x === alert.id ? null : alert.id)}
               onStatusChange={handleStatusChange}
               onAssign={handleAssign}

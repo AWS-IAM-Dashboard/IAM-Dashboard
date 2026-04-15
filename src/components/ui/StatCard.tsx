@@ -26,15 +26,11 @@ interface StatCardProps {
 export function StatCard({ label, value, accent, icon: Icon, children }: StatCardProps) {
   return (
     <div
+      className="box-border min-w-0 w-full max-w-full overflow-hidden rounded-[10px] px-3.5 py-3 sm:px-5 sm:py-4"
       style={{
         background: "rgba(15,23,42,0.8)",
         border: `1px solid ${accent}26`,
-        borderRadius: 10,
-        padding: "16px 20px",
-        flex: 1,
-        minWidth: 140,
         position: "relative" as const,
-        overflow: "hidden",
       }}
     >
       {/* Accent top bar */}
@@ -51,15 +47,13 @@ export function StatCard({ label, value, accent, icon: Icon, children }: StatCar
 
       {/* Label */}
       <span
+        className="mb-1.5 block break-words text-[9px] leading-snug sm:text-[10px]"
         style={{
-          display: "block",
-          fontSize: 10,
           fontWeight: 600,
           color: "rgba(100,116,139,0.75)",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.06em",
           textTransform: "uppercase" as const,
           fontFamily: "'JetBrains Mono', monospace",
-          marginBottom: 6,
         }}
       >
         {label}
@@ -67,13 +61,11 @@ export function StatCard({ label, value, accent, icon: Icon, children }: StatCar
 
       {/* Value */}
       <span
+        className="block min-w-0 tabular-nums text-xl leading-none sm:text-2xl md:text-[28px]"
         style={{
-          display: "block",
-          fontSize: 28,
           fontWeight: 700,
           color: accent,
           fontFamily: "'JetBrains Mono', monospace",
-          lineHeight: 1.1,
         }}
       >
         {value}

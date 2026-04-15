@@ -517,7 +517,7 @@ export function EC2Security() {
   }, {} as Record<string, number>);
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6">
 
       {/* Header */}
       <ScanPageHeader
@@ -538,7 +538,7 @@ export function EC2Security() {
       {error && <div style={{ padding: "12px 16px", borderRadius: 8, background: "rgba(255,0,64,0.1)", border: "1px solid rgba(255,0,64,0.3)", color: "#ff0040", fontSize: 13 }}><AlertTriangle size={13} style={{ display: "inline", marginRight: 8 }} />Scan Error: {error}</div>}
 
       {/* KPI Metrics Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total Instances" value={totalInstances} accent="#818cf8" icon={Server} />
         <StatCard label="SLA Breaches" value={slaBreaches} accent="#ff0040" icon={AlertTriangle} />
         <StatCard label="Open Critical" value={summary.critical_findings} accent="#ff0040" icon={Shield} />
@@ -548,12 +548,13 @@ export function EC2Security() {
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cs, padding: "16px 20px" }}>
+      <div className="min-w-0" style={{ ...cs, padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={{ ...ls }}>Workflow Pipeline</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="overflow-x-auto">
+        <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 680 }}>
           {WORKFLOW_PIPELINE.map((stage, idx) => {
             const meta = WORKFLOW_META[stage];
             const count = pipelineCounts[stage] ?? 0;
@@ -571,6 +572,7 @@ export function EC2Security() {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 
@@ -590,8 +592,8 @@ export function EC2Security() {
       </div>
 
       {/* Filter Bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 4 }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto" style={{ display: "flex", gap: 4 }}>
           {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map(sev => {
             const active = severityFilter === sev;
             const col = sev === "ALL" ? "#818cf8" : SEVERITY_COLORS[sev];
@@ -600,7 +602,7 @@ export function EC2Security() {
             );
           })}
         </div>
-        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
+        <div className="hidden sm:block" style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
         {statusFilter !== "ALL" && (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 10, ...ms, color: "rgba(100,116,139,0.6)" }}>STATUS:</span>
@@ -609,16 +611,16 @@ export function EC2Security() {
             </button>
           </div>
         )}
-        <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
           <input value={findingSearch} onChange={e => setFindingSearch(e.target.value)} placeholder="Search findings, instances, IDs…" style={{ width: "100%", padding: "8px 12px 8px 32px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...ms }} />
         </div>
-        <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", ...ms }}>{filteredFindings.length} findings</span>
+        <span className="sm:ml-auto" style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", ...ms }}>{filteredFindings.length} findings</span>
       </div>
 
       {/* Findings Table */}
-      <div style={cs}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+      <div className="min-w-0" style={cs}>
+        <div className="hidden md:grid" style={{ gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...ls, paddingLeft: 12 }}>Instance / Finding</span>
           <span style={ls}>Severity</span>
@@ -644,10 +646,32 @@ export function EC2Security() {
 
           return (
             <div key={finding.id}>
+              <button
+                type="button"
+                className="block w-full border-b border-white/[0.04] px-3 py-3 text-left md:hidden"
+                onClick={() => toggleRow(finding.id)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-slate-200">{finding.instance_name}</div>
+                    <div style={{ ...ms }} className="mt-0.5 truncate text-[11px] text-slate-500">{finding.finding_type}</div>
+                  </div>
+                  <SeverityBadge severity={finding.severity} size="sm" />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span style={{ ...ms }} className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{w?.status ?? "NEW"}</span>
+                  <span style={{ ...ms }} className="text-[10px] text-slate-500">{finding.instance_id}</span>
+                  <span style={{ ...ms, color: finding.risk_score >= 9 ? "#ff0040" : finding.risk_score >= 7 ? "#ff6b35" : finding.risk_score >= 5 ? "#ffb000" : "#00ff88" }} className="ml-auto text-[11px] font-bold">
+                    {finding.risk_score}/10
+                  </span>
+                </div>
+              </button>
+
               {/* Row */}
               <div
                 onClick={() => toggleRow(finding.id)}
-                style={{ display: "grid", gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                className="hidden md:grid"
+                style={{ gridTemplateColumns: "4px 1fr 140px 130px 110px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
                 onMouseEnter={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
                 onMouseLeave={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
               >
@@ -707,38 +731,54 @@ export function EC2Security() {
 
               {/* Expanded Workflow Panel */}
               {expanded && (
-                <FindingDetailPanel
-                  finding={{
-                    id: finding.id,
-                    title: finding.finding_type,
-                    resource_name: finding.instance_name,
-                    resource_arn: `arn:aws:ec2:${finding.region}:123456789012:instance/${finding.instance_id}`,
-                    severity: finding.severity,
-                    description: finding.description,
-                    recommendation: finding.recommendation,
-                    risk_score: finding.risk_score,
-                    compliance_frameworks: finding.compliance_frameworks,
-                    last_seen: finding.last_seen,
-                    first_seen: finding.launch_time,
-                    region: finding.region,
-                    metadata: {
-                      "Instance ID": finding.instance_id,
-                      "Instance Type": finding.instance_type,
-                      "VPC": finding.vpc_id,
-                      "State": finding.state,
-                      ...(finding.public_ip ? { "Public IP": finding.public_ip } : { "Network": "Private only" }),
-                    },
-                  }}
-                  playbook={PLAYBOOKS[finding.id]}
-                  workflow={workflows[finding.id]}
-                  assignees={ASSIGNEES}
-                  onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
-                  onAssign={(id, assignee) => { assignFinding(id, assignee); }}
-                  onMarkFalsePositive={(id) => { markFalsePositive(id); }}
-                  onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
-                  onClose={() => toggleRow(finding.id)}
-                  isLast={isLast}
-                />
+                <>
+                  <div className="md:hidden px-3 pb-3">
+                    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ ...ms }}>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Instance ID</div>
+                      <div className="break-all text-[11px] text-slate-300">{finding.instance_id}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Top finding</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{finding.finding_type}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Recommendation</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{finding.recommendation}</div>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                    <FindingDetailPanel
+                      finding={{
+                        id: finding.id,
+                        title: finding.finding_type,
+                        resource_name: finding.instance_name,
+                        resource_arn: `arn:aws:ec2:${finding.region}:123456789012:instance/${finding.instance_id}`,
+                        severity: finding.severity,
+                        description: finding.description,
+                        recommendation: finding.recommendation,
+                        risk_score: finding.risk_score,
+                        compliance_frameworks: finding.compliance_frameworks,
+                        last_seen: finding.last_seen,
+                        first_seen: finding.launch_time,
+                        region: finding.region,
+                        metadata: {
+                          "Instance ID": finding.instance_id,
+                          "Instance Type": finding.instance_type,
+                          "VPC": finding.vpc_id,
+                          "State": finding.state,
+                          ...(finding.public_ip ? { "Public IP": finding.public_ip } : { "Network": "Private only" }),
+                        },
+                      }}
+                      playbook={PLAYBOOKS[finding.id]}
+                      workflow={workflows[finding.id]}
+                      assignees={ASSIGNEES}
+                      onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
+                      onAssign={(id, assignee) => { assignFinding(id, assignee); }}
+                      onMarkFalsePositive={(id) => { markFalsePositive(id); }}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
+                      onClose={() => toggleRow(finding.id)}
+                      isLast={isLast}
+                    />
+                  </div>
+                </>
               )}
             </div>
           );

@@ -238,7 +238,7 @@ export function Macie() {
   ];
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6" style={{ color: '#e2e8f0' }}>
 
       <ScanPageHeader
         icon={<Eye size={20} color="#00ff88" />}
@@ -250,7 +250,7 @@ export function Macie() {
       />
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Findings" value={totalFindings} accent="#e2e8f0" icon={AlertTriangle} />
         <StatCard label="PII Exposed" value={piiExposed} accent="#ff0040" icon={User} />
         <StatCard label="Credentials Found" value={credentialsFound} accent="#ff0040" icon={Key} />
@@ -335,7 +335,7 @@ export function Macie() {
       </div>
 
       {/* Findings Table */}
-      <div style={CARD_STYLE}>
+      <div className="min-w-0" style={{ ...CARD_STYLE, overflow: 'hidden' }}>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>Data Sensitivity Findings</span>
           <span style={{ fontSize: 12, color: 'rgba(100,116,139,0.7)' }}>
@@ -344,8 +344,7 @@ export function Macie() {
         </div>
 
         {/* Table Header */}
-        <div style={{
-          display: 'grid',
+        <div className="hidden md:grid" style={{
           gridTemplateColumns: '6px 170px 1fr 140px 130px 80px 90px 30px',
           gap: 12,
           padding: '0 12px 8px',
@@ -377,10 +376,29 @@ export function Macie() {
 
             return (
               <div key={finding.id}>
+                <button
+                  type="button"
+                  className="block w-full border-b border-white/[0.05] px-3 py-3 text-left md:hidden"
+                  onClick={() => setExpandedId(isExpanded ? null : finding.id)}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500">{isExpanded ? "Tap to collapse" : "Tap to expand"}</span>
+                    <div className="flex items-center gap-2">
+                      {isExpanded ? <ChevronUp size={14} color="rgba(100,116,139,0.8)" /> : <ChevronDown size={14} color="rgba(100,116,139,0.8)" />}
+                      <SeverityBadge severity={finding.severity} size="sm" />
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-200 break-words">{finding.type}</div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.bucket_name}</div>
+                  </div>
+                  <div className="mt-2 truncate text-[10px] text-slate-400">{finding.sensitive_data_type}</div>
+                </button>
+
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : finding.id)}
+                  className="hidden md:grid"
                   style={{
-                    display: 'grid',
                     gridTemplateColumns: '6px 170px 1fr 140px 130px 80px 90px 30px',
                     gap: 12,
                     padding: '16px 12px',
@@ -471,34 +489,48 @@ export function Macie() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <FindingDetailPanel
-                    finding={{
-                      id: finding.id,
-                      title: finding.type ?? finding.title,
-                      resource_name: finding.bucket_name,
-                      resource_arn: undefined,
-                      severity: finding.severity,
-                      description: finding.description,
-                      recommendation: getRemediation(finding.category),
-                      risk_score: undefined,
-                      compliance_frameworks: ["GDPR Art.32", "HIPAA 164.312", "PCI-DSS 3.4"],
-                      last_seen: finding.last_observed_at,
-                      first_seen: finding.first_observed_at,
-                      region: undefined,
-                      metadata: {
-                        ...(finding.bucket_name ? { "Bucket": finding.bucket_name } : {}),
-                        ...(finding.occurrences !== undefined ? { "Objects": String(finding.occurrences) } : {}),
-                        ...(finding.data_classification ? { "Data Type": finding.data_classification } : {}),
-                        ...(finding.sensitive_data_type ? { "Sensitive Data": finding.sensitive_data_type } : {}),
-                      },
-                    }}
-                    workflow={workflows[finding.id]}
-                    onAdvanceStatus={advanceStatus}
-                    onAssign={assignFinding}
-                    onMarkFalsePositive={markFalsePositive}
-                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
-                    onClose={() => setExpandedId(null)}
-                  />
+                  <>
+                    <div className="md:hidden px-3 pb-3">
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Bucket</div>
+                        <div className="break-all text-[11px] text-slate-300">{finding.bucket_name}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Sensitive data</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.sensitive_data_type}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <FindingDetailPanel
+                        finding={{
+                          id: finding.id,
+                          title: finding.type ?? finding.title,
+                          resource_name: finding.bucket_name,
+                          resource_arn: undefined,
+                          severity: finding.severity,
+                          description: finding.description,
+                          recommendation: getRemediation(finding.category),
+                          risk_score: undefined,
+                          compliance_frameworks: ["GDPR Art.32", "HIPAA 164.312", "PCI-DSS 3.4"],
+                          last_seen: finding.last_observed_at,
+                          first_seen: finding.first_observed_at,
+                          region: undefined,
+                          metadata: {
+                            ...(finding.bucket_name ? { "Bucket": finding.bucket_name } : {}),
+                            ...(finding.occurrences !== undefined ? { "Objects": String(finding.occurrences) } : {}),
+                            ...(finding.data_classification ? { "Data Type": finding.data_classification } : {}),
+                            ...(finding.sensitive_data_type ? { "Sensitive Data": finding.sensitive_data_type } : {}),
+                          },
+                        }}
+                        workflow={workflows[finding.id]}
+                        onAdvanceStatus={advanceStatus}
+                        onAssign={assignFinding}
+                        onMarkFalsePositive={markFalsePositive}
+                        onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                        onClose={() => setExpandedId(null)}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             );

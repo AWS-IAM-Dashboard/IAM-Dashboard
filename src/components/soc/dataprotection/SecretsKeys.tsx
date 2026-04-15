@@ -1,5 +1,5 @@
 // Secrets & Keys — rotation posture, KMS policy analysis
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { KeyRound, ChevronDown, ChevronRight, RotateCcw, AlertTriangle } from "lucide-react";
 import type { SecretEntry, KMSKeyEntry } from "./types";
 import {
@@ -234,14 +234,22 @@ export function SecretsKeys() {
   const kmsIssues = MOCK_KMS_KEYS.filter(k => k.policy_issues.length > 0).length;
 
   const SECTIONS = [
-    { id: "secrets", label: "Secret Rotation", accent: "#a78bfa", count: secretsNonCompliant },
-    { id: "kms", label: "KMS Keys", accent: "#ff6b35", count: kmsIssues },
-    { id: "audit", label: "Audit Trail", accent: "#64748b" },
-    { id: "scenarios", label: "Scenarios", accent: "#ffb000" },
+    { id: "secrets", label: "Secret Rotation", shortLabel: "Rotate", accent: "#a78bfa", count: secretsNonCompliant },
+    { id: "kms", label: "KMS Keys", shortLabel: "KMS", accent: "#ff6b35", count: kmsIssues },
+    { id: "audit", label: "Audit Trail", shortLabel: "Audit", accent: "#64748b" },
+    { id: "scenarios", label: "Scenarios", shortLabel: "SIM", accent: "#ffb000" },
   ] as const;
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const }}>
+    <div className="min-w-0 max-w-full" style={{ display: "flex", flexDirection: "column" as const }}>
       <ModuleHeader icon={<KeyRound size={16} color="#a78bfa" />} title="Secrets & Keys" subtitle="Secret rotation posture, stale credential detection, and KMS key policy analysis" accent="#a78bfa" />
 
       <StatStrip stats={[
@@ -253,16 +261,26 @@ export function SecretsKeys() {
         { label: "Total KMS Keys", value: MOCK_KMS_KEYS.length },
       ]} />
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+      <div className="mb-3 grid min-w-0 w-full grid-cols-4 gap-1 sm:flex sm:flex-wrap sm:gap-2">
         {SECTIONS.map(s => {
           const active = section === s.id;
           return (
-            <button key={s.id} className="soc-btn" onClick={() => setSection(s.id as typeof section)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: active ? `${s.accent}12` : "transparent", border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`, color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono, fontSize: 11, fontWeight: active ? 700 : 500, transition: "all 0.12s" }}
+            <button
+              key={s.id}
+              type="button"
+              className="soc-btn flex min-w-0 w-full flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-2 text-center sm:w-auto sm:flex-row sm:gap-1.5 sm:px-2.5 sm:py-1.5"
+              onClick={() => setSection(s.id as typeof section)}
+              style={{
+                background: active ? `${s.accent}12` : "transparent",
+                border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`,
+                color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono,
+                fontSize: isMobile ? 9 : 11, fontWeight: active ? 700 : 500, transition: "all 0.12s",
+              }}
             >
-              {s.label}
+              <span className="hidden whitespace-nowrap sm:inline">{s.label}</span>
+              <span className="max-w-full truncate text-[8px] leading-tight sm:hidden">{s.shortLabel}</span>
               {("count" in s) && s.count > 0 && (
-                <span style={{ ...mono, fontSize: 9, fontWeight: 800, padding: "0 4px", height: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${s.accent}18`, border: `1px solid ${s.accent}30`, color: s.accent }}>{s.count}</span>
+                <span style={{ ...mono, fontSize: 8, fontWeight: 800, padding: "0 3px", minHeight: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${s.accent}18`, border: `1px solid ${s.accent}30`, color: s.accent }}>{s.count}</span>
               )}
             </button>
           );
@@ -270,30 +288,36 @@ export function SecretsKeys() {
       </div>
 
       {section === "secrets" && (
-        <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <span /><TH>Type</TH><TH>Secret</TH><TH>Rotation Status</TH><TH right>Days Ago</TH><TH>Auto-Rotate</TH><TH right>Compliance</TH>
+        <div className="min-w-0 overflow-x-auto" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ minWidth: 700 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "24px 72px 1fr 96px 80px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+              <span /><TH>Type</TH><TH>Secret</TH><TH>Rotation Status</TH><TH right>Days Ago</TH><TH>Auto-Rotate</TH><TH right>Compliance</TH>
+            </div>
+            {MOCK_SECRETS.map(s => <SecretRow key={s.id} entry={s} />)}
           </div>
-          {MOCK_SECRETS.map(s => <SecretRow key={s.id} entry={s} />)}
         </div>
       )}
 
       {section === "kms" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <AlertTriangle size={11} color="rgba(255,107,53,0.5)" />
             <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)" }}>Over-permissive KMS key policies allow any IAM principal to decrypt data — a high-impact privilege escalation vector.</span>
             <MockBadge />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <span /><TH>Key / Alias</TH><TH>State</TH><TH>Usage (7d)</TH><TH>Rotation</TH><TH>Policy</TH><TH right>Compliance</TH>
+          <div className="min-w-0 overflow-x-auto">
+            <div style={{ minWidth: 720 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 100px 80px 72px 80px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                <span /><TH>Key / Alias</TH><TH>State</TH><TH>Usage (7d)</TH><TH>Rotation</TH><TH>Policy</TH><TH right>Compliance</TH>
+              </div>
+              {MOCK_KMS_KEYS.map(k => <KMSKeyRow key={k.id} entry={k} />)}
+            </div>
           </div>
-          {MOCK_KMS_KEYS.map(k => <KMSKeyRow key={k.id} entry={k} />)}
         </div>
       )}
 
       {section === "audit" && (
-        <div style={{ padding: "4px 0" }}>
+        <div className="min-w-0 max-w-full px-1 py-1 sm:px-0">
           {MOCK_AUDIT_TRAIL.filter(e =>
             ["prod/db/mysql-master-password", "mrk-ebs456", "prod/stripe/api-key"].includes(e.resource_id)
           ).map(e => (
@@ -303,7 +327,7 @@ export function SecretsKeys() {
       )}
 
       {section === "scenarios" && (
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+        <div className="flex min-w-0 max-w-full flex-col gap-3 px-1 py-1 sm:gap-3 sm:px-0">
           {DP_SCENARIOS.filter(s => s.id === "stale_rotation" || s.id === "overpermissive_key").map(s => (
             <DPScenarioSimulator key={s.id} scenario={s} />
           ))}

@@ -175,21 +175,25 @@ export function BackendHandoff({ endpoints }: { endpoints: Array<{ method: strin
     <div style={{ marginTop: 16, borderRadius: 8, border: "1px dashed rgba(100,116,139,0.2)", overflow: "hidden" }}>
       <button
         onClick={() => setOpen(x => !x)}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer" }}
+        style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 14px", background: "rgba(100,116,139,0.04)", border: "none", cursor: "pointer", textAlign: "left" }}
       >
-        <Link size={11} color="rgba(100,116,139,0.4)" />
-        <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "rgba(100,116,139,0.45)", flex: 1, textAlign: "left" }}>
-          Backend Integration Requirements ({endpoints.length})
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0, flex: 1 }}>
+          <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}><Link size={11} color="rgba(100,116,139,0.4)" /></span>
+          <span style={{ ...mono, fontSize: 9, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "rgba(148,163,184,0.82)", minWidth: 0, flex: "1 1 auto", lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word", textAlign: "left" }}>
+            Backend Integration Requirements ({endpoints.length})
+          </span>
+        </div>
+        <span style={{ display: "flex", flexShrink: 0, paddingTop: 2 }}>
+          {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
         </span>
-        {open ? <ChevronDown size={11} color="rgba(100,116,139,0.3)" /> : <ChevronRight size={11} color="rgba(100,116,139,0.3)" />}
       </button>
       {open && (
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
           {endpoints.map((ep, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
               <span style={{ ...mono, fontSize: 10, fontWeight: 700, color: ep.method === "GET" ? "#60a5fa" : ep.method === "POST" ? "#00ff88" : "#a78bfa", flexShrink: 0 }}>{ep.method}</span>
-              <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.7)", flexShrink: 0 }}>{ep.path}</span>
-              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)" }}>{ep.description}</span>
+              <span style={{ ...mono, fontSize: 10, color: "rgba(148,163,184,0.7)", minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>{ep.path}</span>
+              <span style={{ fontSize: 10, color: "rgba(100,116,139,0.5)", minWidth: 0 }}>{ep.description}</span>
               <MockBadge label="NOT WIRED" />
             </div>
           ))}
@@ -208,20 +212,26 @@ export function ModuleHeader({
 }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" style={{ marginBottom: 8 }}>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {icon}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</div>
+            <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginTop: 2 }}>{subtitle}</div>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{title}</div>
-          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginTop: 2 }}>{subtitle}</div>
-        </div>
-        {extra}
-        {live && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-            <Wifi size={11} color="rgba(0,255,136,0.5)" />
-            <span style={{ ...mono, fontSize: 9, color: "rgba(0,255,136,0.5)", letterSpacing: "0.08em" }}>LIVE</span>
-            <MockBadge label="SIMULATED" />
+        {(extra || live) && (
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+            {extra}
+            {live && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                <Wifi size={11} color="rgba(0,255,136,0.5)" />
+                <span style={{ ...mono, fontSize: 9, color: "rgba(0,255,136,0.5)", letterSpacing: "0.08em" }}>LIVE</span>
+                <MockBadge label="SIMULATED" />
+              </div>
+            )}
           </div>
         )}
       </div>
