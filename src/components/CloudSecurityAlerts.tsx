@@ -196,6 +196,13 @@ export function CloudSecurityAlerts() {
   const [sortBy,        setSortBy]        = useState<"severity" | "time">("severity");
   const [view,          setView]          = useState<"queue" | "rules">("queue");
 
+  const handleResetFilters = () => {
+    setSevFilter("all");
+    setStatusFilter("all");
+    setServiceFilter("all");
+    setSearch("");
+  };
+
   /* ── Per-alert state ── */
   const [acked,      setAcked]      = useState<Set<string>>(new Set());
   const [resolved,   setResolved]   = useState<Set<string>>(new Set());
@@ -616,9 +623,7 @@ export function CloudSecurityAlerts() {
                 subtitle={alerts.length === 0
                   ? "Run a security scan from the dashboard to populate the alert queue with real-time findings."
                   : undefined}
-                onAction={alerts.length === 0
-                  ? undefined
-                  : () => { setSevFilter("all"); setStatusFilter("all"); setServiceFilter("all"); setSearch(""); }}
+                onAction={alerts.length === 0 ? undefined : handleResetFilters}
               />
             </div>
           ) : (

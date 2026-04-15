@@ -1407,11 +1407,12 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
               <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.65)", letterSpacing: "0.1em", textTransform: "uppercase" as const, fontFamily: "'JetBrains Mono', monospace", marginBottom: 12 }}>Attack Surface</div>
                 {blastRadiusData.length === 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 12px", textAlign: "center" }}>
-                    <Target size={24} style={{ color: "rgba(100,116,139,0.25)", marginBottom: 8 }} />
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(100,116,139,0.45)", margin: 0 }}>No attack surface data</p>
-                    <p style={{ fontSize: 10, color: "rgba(100,116,139,0.3)", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>Run a scan to map your blast radius</p>
-                  </div>
+                  <ScanEmptyState
+                    variant="general"
+                    icon={Target}
+                    title="No attack surface data"
+                    subtitle="Run a scan to map your blast radius."
+                  />
                 ) : blastRadiusData.map(({ name, value }, idx) => {
                   const maxVal = Math.max(...blastRadiusData.map(d => d.value));
                   const pct = Math.min(100, (value / maxVal) * 100);

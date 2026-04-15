@@ -386,15 +386,6 @@ export function AWSIAMScan() {
     setFindingStatuses((prev) => ({ ...prev, [findingId]: status }));
   };
 
-  const handleResetFilters = () => {
-    setFindingSearchTerm("");
-    setFindingSeverityFilter("all");
-    setFindingTypeFilter("all");
-    setFindingStatusFilter("all");
-    setStartDateFilter("");
-    setEndDateFilter("");
-  };
-
   const filteredFindings = useMemo(() => {
     if (!scanResult?.findings?.length) return [];
     const q = findingSearchTerm.trim().toLowerCase();
@@ -604,7 +595,7 @@ export function AWSIAMScan() {
               variant="no-results"
               icon={Users}
               serviceName="IAM"
-              onAction={handleResetFilters}
+              onAction={clearFindingFilters}
             />
           ) : (
             paginatedFindings.map((finding) => {

@@ -524,12 +524,26 @@ export function AccessAnalyzer() {
 
           {/* Rows */}
           {filteredFindings.length === 0 ? (
-            <ScanEmptyState
-              variant="no-results"
-              icon={ScanLine}
-              serviceName="Access Analyzer"
-              onAction={handleResetFilters}
-            />
+            (() => {
+              const hasFindings = (scanResult?.findings?.length ?? 0) > 0;
+              const filtersActive = severityFilter !== "all" || typeFilter !== "all" || searchTerm.trim() !== "";
+              return hasFindings || filtersActive ? (
+                <ScanEmptyState
+                  variant="no-results"
+                  icon={ScanLine}
+                  serviceName="Access Analyzer"
+                  onAction={handleResetFilters}
+                />
+              ) : (
+                <ScanEmptyState
+                  variant="general"
+                  icon={ScanLine}
+                  serviceName="Access Analyzer"
+                  title="Scan returned zero findings"
+                  subtitle="No external access issues were detected. Your resources look good."
+                />
+              );
+            })()
           ) : (
             filteredFindings.map((finding) => {
               const isExpanded = expandedRow === finding.id;

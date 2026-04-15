@@ -203,7 +203,7 @@ export function ScanEmptyState({
       </p>
 
       {/* CTA buttons */}
-      {(onAction || onSecondaryAction) && (
+      {((onAction && resolvedLabel) || (onSecondaryAction && secondaryLabel)) && (
         <div
           style={{
             display: "flex",
@@ -214,6 +214,7 @@ export function ScanEmptyState({
         >
           {onAction && resolvedLabel && (
             <button
+              type="button"
               onClick={onAction}
               style={{
                 ...MONO,
@@ -247,6 +248,7 @@ export function ScanEmptyState({
 
           {onSecondaryAction && secondaryLabel && (
             <button
+              type="button"
               onClick={onSecondaryAction}
               style={{
                 ...MONO,

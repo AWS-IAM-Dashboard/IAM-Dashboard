@@ -1,6 +1,7 @@
 // Network Security — Security Groups, NACLs, VPC Flow Logs
 import { useState, useMemo } from "react";
-import { Network, ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, FilterX } from "lucide-react";
+import { Network, ChevronDown, ChevronRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ScanEmptyState } from "../ui/EmptyState";
 import type { SecurityGroupFinding, NACLIssue, VPCFlowLogEntry } from "./types";
 import {
   mono, divider,
@@ -203,17 +204,13 @@ export function NetworkSecurity() {
               <span /><TH>Severity</TH><TH>SG ID</TH><TH>Dir</TH><TH>Port</TH><TH>Source CIDR</TH><TH>Status</TH><TH right>Attached</TH>
             </div>
             {displayed.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "36px 16px", textAlign: "center" as const }}>
-                <FilterX size={24} style={{ color: "rgba(100,116,139,0.25)" }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(100,116,139,0.55)" }}>No findings match current filters</div>
-                <div style={{ fontSize: 11, color: "rgba(100,116,139,0.35)", maxWidth: 280 }}>Try broadening your direction or lifecycle filters to see more results.</div>
-                <button
-                  onClick={() => { setDirFilter("ALL"); setLcFilter("ALL"); }}
-                  style={{ ...mono, marginTop: 4, padding: "5px 14px", borderRadius: 6, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.22)", color: "#60a5fa", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Clear filters
-                </button>
-              </div>
+              <ScanEmptyState
+                variant="no-results"
+                icon={Network}
+                serviceName="Security Groups"
+                subtitle="Try broadening your direction or lifecycle filters to see more results."
+                onAction={() => { setDirFilter("ALL"); setLcFilter("ALL"); }}
+              />
             ) : (
               displayed.map(f => (
                 <SGFindingRow key={f.id} f={f} onLifecycleChange={(id, lc) => setLifecycles({ ...lifecycles, [id]: lc })} />
