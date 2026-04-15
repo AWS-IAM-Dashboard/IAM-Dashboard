@@ -41,6 +41,7 @@ import type {
   IRActionResult,
   ApprovalRequest,
   IREngineState,
+  PlaybookStep,
 } from "../../types/ir";
 import { ACTION_META, HIGH_IMPACT_ACTIONS } from "../../types/ir";
 import {
@@ -425,49 +426,79 @@ function LLMResult({ result, type }: { result: IRActionResult; type: IRActionTyp
     );
   }
 
-  if (type === "llm_runbook" && result.runbook_markdown) {
+  if (type === "llm_runbook" && result.runbook_steps) {
+    const steps = result.runbook_steps as PlaybookStep[];
+    const PHASE_COLOR: Record<string, string> = {
+      IDENTIFY: "#60a5fa",
+      CONTAIN: "#ffb000",
+      REMEDIATE: "#ff6b35",
+      VERIFY: "#00ff88",
+    };
     return (
-      <div style={{ marginTop: 10, position: "relative" }}>
-        <button
-          onClick={() => copyText(result.runbook_markdown!)}
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 4,
-            padding: "3px 8px",
-            color: copied ? "#00ff88" : "rgba(100,116,139,0.55)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 10,
-            ...mono,
-          }}
-        >
-          {copied ? <Check size={10} /> : <Copy size={10} />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-        <pre
-          style={{
-            ...mono,
-            fontSize: 10,
-            color: "rgba(148,163,184,0.85)",
-            background: "rgba(0,0,0,0.2)",
-            padding: "10px 12px",
-            borderRadius: 6,
-            overflow: "auto",
-            maxHeight: 220,
-            margin: 0,
-            lineHeight: 1.7,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {result.runbook_markdown}
-        </pre>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+        {steps.map((step) => (
+          <div
+            key={step.step}
+            style={{
+              background: "rgba(0,0,0,0.2)",
+              border: `1px solid ${PHASE_COLOR[step.phase] ?? "#818cf8"}22`,
+              borderLeft: `3px solid ${PHASE_COLOR[step.phase] ?? "#818cf8"}`,
+              borderRadius: 6,
+              padding: "8px 10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <span
+                style={{
+                  ...mono,
+                  fontSize: 8,
+                  fontWeight: 700,
+                  color: PHASE_COLOR[step.phase] ?? "#818cf8",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {step.phase}
+              </span>
+              <span style={{ ...mono, fontSize: 10, fontWeight: 600, color: "#e2e8f0" }}>
+                {step.title}
+              </span>
+              <span style={{ marginLeft: "auto", ...mono, fontSize: 9, color: "rgba(100,116,139,0.5)" }}>
+                {step.estimated_time}m
+              </span>
+            </div>
+            <p style={{ margin: "0 0 6px", fontSize: 10, color: "rgba(148,163,184,0.8)", lineHeight: 1.5 }}>
+              {step.description}
+            </p>
+            {step.commands.length > 0 && (
+              <div
+                style={{
+                  background: "rgba(0,0,0,0.3)",
+                  borderRadius: 4,
+                  padding: "6px 8px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                {step.commands.map((cmd, ci) => (
+                  <code
+                    key={ci}
+                    style={{
+                      ...mono,
+                      fontSize: 9,
+                      color: cmd.startsWith("#") ? "rgba(100,116,139,0.5)" : "rgba(148,163,184,0.85)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {cmd}
+                  </code>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     );
   }

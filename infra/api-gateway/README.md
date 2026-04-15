@@ -48,7 +48,7 @@ terraform apply
 - **Protocol**: HTTP API (v2)
 - **Stage**: `v1`
 - **CORS**: Enabled with configurable origins
-- **Throttling**: 100 burst, 50 rate limit per second
+- **Throttling**: Per-route limits on the stage (see below)
 - **Routes**: Added route definitions for 12 routes. 9 scanner, 3 authentication
 - **Lambda Integration**: Integrated the scanner routes with the scanner lambda and auth routes with the auth lambda
 - **Request/Response Mapping**: Configure request/response transformations
@@ -111,4 +111,33 @@ API Gateway will:
 3. Transform responses back to HTTP
 4. Handle CORS for browser requests
 5. Provide throttling and rate limiting
+
+## ⏱️ Rate limiting (throttling)
+
+This API is an **HTTP API (API Gateway v2)**. Throttling uses **steady RPS** plus **burst** (token bucket) on the stage. HTTP APIs do **not** support REST-style **usage plans**, **API keys**, or a built-in **per-day quota**; those require a REST API or another layer (for example application quotas or WAF).
+
+### Chosen limits (defaults)
+
+| Route group | Routes | Steady RPS | Burst | Terraform variables |
+|-------------|--------|------------|-------|---------------------|
+| Individual scans | `POST /scan/security-hub`, `guardduty`, `config`, `inspector`, `macie`, `iam`, `ec2`, `s3` | 25 | 50 | `throttling_rate_limit`, `throttling_burst_limit` |
+| Full scan | `POST /scan/full` | 5 | 10 | `throttling_scan_full_rate_limit`, `throttling_scan_full_burst_limit` |
+| Auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/session` | 35 | 70 | `throttling_auth_rate_limit`, `throttling_auth_burst_limit` |
+
+Individual scan routes inherit **default_route_settings**. `POST /scan/full` and the auth routes use **route_settings** overrides on the same stage.
+
+### Per-day caps
+
+There is **no native per-day limit** on HTTP API throttling. To add a daily cap later, options include: migrate sensitive routes to a **REST API** with usage plans and quotas, enforce quotas in **Lambda** (for example DynamoDB counters), or use **WAF** / edge rules for abuse patterns. Until then, use CloudWatch on `429` responses and Lambda invocations for monitoring.
+
+### How to change limits for scaling
+
+1. Edit defaults in `variables.tf` or pass overrides when calling the module from `infra/main.tf`.
+2. Run `terraform plan` and `terraform apply` from the `infra` root (or this module directory if applied standalone).
+3. After deploy, clients exceeding limits receive **429 Too Many Requests** from API Gateway.
+
+### Verifying throttling
+
+- Use stage **access logs** (CloudWatch log group `/aws/apigwv2/<api-name>/<stage>/access`) and filter for `status` 429.
+- Load-test gradually; burst allows short spikes above steady RPS.
 

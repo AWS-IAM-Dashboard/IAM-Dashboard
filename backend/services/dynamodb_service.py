@@ -73,14 +73,35 @@ class DynamoDBService:
             logger.error(f"DynamoDB error getting scan record: {str(e)}")
             return None
 
-    def list_scan_records(self, limit: int = 100) -> List[Dict]:
-        """List recent scan records"""
+    def list_scan_records(self, limit: Optional[int] = 100) -> List[Dict]:
+        """List scan records using paginated DynamoDB scan.
+
+        If limit is None, fetches all records.
+        """
         try:
-            response = self.scan_results.scan(Limit=limit)
-            return response.get('Items', [])
+            items: List[Dict[str, Any]] = []
+
+            scan_kwargs: Dict[str, Any] = {}
+            if limit is not None:
+                scan_kwargs["Limit"] = max(1, int(limit))
+
+            response = self.scan_results.scan(**scan_kwargs)
+            items.extend(response.get('Items', []))
+
+            while response.get("LastEvaluatedKey"):
+                if limit is not None and len(items) >= scan_kwargs["Limit"]:
+                    break
+
+                scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+                response = self.scan_results.scan(**scan_kwargs)
+                items.extend(response.get('Items', []))
+
+            if limit is not None:
+                return items[: scan_kwargs["Limit"]]
+            return items
         except ClientError as e:
             logger.error(f"DynamoDB error listing scan records: {str(e)}")
-            return []
+            raise
 
     def create_iam_finding(self, finding_data: Dict[str, Any]) -> bool:
         """Create a new IAM finding"""

@@ -99,3 +99,17 @@ resource "aws_lambda_function" "scanner" {
 
   depends_on = [aws_iam_role_policy.lambda_policy]
 }
+
+# Scanner Lambda logs (structured SENSITIVE_AUDIT lines + platform messages)
+resource "aws_cloudwatch_log_group" "scanner_lambda" {
+  name              = "/aws/lambda/${var.lambda_function_name}"
+  retention_in_days = 365
+
+  tags = {
+    Name      = "${var.lambda_function_name}-logs"
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+    Purpose   = "audit-scanner"
+  }
+}

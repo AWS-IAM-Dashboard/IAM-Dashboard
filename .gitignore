@@ -152,6 +152,7 @@ temp/
 *.tfstate
 *.tfstate.*
 .terraform/
+**/.terraform/
 
 # Lambda vendored deps (install at build: pip install -r requirements.txt -t .)
 infra/lambda/boto3/
