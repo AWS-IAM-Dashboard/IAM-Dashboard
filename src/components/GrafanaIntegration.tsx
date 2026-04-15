@@ -176,9 +176,9 @@ export function GrafanaIntegration() {
         </div>
       </ScanPageHeader>
 
-      {/* ── Section tabs ── */}
+      {/* ── Section tabs — Desktop: original flex row · Mobile: 2-col grid ── */}
       <div
-        className="grid w-full min-w-0 grid-cols-2 gap-2 pb-1.5 sm:flex sm:flex-wrap sm:gap-1"
+        className="grid w-full min-w-0 grid-cols-2 gap-2 pb-1.5 md:flex md:gap-0.5 md:pb-0"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         {SECTIONS.map((s) => {
@@ -188,9 +188,7 @@ export function GrafanaIntegration() {
               key={s.id}
               onClick={() => setActiveSection(s.id)}
               style={{
-                width: "100%",
-                minWidth: 0,
-                padding: "8px 10px",
+                padding: isMobile ? "8px 10px" : "8px 16px",
                 fontSize: isMobile ? "11px" : "12px",
                 fontWeight: active ? 600 : 400,
                 color: active ? "#e2e8f0" : "rgba(100,116,139,0.6)",
@@ -201,12 +199,13 @@ export function GrafanaIntegration() {
                 marginBottom: isMobile ? "0" : "-1px",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                justifyContent: isMobile ? "center" : undefined,
+                width: isMobile ? "100%" : undefined,
                 gap: "8px",
                 transition: "color 0.15s",
               }}
             >
-              <span className="hidden text-center leading-tight sm:inline">{s.label}</span>
+              <span className="hidden sm:inline">{s.label}</span>
               <span className="sm:hidden">{s.shortLabel}</span>
               {s.count !== null && (
                 <span style={{ fontSize: "10px", background: active ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.06)", color: active ? "#00ff88" : "rgba(100,116,139,0.5)", padding: "1px 6px", borderRadius: "999px", fontFamily: "'JetBrains Mono', monospace" }}>

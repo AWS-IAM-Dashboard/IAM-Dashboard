@@ -888,9 +888,110 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
     >
       <DemoModeBanner />
 
-      {/* ── Page Header ──────────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
-        {/* Title row */}
+      {/* ── Page Header — Desktop (md+): original row layout ── */}
+      <div className="hidden md:flex" style={{ alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+            background: "rgba(0,255,136,0.1)",
+            border: "1px solid rgba(0,255,136,0.22)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Shield size={20} color="#00ff88" />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+              Security Overview
+            </h1>
+            <p style={{ fontSize: 12, color: "rgba(100,116,139,0.75)", margin: "4px 0 0", lineHeight: 1.4 }}>
+              Real-time posture · Last scan:{" "}
+              <span style={{ color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>{stats.last_scan}</span>
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
+          <button
+            type="button"
+            onClick={() => setShowExtendedDetails((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 12px", borderRadius: 6,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(148,163,184,0.7)", fontSize: 12, fontWeight: 500, cursor: "pointer",
+            }}
+            title={showExtendedDetails ? "Hide maps, charts, and side panels" : "Show maps, charts, workflow rail, and quick links"}
+          >
+            {showExtendedDetails ? "Essential only" : "Full detail"}
+          </button>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, padding: 2, gap: 2 }}>
+            {([["ir", "IR Mode"], ["audit", "Audit"]] as const).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                style={{
+                  padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: mode === m ? 700 : 400, cursor: "pointer",
+                  background: mode === m ? (m === "ir" ? "rgba(255,0,64,0.12)" : "rgba(14,165,233,0.1)") : "transparent",
+                  border: mode === m ? `1px solid ${m === "ir" ? "rgba(255,0,64,0.28)" : "rgba(14,165,233,0.22)"}` : "1px solid transparent",
+                  color: mode === m ? (m === "ir" ? "#ff0040" : "#0ea5e9") : "rgba(100,116,139,0.7)",
+                  letterSpacing: "0.04em", transition: "all 0.12s",
+                }}
+              >{label}</button>
+            ))}
+          </div>
+          {isScanning && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)",
+              borderRadius: 8, padding: "8px 12px",
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00ff88", display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }} />
+              <span style={{ fontSize: 12, color: "#00ff88", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>{scanProgress}%</span>
+              <div style={{ width: 80, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div className="scan-progress-fill" style={{ width: `${scanProgress}%` }} />
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={refreshStats}
+            disabled={statsLoading}
+            className="ghost-btn"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 36, height: 36, borderRadius: 6,
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(148,163,184,0.7)", cursor: statsLoading ? "not-allowed" : "pointer",
+              opacity: statsLoading ? 0.5 : 1,
+            }}
+          >
+            <RefreshCw size={14} style={statsLoading ? { animation: "spin 1s linear infinite" } : {}} />
+          </button>
+          <button
+            type="button"
+            onClick={handleQuickScan}
+            disabled={isScanning}
+            className="scan-btn"
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 20px", borderRadius: 6,
+              background: isScanning ? "rgba(0,255,136,0.04)" : "rgba(0,255,136,0.1)",
+              border: "1px solid rgba(0,255,136,0.28)",
+              color: "#00ff88", fontSize: 13, fontWeight: 600,
+              cursor: isScanning ? "not-allowed" : "pointer",
+              opacity: isScanning ? 0.7 : 1,
+            }}
+          >
+            {isScanning ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={14} />}
+            {isScanning ? "Scanning…" : "Full Security Scan"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Page Header — Mobile (<md): stacked touch-friendly toolbar ── */}
+      <div className="flex flex-col gap-4 md:hidden">
         <div className="flex justify-start">
           <div className="flex items-center gap-3 text-left">
             <div style={{
@@ -913,7 +1014,6 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
           </div>
         </div>
 
-        {/* Actions: full-width row — no card wrapper; controls share horizontal space */}
         <div
           className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2"
           role="toolbar"
@@ -964,7 +1064,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             type="button"
             onClick={refreshStats}
             disabled={statsLoading}
-            className="ghost-btn flex min-h-12 w-full shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.05] text-slate-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-14 md:w-16"
+            className="ghost-btn flex min-h-12 w-full shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.05] text-slate-200 transition-colors hover:border-white/20 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-14"
             title="Refresh stats"
           >
             <RefreshCw size={18} className={statsLoading ? "animate-spin" : ""} />
