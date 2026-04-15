@@ -180,6 +180,13 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   <button
                     onClick={() => onTabChange(item.id)}
                     title={collapsed ? item.label : undefined}
+                    data-tour={
+                      item.id === "dashboard"
+                        ? "sidebar-security-overview"
+                        : item.id === "alerts"
+                          ? "sidebar-security-alerts"
+                          : undefined
+                    }
                     className={cn(
                       "w-full flex items-center rounded-lg text-sm transition-all duration-150",
                       collapsed ? "justify-center h-10 px-0" : "h-9 gap-3 pl-4 pr-3",

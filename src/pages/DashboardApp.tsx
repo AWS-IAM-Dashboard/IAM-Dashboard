@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { useAuth } from "../context/AuthContext";
-import { OnboardingWizard } from "../components/OnboardingWizard";
+import { OnboardingSpotlightTour } from "../components/OnboardingSpotlightTour";
 import { ProductTour } from "../components/ProductTour";
 import { isOnboardingCompleted, markOnboardingCompleted } from "../utils/onboardingStorage";
 
@@ -219,7 +219,7 @@ export function DashboardApp() {
               },
             }}
           />
-          <OnboardingWizard
+          <OnboardingSpotlightTour
             open={showOnboarding}
             onOpenChange={handleOnboardingOpenChange}
             onNavigate={setActiveTab}

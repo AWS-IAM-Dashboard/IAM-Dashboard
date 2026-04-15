@@ -947,9 +947,9 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
             <RefreshCw size={14} style={statsLoading ? { animation: "spin 1s linear infinite" } : {}} />
           </button>
           <button
-            data-tour="scan-button"
             onClick={handleQuickScan}
             disabled={isScanning}
+            data-tour="full-security-scan"
             className="scan-btn"
             style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -1011,6 +1011,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
                 <div
                   key={card.label}
                   className="kpi-card"
+                  data-tour={card.label === "OPEN FINDINGS" ? "open-findings-kpi" : undefined}
                   onClick={() => onNavigate?.(card.nav)}
                   style={{ background: "rgba(15,23,42,0.8)", border: `1px solid ${card.color}26`, borderRadius: 10, padding: "16px 20px", position: "relative", overflow: "hidden", cursor: "pointer" }}
                 >
