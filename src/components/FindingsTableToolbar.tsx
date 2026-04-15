@@ -62,10 +62,10 @@ export function FindingsTableToolbar({
 
   return (
     <div className="space-y-3">
-      {/* Row 1: Search + Filters + Page Size */}
-      <div className="flex flex-wrap items-end gap-3">
+      {/* Row 1: Search + Filters + Page Size — full-width on small screens (no horizontal scroll) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         {/* Search */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="w-full min-w-0 flex-1 sm:min-w-[200px]">
           <Label className="text-xs text-muted-foreground mb-1 block">Search</Label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -88,7 +88,7 @@ export function FindingsTableToolbar({
 
         {/* Dropdown Filters */}
         {filterDefinitions.map((def) => (
-          <div key={def.key} className="min-w-[140px]">
+          <div key={def.key} className="w-full min-w-0 sm:min-w-[140px] sm:w-auto">
             <Label className="text-xs text-muted-foreground mb-1 block">{def.label}</Label>
             <Select
               value={filters[def.key] || 'all'}
@@ -110,33 +110,35 @@ export function FindingsTableToolbar({
         ))}
 
         {/* Date Range */}
-        <div className="min-w-[140px]">
-          <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {dateFieldLabel} From
-          </Label>
-          <Input
-            type="date"
-            value={dateRange.from || ''}
-            onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value || null })}
-            className="h-9 bg-input border-border"
-          />
-        </div>
-        <div className="min-w-[140px]">
-          <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {dateFieldLabel} To
-          </Label>
-          <Input
-            type="date"
-            value={dateRange.to || ''}
-            onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value || null })}
-            className="h-9 bg-input border-border"
-          />
+        <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:min-w-[280px] sm:flex-1">
+          <div className="min-w-0">
+            <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {dateFieldLabel} From
+            </Label>
+            <Input
+              type="date"
+              value={dateRange.from || ''}
+              onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value || null })}
+              className="h-9 w-full bg-input border-border"
+            />
+          </div>
+          <div className="min-w-0">
+            <Label className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {dateFieldLabel} To
+            </Label>
+            <Input
+              type="date"
+              value={dateRange.to || ''}
+              onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value || null })}
+              className="h-9 w-full bg-input border-border"
+            />
+          </div>
         </div>
 
         {/* Page Size */}
-        <div className="min-w-[100px]">
+        <div className="w-full min-w-0 sm:w-auto sm:min-w-[100px]">
           <Label className="text-xs text-muted-foreground mb-1 block">Per page</Label>
           <Select
             value={String(pageSize)}

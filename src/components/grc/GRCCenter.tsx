@@ -1,5 +1,5 @@
 // GRC Center — top-level container with 4 sub-tabs
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Governance } from "./Governance";
 import { DataProtection } from "../soc/dataprotection/DataProtection";
 import { ComplianceEvidence } from "./ComplianceEvidence";
@@ -28,11 +28,11 @@ function GRCGlobalStyles() {
 
 type GRCTab = "governance" | "data-protection" | "compliance" | "architecture";
 
-const GRC_TABS: Array<{ id: GRCTab; label: string; accent: string }> = [
-  { id: "governance", label: "Governance", accent: "#a78bfa" },
-  { id: "data-protection", label: "Data Protection", accent: "#00ff88" },
-  { id: "compliance", label: "Compliance & Evidence", accent: "#38bdf8" },
-  { id: "architecture", label: "Architecture & Cost", accent: "#ff6b35" },
+const GRC_TABS: Array<{ id: GRCTab; label: string; shortLabel: string; accent: string }> = [
+  { id: "governance", label: "Governance", shortLabel: "Gov", accent: "#a78bfa" },
+  { id: "data-protection", label: "Data Protection", shortLabel: "Data", accent: "#00ff88" },
+  { id: "compliance", label: "Compliance & Evidence", shortLabel: "Compliance", accent: "#38bdf8" },
+  { id: "architecture", label: "Architecture & Cost", shortLabel: "Arch", accent: "#ff6b35" },
 ];
 
 function getTabCounts() {
@@ -45,7 +45,15 @@ function getTabCounts() {
 
 export function GRCCenter({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [tab, setTab] = useLocalStorage<GRCTab>("grc-active-tab", "governance");
+  const [isMobile, setIsMobile] = useState(false);
   const counts = getTabCounts();
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const badgeCount = (tabId: GRCTab) => {
     if (tabId === "governance") return counts.govIssues;
@@ -54,36 +62,40 @@ export function GRCCenter({ onNavigate }: { onNavigate?: (tab: string) => void }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const, height: "100%", minHeight: 0 }}>
+    <div className="min-w-0 max-w-full" style={{ display: "flex", flexDirection: "column" as const, height: "100%", minHeight: 0 }}>
       <GRCGlobalStyles />
 
-      {/* Sub-nav — pill buttons matching SOC/Infra pattern */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 4,
-        paddingBottom: 16, overflowX: "auto", flexShrink: 0,
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        marginBottom: 20,
-      }}>
+      {/* Sub-nav — 2×2 grid on narrow viewports; full labels from sm */}
+      <div
+        className="grid w-full min-w-0 grid-cols-2 gap-2 pb-4 sm:flex sm:flex-wrap sm:items-stretch"
+        style={{
+          flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          marginBottom: 20,
+          boxSizing: "border-box",
+        }}
+      >
         {GRC_TABS.map(t => {
           const active = tab === t.id;
           const count = badgeCount(t.id);
           return (
             <button
               key={t.id}
-              className="soc-btn"
+              className="soc-btn w-full min-w-0 shrink-0 sm:w-auto"
               onClick={() => setTab(t.id)}
               style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 6,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                padding: "8px 10px", borderRadius: 6,
                 background: active ? `${t.accent}14` : "transparent",
                 border: `1px solid ${active ? t.accent + "35" : "rgba(255,255,255,0.06)"}`,
                 color: active ? t.accent : "rgba(100,116,139,0.5)",
-                cursor: "pointer", whiteSpace: "nowrap",
-                ...mono, fontSize: 11, fontWeight: active ? 700 : 500,
+                cursor: "pointer",
+                ...mono, fontSize: isMobile ? 10 : 11, fontWeight: active ? 700 : 500,
                 transition: "all 0.12s",
               }}
             >
-              {t.label}
+              <span className="hidden text-center leading-tight break-normal sm:inline sm:whitespace-nowrap">{t.label}</span>
+              <span className="whitespace-nowrap sm:hidden" style={{ textAlign: "center", lineHeight: 1.2 }}>{t.shortLabel}</span>
               {count > 0 && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -100,7 +112,7 @@ export function GRCCenter({ onNavigate }: { onNavigate?: (tab: string) => void }
           );
         })}
 
-        <div style={{ marginLeft: "auto", flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="col-span-2 flex items-center justify-end gap-2 sm:col-span-1 sm:ml-auto sm:justify-end">
           <MockBadge label="FRONTEND MODULE" />
         </div>
       </div>
@@ -108,6 +120,7 @@ export function GRCCenter({ onNavigate }: { onNavigate?: (tab: string) => void }
       {/* Panel */}
       <div
         key={tab}
+        className="min-w-0"
         style={{ flex: 1, minHeight: 0, overflowY: "auto", animation: "fade-in 0.16s ease" }}
       >
         {tab === "governance" && <Governance onNavigate={onNavigate} />}

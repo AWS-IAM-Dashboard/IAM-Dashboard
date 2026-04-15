@@ -1,8 +1,16 @@
-import { Shield, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Shield, Lock, Eye, EyeOff, ArrowLeft, Home, LogIn, KeyRound } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import logoImage from "@/assets/logo.png";
+import { MobileQuickBar } from "../components/ui/MobileQuickBar";
+import type { MobileQuickBarItem } from "../components/ui/MobileQuickBar";
+
+const resetMobileQuickItems: MobileQuickBarItem[] = [
+  { key: "login", label: "Sign in", icon: LogIn, to: "/login" },
+  { key: "home", label: "Home", icon: Home, to: "/" },
+  { key: "forgot", label: "Forgot", icon: KeyRound, to: "/forgot-password" },
+];
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -43,7 +51,7 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 sm:py-8" role="main" aria-label="Reset password">
+      <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 pb-24 sm:py-8 md:pb-8" role="main" aria-label="Reset password">
         <div className="pointer-events-none fixed inset-0 z-0">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         </div>
@@ -63,13 +71,14 @@ export function ResetPasswordPage() {
             Request new reset link
           </Link>
         </motion.div>
+        <MobileQuickBar items={resetMobileQuickItems} />
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 sm:py-8" role="main" aria-label="Password reset complete">
+      <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 pb-24 sm:py-8 md:pb-8" role="main" aria-label="Password reset complete">
         <div className="pointer-events-none fixed inset-0 z-0">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
           <div className="absolute left-1/4 top-1/4 -z-10 h-[400px] w-[400px] rounded-full bg-green-500 opacity-20 blur-[120px] animate-pulse-slow"></div>
@@ -93,12 +102,13 @@ export function ResetPasswordPage() {
             Sign In
           </button>
         </motion.div>
+        <MobileQuickBar items={resetMobileQuickItems} />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 sm:py-8" role="main" aria-label="Set new password">
+    <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 pb-24 sm:py-8 md:pb-8" role="main" aria-label="Set new password">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-1/4 top-1/4 -z-10 h-[400px] w-[400px] rounded-full bg-green-500 opacity-20 blur-[120px] animate-pulse-slow"></div>
@@ -287,6 +297,8 @@ export function ResetPasswordPage() {
           </div>
         </motion.div>
       </div>
+
+      <MobileQuickBar items={resetMobileQuickItems} />
     </div>
   );
 }

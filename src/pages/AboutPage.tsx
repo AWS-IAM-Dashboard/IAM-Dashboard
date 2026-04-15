@@ -1,8 +1,9 @@
-import { ArrowLeft, Brain, Briefcase, Cloud as CloudIcon, Code, Database, Shield } from "lucide-react";
+import { ArrowLeft, Brain, Briefcase, Cloud as CloudIcon, Code, Database, Shield, Home, LogIn } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { MobileQuickBar } from "../components/ui/MobileQuickBar";
 import teamPhoto from "@/assets/team-photo.png";
 
 export function AboutPage() {
@@ -51,7 +52,7 @@ export function AboutPage() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
+    <div className="relative min-h-screen overflow-hidden bg-black pb-24 text-white md:pb-0">
       <AnimatedBackground />
 
       <nav className="relative z-20 border-b border-white/10 bg-black/40 backdrop-blur-xl">
@@ -68,7 +69,7 @@ export function AboutPage() {
       </nav>
 
       <section className="relative z-10 py-16">
-        <div className="mx-auto max-w-[80%] px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -88,7 +89,7 @@ export function AboutPage() {
             transition={{ duration: 0.5 }}
             className="mb-12 text-center"
           >
-            <h1 className="mb-4 text-5xl font-bold">
+            <h1 className="mb-4 text-3xl font-bold sm:text-5xl">
               About <span className="text-green-400">Our Team</span>
             </h1>
             <p className="mx-auto max-w-3xl text-lg text-gray-300">
@@ -101,7 +102,7 @@ export function AboutPage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <h2 className="mb-10 text-center text-4xl font-bold">
+            <h2 className="mb-10 text-center text-3xl font-bold sm:text-4xl">
               Our <span className="text-green-400">Specialized Teams</span>
             </h2>
 
@@ -117,7 +118,7 @@ export function AboutPage() {
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 text-green-400">
                     {team.icon}
                   </div>
-                  <h3 className="mb-2 text-3xl font-bold">{team.name}</h3>
+                  <h3 className="mb-2 text-2xl font-bold sm:text-3xl">{team.name}</h3>
                   <p className="text-sm text-gray-400">{team.description}</p>
                 </motion.div>
               ))}
@@ -133,13 +134,20 @@ export function AboutPage() {
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/10 text-green-400">
                   {teams[6].icon}
                 </div>
-                <h3 className="mb-2 text-3xl font-bold">{teams[6].name}</h3>
+                <h3 className="mb-2 text-2xl font-bold sm:text-3xl">{teams[6].name}</h3>
                 <p className="text-sm text-gray-400">{teams[6].description}</p>
               </motion.div>
             </div>
           </motion.div>
         </div>
       </section>
+
+      <MobileQuickBar
+        items={[
+          { key: "home", label: "Home", icon: Home, to: "/" },
+          { key: "signin", label: "Sign in", icon: LogIn, to: "/login" },
+        ]}
+      />
     </div>
   );
 }

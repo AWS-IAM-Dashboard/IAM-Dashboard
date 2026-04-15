@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
   Search, Bell, Settings, User, LogOut,
-  ChevronDown, MapPin,
+  ChevronDown, MapPin, Menu,
 } from "lucide-react";
 import { VoiceIRAgent } from "./ir/VoiceIRAgent";
 import { Button } from "./ui/button";
@@ -21,6 +21,8 @@ import { cn } from "./ui/utils";
 interface HeaderProps {
   onNavigate?: (tab: string) => void;
   activeTab?: string;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
 const TAB_LABELS: Record<string, string> = {
@@ -36,6 +38,9 @@ const TAB_LABELS: Record<string, string> = {
   config: "AWS Config",
   inspector: "Inspector",
   macie: "Macie",
+  soc: "Security Ops",
+  "infra-security": "Infra Security",
+  grc: "GRC",
   alerts: "Security Alerts",
   compliance: "Compliance",
   reports: "Reports",
@@ -91,7 +96,12 @@ function ShieldMark() {
   );
 }
 
-export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
+export function Header({
+  onNavigate,
+  activeTab = "dashboard",
+  onToggleSidebar,
+  isSidebarOpen = false,
+}: HeaderProps) {
   const auth = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
@@ -233,7 +243,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
 
   return (
     <header
-      className="relative h-16 flex items-center justify-between px-5 z-30 shrink-0"
+      className="relative z-[80] flex h-16 shrink-0 items-center justify-between px-3 sm:px-5"
       style={{
         background: "linear-gradient(180deg, rgba(7,11,22,0.99) 0%, rgba(9,14,27,0.98) 100%)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -248,8 +258,18 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       />
 
       {/* ── LEFT: Brand + Breadcrumb ── */}
-      <div className="flex items-center gap-3.5 shrink-0">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 min-w-0">
+        {isSidebarOpen ? null : (
+          <button
+            type="button"
+            onClick={() => onToggleSidebar?.()}
+            className="md:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-300"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
+        <div className="flex items-center gap-2.5 min-w-0">
           <ShieldMark />
           <div className="hidden sm:flex flex-col leading-none gap-1">
             <span
@@ -267,7 +287,11 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
           </div>
         </div>
 
-        <div className="hidden md:block w-px h-7" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <div className="hidden md:block w-px h-7 shrink-0" style={{ background: "rgba(255,255,255,0.08)" }} />
+
+        <div className="hidden min-[480px]:flex md:hidden items-center gap-1.5 min-w-0">
+          <span className="text-[11px] font-medium text-slate-400 truncate max-w-[120px]">{currentPageLabel}</span>
+        </div>
 
         <div className="hidden md:flex items-center gap-2">
           <span className="text-sm" style={{ color: "rgba(71,85,105,0.7)" }}>/</span>
@@ -278,7 +302,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       </div>
 
       {/* ── CENTER: Search ── */}
-      <div className="flex items-center gap-3 flex-1 justify-center">
+      <div className="hidden md:flex items-center gap-3 flex-1 justify-center min-w-0">
         <div ref={searchContainerRef} className="relative flex-1 max-w-[460px]">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
@@ -374,47 +398,50 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
 
       {/* ── RIGHT: Controls ── */}
       <div className="flex items-center gap-1 shrink-0">
-        {/* Region pill */}
-        <button
-          className="hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-all"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "rgba(148,163,184,0.75)",
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-          }}
-        >
-          <MapPin className="h-3 w-3" />
-          us-east-1
-          <ChevronDown className="h-3 w-3 opacity-50" />
-        </button>
-
-        {/* Live badge */}
-        <div
-          className="hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold tracking-widest ml-1"
-          style={{
-            background: "rgba(0,255,136,0.06)",
-            border: "1px solid rgba(0,255,136,0.18)",
-            color: "#00ff88",
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 0 1px rgba(0,255,136,0.3)" }} />
-          </span>
-          LIVE
+        {/* Region + LIVE — desktop (md+) only; same layout as before on wide screens */}
+        <div className="hidden md:flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-all"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(148,163,184,0.75)",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+            }}
+          >
+            <MapPin className="h-3 w-3 shrink-0" />
+            us-east-1
+            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+          </button>
+          <div
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold tracking-widest ml-1"
+            style={{
+              background: "rgba(0,255,136,0.06)",
+              border: "1px solid rgba(0,255,136,0.18)",
+              color: "#00ff88",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00ff88]" style={{ boxShadow: "0 0 0 1px rgba(0,255,136,0.3)" }} />
+            </span>
+            LIVE
+          </div>
         </div>
 
         {/* ARIA Voice IR Agent */}
-        <VoiceIRAgent onNavigate={onNavigate} />
+        <div className="hidden sm:block">
+          <VoiceIRAgent onNavigate={onNavigate} />
+        </div>
 
         {/* Notifications */}
         <Popover>

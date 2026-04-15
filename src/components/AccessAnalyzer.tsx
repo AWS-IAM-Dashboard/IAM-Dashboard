@@ -385,7 +385,7 @@ export function AccessAnalyzer() {
   const sensitiveCount = findings.filter((f) => f.resource_type === "KMS" || f.resource_type === "Secrets Manager").length;
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <ScanPageHeader
@@ -401,12 +401,12 @@ export function AccessAnalyzer() {
         onRegionChange={setSelectedRegion}
       >
         {/* Analyzer type chips */}
-        <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: 3 }}>
+        <div className="flex w-full min-w-0 sm:w-auto" style={{ gap: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, padding: 3 }}>
           {(["account", "organization"] as const).map((t) => (
             <span
               key={t}
               onClick={() => setAnalyzerType(t)}
-              style={{ padding: "4px 12px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", background: analyzerType === t ? "rgba(0,255,136,0.1)" : "transparent", color: analyzerType === t ? "#00ff88" : "rgba(100,116,139,0.6)", border: analyzerType === t ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", transition: "all 0.15s" }}
+              style={{ flex: 1, textAlign: "center", padding: "6px 10px", borderRadius: 4, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace", background: analyzerType === t ? "rgba(0,255,136,0.1)" : "transparent", color: analyzerType === t ? "#00ff88" : "rgba(100,116,139,0.6)", border: analyzerType === t ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", transition: "all 0.15s" }}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </span>
@@ -435,7 +435,7 @@ export function AccessAnalyzer() {
       )}
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total Findings" value={findings.length} accent="#e2e8f0" />
         <StatCard label="Public Resources" value={publicCount} accent="#ff0040" />
         <StatCard label="Cross-Account" value={crossAccountCount} accent="#ff6b35" />
@@ -445,12 +445,12 @@ export function AccessAnalyzer() {
 
       {/* ── External access risk banner ──────────────────────────────────── */}
       {scanResult && (publicCount + crossAccountCount) > 0 && (
-        <div style={{ borderRadius: 8, padding: "12px 18px", background: "rgba(255,0,64,0.06)", border: "1px solid rgba(255,0,64,0.18)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3" style={{ borderRadius: 8, padding: "12px 18px", background: "rgba(255,0,64,0.06)", border: "1px solid rgba(255,0,64,0.18)" }}>
           <Globe size={18} color="#ff0040" />
           <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>
             {publicCount + crossAccountCount} resource{(publicCount + crossAccountCount) !== 1 ? "s" : ""} accessible from outside your account
           </span>
-          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", marginLeft: 4 }}>
+          <span style={{ fontSize: 11, color: "rgba(100,116,139,0.6)" }}>
             — {publicCount} public, {crossAccountCount} cross-account
           </span>
         </div>
@@ -459,8 +459,8 @@ export function AccessAnalyzer() {
       {/* ── Filter bar ───────────────────────────────────────────────────── */}
       {scanResult && (
         <div style={{ ...card, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <span style={sectionLabel}>Severity</span>
               {["all", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map((s) => (
                 <span key={s} onClick={() => setSeverityFilter(s)} style={chip(severityFilter === s, s !== "all" ? sevColor(s) : undefined)}>
@@ -468,7 +468,7 @@ export function AccessAnalyzer() {
                 </span>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
               <span style={sectionLabel}>Resource</span>
               {["all", "S3", "IAM", "Lambda", "KMS", "SQS", "Secrets Manager"].map((t) => (
                 <span key={t} onClick={() => setTypeFilter(t)} style={chip(typeFilter === t)}>
@@ -477,8 +477,8 @@ export function AccessAnalyzer() {
               ))}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 320, minWidth: 0 }}>
               <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
               <input
                 value={searchTerm}
@@ -499,126 +499,180 @@ export function AccessAnalyzer() {
 
       {/* ── Findings table ───────────────────────────────────────────────── */}
       {scanResult && (
-        <div style={card}>
-          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="min-w-0" style={card}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2" style={{ marginBottom: 14 }}>
             <span style={sectionLabel}>Access Analyzer Findings</span>
             <span style={{ fontSize: 11, color: "rgba(100,116,139,0.5)", fontFamily: "'JetBrains Mono', monospace" }}>
               {scanResult.account_id} · {scanResult.region}
             </span>
           </div>
 
-          {/* Table header */}
-          <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
-            <div />
-            {["Type", "Resource", "Finding", "Public", "Risk", "Analyzed"].map((h) => (
-              <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
-            ))}
-          </div>
-
-          {/* Rows */}
           {filteredFindings.length === 0 ? (
             <div style={{ padding: "48px 24px", textAlign: "center" }}>
               <ScanLine size={36} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
               <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13, margin: 0 }}>No findings match the current filters</p>
             </div>
           ) : (
-            filteredFindings.map((finding) => {
-              const isExpanded = expandedRow === finding.id;
-              const sc = sevColor(finding.severity);
+            <>
+              <div className="flex flex-col md:hidden">
+                {filteredFindings.map((finding, idx) => {
+                  const isExpanded = expandedRow === finding.id;
+                  const isLast = idx === filteredFindings.length - 1;
+                  const sc = sevColor(finding.severity);
+                  return (
+                    <div key={finding.id} className={isLast ? "" : "border-b border-white/[0.06]"}>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-3.5 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+                        onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="line-clamp-2 text-sm font-semibold text-slate-200">{finding.resource_name}</div>
+                            <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.finding_type}</div>
+                          </div>
+                          <SeverityBadge severity={finding.severity} size="sm" />
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "2px 8px", borderRadius: 4, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
+                            <ResourceIcon type={finding.resource_type} />
+                            {finding.resource_type}
+                          </span>
+                          <span style={{ fontSize: 11, color: finding.is_public ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {finding.is_public ? "Public" : "Private"}
+                          </span>
+                          <span className="ml-auto font-mono text-[12px] font-bold" style={{ color: sc }}>
+                            {finding.risk_score}/10
+                          </span>
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-3 pb-3">
+                          <div
+                            className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3"
+                            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500">Resource ARN</div>
+                            <div className="break-all text-[11px] text-slate-300">{finding.resource_arn}</div>
 
-              return (
-                <div key={finding.id}>
-                  {/* Main row */}
-                  <div
-                    onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
-                    style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
-                    onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
-                    onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
-                  >
-                    {/* Severity bar */}
-                    <div style={{ position: "relative", height: "100%", minHeight: 36 }}>
-                      <div style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 4, borderRadius: "0 2px 2px 0", background: sc }} />
-                    </div>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500">Principal</div>
+                            <div className="break-all text-[11px] text-slate-300">{finding.principal}</div>
 
-                    {/* Resource type badge */}
-                    <div>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        <ResourceIcon type={finding.resource_type} />
-                        {finding.resource_type}
-                      </span>
-                    </div>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                            <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
 
-                    {/* Resource name + ARN + principal */}
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.resource_name}</span>
-                        {isExpanded ? <ChevronUp size={12} color="rgba(100,116,139,0.5)" /> : <ChevronDown size={12} color="rgba(100,116,139,0.5)" />}
-                      </div>
-                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{finding.resource_arn}</div>
-                      <div style={{ fontSize: 10, color: "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
-                        {finding.principal.length > 40 ? finding.principal.slice(0, 38) + "…" : finding.principal}
-                      </div>
-                    </div>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500">Recommendation</div>
+                            <div className="text-[11px] leading-relaxed text-slate-300">{finding.recommendation}</div>
 
-                    {/* Finding type */}
-                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", lineHeight: 1.4 }}>{finding.finding_type}</div>
-
-                    {/* Public indicator */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {finding.is_public ? (
-                        <Globe size={15} color="#ff0040" />
-                      ) : (
-                        <Lock size={15} color="#00ff88" />
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10px] text-slate-500">Last analyzed: {relativeTime(finding.last_analyzed)}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedRow(null);
+                                }}
+                                className="rounded border border-white/15 px-2 py-1 text-[10px] text-slate-300 hover:bg-white/[0.06]"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       )}
-                      <span style={{ fontSize: 10, color: finding.is_public ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
-                        {finding.is_public ? "Public" : "Private"}
-                      </span>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Risk score */}
-                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: sc }}>
-                      {finding.risk_score}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontWeight: 400 }}>/10</span>
-                    </div>
-
-                    {/* Last analyzed */}
-                    <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      {relativeTime(finding.last_analyzed)}
-                    </div>
+              <div className="hidden md:block w-full overflow-x-auto">
+                <div className="min-w-[760px]">
+                  <div style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px 8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 4 }}>
+                    <div />
+                    {["Type", "Resource", "Finding", "Public", "Risk", "Analyzed"].map((h) => (
+                      <div key={h} style={{ fontSize: 10, fontWeight: 600, color: "rgba(100,116,139,0.55)", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace" }}>{h}</div>
+                    ))}
                   </div>
 
-                  {/* Expanded detail */}
-                  {isExpanded && (
-                    <FindingDetailPanel
-                      finding={{
-                        id: finding.id,
-                        title: finding.finding_type,
-                        resource_name: finding.resource_name,
-                        resource_arn: finding.resource_arn,
-                        severity: finding.severity,
-                        description: finding.description,
-                        recommendation: finding.recommendation,
-                        risk_score: finding.risk_score,
-                        compliance_frameworks: ["CIS 1.16", "SOC2 CC6.3", "AWS FBP"],
-                        last_seen: finding.last_analyzed,
-                        first_seen: finding.last_analyzed,
-                        region: scanResult?.region,
-                        metadata: {
-                          "Resource Type": finding.resource_type,
-                          "Principal": finding.principal.length > 50 ? finding.principal.slice(0, 48) + "…" : finding.principal,
-                          "Public": finding.is_public ? "Yes — externally accessible" : "No — private",
-                        },
-                      }}
-                      workflow={workflows[finding.id]}
-                      onAdvanceStatus={advanceStatus}
-                      onAssign={assignFinding}
-                      onMarkFalsePositive={markFalsePositive}
-                      onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA/ServiceNow for finding ${id}` })}
-                      onClose={() => setExpandedRow(null)}
-                    />
-                  )}
+                  {filteredFindings.map((finding) => {
+                    const isExpanded = expandedRow === finding.id;
+                    const sc = sevColor(finding.severity);
+                    return (
+                      <div key={finding.id}>
+                        <div
+                          onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+                          style={{ display: "grid", gridTemplateColumns: "4px 130px 1fr 120px 70px 60px 90px", gap: "0 12px", alignItems: "center", padding: "8px 12px", borderRadius: 6, cursor: "pointer", position: "relative", background: isExpanded ? "rgba(255,255,255,0.025)" : "transparent", transition: "background 0.12s" }}
+                          onMouseEnter={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.02)"; }}
+                          onMouseLeave={(e) => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                        >
+                          <div style={{ position: "relative", height: "100%", minHeight: 36 }}>
+                            <div style={{ position: "absolute", left: 0, top: 6, bottom: 6, width: 4, borderRadius: "0 2px 2px 0", background: sc }} />
+                          </div>
+                          <div>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "4px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(100,116,139,0.8)", fontFamily: "'JetBrains Mono', monospace" }}>
+                              <ResourceIcon type={finding.resource_type} />
+                              {finding.resource_type}
+                            </span>
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{finding.resource_name}</span>
+                              {isExpanded ? <ChevronUp size={12} color="rgba(100,116,139,0.5)" /> : <ChevronDown size={12} color="rgba(100,116,139,0.5)" />}
+                            </div>
+                            <div style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{finding.resource_arn}</div>
+                            <div style={{ fontSize: 10, color: "rgba(100,116,139,0.35)", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                              {finding.principal.length > 40 ? finding.principal.slice(0, 38) + "…" : finding.principal}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.7)", lineHeight: 1.4 }}>{finding.finding_type}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {finding.is_public ? <Globe size={15} color="#ff0040" /> : <Lock size={15} color="#00ff88" />}
+                            <span style={{ fontSize: 10, color: finding.is_public ? "#ff0040" : "#00ff88", fontFamily: "'JetBrains Mono', monospace" }}>
+                              {finding.is_public ? "Public" : "Private"}
+                            </span>
+                          </div>
+                          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: sc }}>
+                            {finding.risk_score}<span style={{ fontSize: 10, color: "rgba(100,116,139,0.4)", fontWeight: 400 }}>/10</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(100,116,139,0.6)", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {relativeTime(finding.last_analyzed)}
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <FindingDetailPanel
+                            finding={{
+                              id: finding.id,
+                              title: finding.finding_type,
+                              resource_name: finding.resource_name,
+                              resource_arn: finding.resource_arn,
+                              severity: finding.severity,
+                              description: finding.description,
+                              recommendation: finding.recommendation,
+                              risk_score: finding.risk_score,
+                              compliance_frameworks: ["CIS 1.16", "SOC2 CC6.3", "AWS FBP"],
+                              last_seen: finding.last_analyzed,
+                              first_seen: finding.last_analyzed,
+                              region: scanResult?.region,
+                              metadata: {
+                                "Resource Type": finding.resource_type,
+                                "Principal": finding.principal.length > 50 ? finding.principal.slice(0, 48) + "…" : finding.principal,
+                                "Public": finding.is_public ? "Yes — externally accessible" : "No — private",
+                              },
+                            }}
+                            workflow={workflows[finding.id]}
+                            onAdvanceStatus={advanceStatus}
+                            onAssign={assignFinding}
+                            onMarkFalsePositive={markFalsePositive}
+                            onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA/ServiceNow for finding ${id}` })}
+                            onClose={() => setExpandedRow(null)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })
+              </div>
+            </>
           )}
         </div>
       )}

@@ -488,7 +488,7 @@ export function VPCSecurity() {
   const summary = scanResult?.scan_summary ?? mockVPCSummary;
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6">
       {/* Header */}
       <ScanPageHeader
         icon={<Network size={20} color="#00ff88" />}
@@ -512,7 +512,7 @@ export function VPCSecurity() {
       )}
 
       {/* Stat Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total VPCs" value={summary.total_vpcs} accent="#06b6d4" icon={Network} />
         <StatCard label="Critical Findings" value={summary.critical_findings} accent="#ff0040" icon={Shield} />
         <StatCard label="High Findings" value={summary.high_findings} accent="#ff6b35" icon={AlertTriangle} />
@@ -521,12 +521,13 @@ export function VPCSecurity() {
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cardStyle, padding: "16px 20px" }}>
+      <div className="min-w-0" style={{ ...cardStyle, padding: "16px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={labelStyle}>Workflow Pipeline</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="overflow-x-auto">
+        <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 680 }}>
           {WORKFLOW_PIPELINE.map((stage, idx) => {
             const meta = WORKFLOW_META[stage];
             const count = pipelineCounts[stage] ?? 0;
@@ -560,6 +561,7 @@ export function VPCSecurity() {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Risk Indicators Strip */}
@@ -578,8 +580,8 @@ export function VPCSecurity() {
       </div>
 
       {/* Filter Bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto" style={{ display: "flex", gap: 6 }}>
           {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map(sev => {
             const active = severityFilter === sev;
             const col = sev === "ALL" ? "#06b6d4" : SEVERITY_COLORS[sev];
@@ -594,7 +596,7 @@ export function VPCSecurity() {
             );
           })}
         </div>
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
           <input
             value={findingSearch}
@@ -615,8 +617,8 @@ export function VPCSecurity() {
       </div>
 
       {/* Findings Table */}
-      <div style={cardStyle}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+      <div className="min-w-0" style={cardStyle}>
+        <div className="hidden md:grid" style={{ gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Resource / Finding</span>
           <span style={labelStyle}>Type</span>
@@ -640,9 +642,28 @@ export function VPCSecurity() {
             const typeColor = RESOURCE_COLORS[finding.resource_type] ?? "#64748b";
             return (
               <div key={finding.id}>
+                <button
+                  type="button"
+                  className="block w-full border-b border-white/[0.04] px-3 py-3 text-left md:hidden"
+                  onClick={() => toggleRow(finding.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-200">{finding.resource_name}</div>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.finding_type}</div>
+                    </div>
+                    <SeverityBadge severity={finding.severity} size="sm" />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{finding.resource_type}</span>
+                    <span className="text-[10px] text-slate-500">{finding.is_public ? "Public" : "Private"}</span>
+                    <span className="ml-auto font-mono text-[11px] font-bold" style={{ color: finding.risk_score >= 9 ? "#ff0040" : finding.risk_score >= 7 ? "#ff6b35" : finding.risk_score >= 5 ? "#ffb000" : "#00ff88" }}>{finding.risk_score}/10</span>
+                  </div>
+                </button>
                 <div
                   onClick={() => toggleRow(finding.id)}
-                  style={{ display: "grid", gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                  className="hidden md:grid"
+                  style={{ gridTemplateColumns: "4px 1fr 120px 120px 110px 100px 80px 70px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || expanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: expanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
                   onMouseEnter={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
                   onMouseLeave={e => { if (!expanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
                 >
@@ -709,36 +730,50 @@ export function VPCSecurity() {
                 </div>
 
                 {expanded && (
-                  <FindingDetailPanel
-                    finding={{
-                      id: finding.id,
-                      title: finding.finding_type ?? finding.id,
-                      resource_name: finding.resource_name ?? finding.id,
-                      resource_arn: (finding as any).resource_arn,
-                      severity: finding.severity,
-                      description: finding.description,
-                      recommendation: finding.recommendation,
-                      risk_score: finding.risk_score,
-                      compliance_frameworks: finding.compliance_frameworks,
-                      last_seen: (finding as any).last_seen ?? (finding as any).last_analyzed,
-                      first_seen: (finding as any).created_date ?? (finding as any).first_seen,
-                      region: finding.region,
-                      metadata: {
-                        "VPC ID": finding.vpc_id,
-                        "Resource ID": finding.resource_id,
-                        "Resource Type": finding.resource_type,
-                        "Flow Logs": finding.flow_logs_enabled ? "Enabled" : "Disabled",
-                        ...(finding.affected_instances !== undefined ? { "Affected Instances": String(finding.affected_instances) } : {}),
-                      },
-                    }}
-                    workflow={workflows[finding.id]}
-                    onAdvanceStatus={advanceStatus}
-                    onAssign={assignFinding}
-                    onMarkFalsePositive={markFalsePositive}
-                    onCreateTicket={(id) => { toast.success(`Ticket created for ${id}`); }}
-                    onClose={() => toggleRow(finding.id)}
-                    isLast={isLast}
-                  />
+                  <>
+                    <div className="md:hidden px-3 pb-3">
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ ...monoStyle }}>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Resource ID</div>
+                        <div className="break-all text-[11px] text-slate-300">{finding.resource_id}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Recommendation</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.recommendation}</div>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <FindingDetailPanel
+                        finding={{
+                          id: finding.id,
+                          title: finding.finding_type ?? finding.id,
+                          resource_name: finding.resource_name ?? finding.id,
+                          resource_arn: (finding as any).resource_arn,
+                          severity: finding.severity,
+                          description: finding.description,
+                          recommendation: finding.recommendation,
+                          risk_score: finding.risk_score,
+                          compliance_frameworks: finding.compliance_frameworks,
+                          last_seen: (finding as any).last_seen ?? (finding as any).last_analyzed,
+                          first_seen: (finding as any).created_date ?? (finding as any).first_seen,
+                          region: finding.region,
+                          metadata: {
+                            "VPC ID": finding.vpc_id,
+                            "Resource ID": finding.resource_id,
+                            "Resource Type": finding.resource_type,
+                            "Flow Logs": finding.flow_logs_enabled ? "Enabled" : "Disabled",
+                            ...(finding.affected_instances !== undefined ? { "Affected Instances": String(finding.affected_instances) } : {}),
+                          },
+                        }}
+                        workflow={workflows[finding.id]}
+                        onAdvanceStatus={advanceStatus}
+                        onAssign={assignFinding}
+                        onMarkFalsePositive={markFalsePositive}
+                        onCreateTicket={(id) => { toast.success(`Ticket created for ${id}`); }}
+                        onClose={() => toggleRow(finding.id)}
+                        isLast={isLast}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             );

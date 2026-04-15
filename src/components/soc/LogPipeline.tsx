@@ -172,7 +172,7 @@ export function LogPipeline() {
 
       {/* Hero — total EPS + status summary */}
       <div style={{
-        display: "flex", alignItems: "stretch", gap: 12,
+        display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap",
         padding: "16px 20px", marginBottom: 14,
         borderRadius: 10, background: "rgba(15,23,42,0.85)",
         border: "1px solid rgba(167,139,250,0.14)",
@@ -212,14 +212,14 @@ export function LogPipeline() {
       </div>
 
       {/* EPS meters for top-volume sources */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3" style={{ marginBottom: 14 }}>
         {heroSources.map(src => <EpsMeter key={src.id} src={src} />)}
       </div>
 
       {/* Full source table + errors */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 296px", gap: 12 }}>
-        <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 96px 80px 96px 80px", padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)", gap: 0 }}>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_296px]">
+        <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflowX: "auto", overflowY: "hidden", background: "rgba(15,23,42,0.8)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 96px 80px 96px 80px", padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)", gap: 0, minWidth: 560 }}>
             {["Source", "Status", "EPS", "Lag", "Vol/d"].map(h => (
               <span key={h} style={{ ...ls, fontSize: 9 }}>{h}</span>
             ))}
@@ -238,7 +238,7 @@ export function LogPipeline() {
                     padding: "8px 12px", borderBottom: divider, cursor: "pointer",
                     background: isSelected ? "rgba(167,139,250,0.04)" : "transparent",
                     borderLeft: `2px solid ${isSelected ? "#a78bfa" : "transparent"}`,
-                    transition: "border-color 0.1s", gap: 0, alignItems: "center",
+                    transition: "border-color 0.1s", gap: 0, alignItems: "center", minWidth: 560,
                   }}
                 >
                   <div>
@@ -260,7 +260,7 @@ export function LogPipeline() {
                 </div>
 
                 {isSelected && (
-                  <div style={{ padding: "8px 12px", borderBottom: divider, background: "rgba(167,139,250,0.025)" }}>
+                  <div style={{ padding: "8px 12px", borderBottom: divider, background: "rgba(167,139,250,0.025)", minWidth: 560 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
                       <div>
                         <div style={{ ...ls, fontSize: 8, marginBottom: 4 }}>Lag</div>

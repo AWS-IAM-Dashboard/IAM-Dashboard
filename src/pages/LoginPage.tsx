@@ -1,9 +1,10 @@
-import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
+import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff, Home, UserPlus, KeyRound } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logoImage from "@/assets/logo.png";
+import { MobileQuickBar } from "../components/ui/MobileQuickBar";
 
 export function LoginPage() {
   const auth = useAuth();
@@ -31,7 +32,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 sm:py-8" role="main" aria-label="Sign in">
+    <div className="flex min-h-svh items-center justify-center overflow-y-auto overflow-x-hidden bg-black p-4 py-6 pb-24 sm:py-8 md:pb-8" role="main" aria-label="Sign in">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-1/4 top-1/4 -z-10 h-[400px] w-[400px] rounded-full bg-green-500 opacity-20 blur-[120px] animate-pulse-slow"></div>
@@ -230,6 +231,14 @@ export function LoginPage() {
 
         <div className="absolute -right-4 -top-4 h-16 w-16 animate-pulse rounded-full border border-green-500/20"></div>
       </div>
+
+      <MobileQuickBar
+        items={[
+          { key: "home", label: "Home", icon: Home, to: "/" },
+          { key: "signup", label: "Sign up", icon: UserPlus, to: "/signup" },
+          { key: "forgot", label: "Forgot?", icon: KeyRound, to: "/forgot-password" },
+        ]}
+      />
     </div>
   );
 }

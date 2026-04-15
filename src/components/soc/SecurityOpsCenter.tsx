@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertOctagon, Eye, Activity, FileText, Database, Settings } from "lucide-react";
 import { AlertQueue } from "./AlertQueue";
 import { MonitoringCoverage } from "./MonitoringCoverage";
@@ -22,6 +22,7 @@ const degradedSources = MOCK_PIPELINE.filter(p => p.status === "degraded" || p.s
 const TABS: {
   id: SOCTab;
   label: string;
+  mobileLabel?: string;
   icon: React.ReactNode;
   accent: string;
   count?: number;
@@ -30,6 +31,7 @@ const TABS: {
   {
     id: "alerts",
     label: "Alert Queue",
+    mobileLabel: "Alerts",
     icon: <AlertOctagon size={13} />,
     accent: "#ff6b35",
     count: newCriticalHigh > 0 ? newCriticalHigh : undefined,
@@ -38,12 +40,14 @@ const TABS: {
   {
     id: "coverage",
     label: "Coverage",
+    mobileLabel: "Coverage",
     icon: <Eye size={13} />,
     accent: "#38bdf8",
   },
   {
     id: "pipeline",
     label: "Log Pipeline",
+    mobileLabel: "Pipeline",
     icon: <Activity size={13} />,
     accent: "#a78bfa",
     count: degradedSources > 0 ? degradedSources : undefined,
@@ -52,6 +56,7 @@ const TABS: {
   {
     id: "investigations",
     label: "Investigations",
+    mobileLabel: "Cases",
     icon: <FileText size={13} />,
     accent: "#60a5fa",
     count: openCases > 0 ? openCases : undefined,
@@ -60,12 +65,14 @@ const TABS: {
   {
     id: "query",
     label: "Query Workbench",
+    mobileLabel: "Queries",
     icon: <Database size={13} />,
     accent: "#ffb000",
   },
   {
     id: "config",
     label: "SOC Config",
+    mobileLabel: "Config",
     icon: <Settings size={13} />,
     accent: "#64748b",
   },
@@ -73,18 +80,28 @@ const TABS: {
 
 export function SecurityOpsCenter() {
   const [activeTab, setActiveTab] = useState<SOCTab>("alerts");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <div className="min-w-0" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <SOCGlobalStyles />
 
       {/* Sub-nav */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 4,
-        paddingBottom: 16, overflowX: "auto", flexShrink: 0,
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        marginBottom: 20,
-      }}>
+      <div
+        className="grid grid-cols-3 gap-2 pb-4 sm:flex sm:items-center sm:gap-1 sm:overflow-x-auto"
+        style={{
+          flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          marginBottom: 20,
+        }}
+      >
         {TABS.map(tab => {
           const isActive = tab.id === activeTab;
           return (
@@ -93,19 +110,26 @@ export function SecurityOpsCenter() {
               onClick={() => setActiveTab(tab.id)}
               className="soc-btn"
               style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 6,
+                display: "flex", alignItems: "center", gap: isMobile ? 4 : 6,
+                flexDirection: isMobile ? "column" : "row",
+                justifyContent: "center",
+                width: "100%",
+                padding: "8px 10px", borderRadius: 8,
                 background: isActive ? `${tab.accent}14` : "transparent",
                 border: `1px solid ${isActive ? tab.accent + "35" : "rgba(255,255,255,0.06)"}`,
                 color: isActive ? tab.accent : "rgba(100,116,139,0.5)",
-                cursor: "pointer", whiteSpace: "nowrap",
-                ...mono, fontSize: 11, fontWeight: isActive ? 700 : 500,
+                cursor: "pointer",
+                ...mono, fontSize: isMobile ? 10 : 11, fontWeight: isActive ? 700 : 500,
                 transition: "all 0.12s",
                 boxShadow: isActive ? `0 0 0 1px ${tab.accent}08 inset` : "none",
+                minHeight: isMobile ? 56 : 36,
+                minWidth: 0,
               }}
             >
               <span style={{ opacity: isActive ? 1 : 0.55, display: "flex" }}>{tab.icon}</span>
-              {tab.label}
+              <span style={{ textAlign: "center", lineHeight: 1.2, whiteSpace: isMobile ? "normal" : "nowrap" }}>
+                {isMobile ? (tab.mobileLabel ?? tab.label) : tab.label}
+              </span>
               {tab.count !== undefined && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",

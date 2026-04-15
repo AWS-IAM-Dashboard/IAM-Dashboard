@@ -663,7 +663,7 @@ export function S3Security() {
   const [scanResult, setScanResult] = useState<S3ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState("all-regions");
+  const [selectedRegion, setSelectedRegion] = useState("us-east-1");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [findingSearch, setFindingSearch] = useState("");
@@ -744,8 +744,7 @@ export function S3Security() {
     setIsScanning(true);
     try {
       toast.info("S3 security scan started", { description: "Analyzing buckets, ACLs, policies, encryption…" });
-      const region = selectedRegion === "all-regions" ? "us-east-1" : selectedRegion;
-      const response: ScanResponse = await scanS3(region);
+      const response: ScanResponse = await scanS3(selectedRegion);
       setScanResult({
         scan_id: response.scan_id,
         status: response.status === "completed" ? "Completed" : "Failed",
@@ -804,7 +803,7 @@ export function S3Security() {
   }, {} as Record<WorkflowStatus, number>);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6">
 
       {/* Header */}
       <ScanPageHeader
@@ -823,7 +822,7 @@ export function S3Security() {
       />
 
       {/* KPI Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total Buckets" value={summary.total_buckets} accent="#94a3b8" icon={Archive} />
         <StatCard label="SLA Breaches" value={slaBreaches} accent={slaBreaches > 0 ? "#ff0040" : "#00ff88"} icon={AlertTriangle} />
         <StatCard label="Open Critical" value={openCritical} accent={openCritical > 0 ? "#ff0040" : "#00ff88"} icon={Shield} />
@@ -833,12 +832,13 @@ export function S3Security() {
       </div>
 
       {/* Workflow Pipeline */}
-      <div style={{ ...cs, padding: "14px 16px" }}>
+      <div className="min-w-0" style={{ ...cs, padding: "14px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
           <GitBranch size={13} color="rgba(100,116,139,0.7)" />
           <span style={ls}>Workflow Pipeline</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="overflow-x-auto">
+        <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 680 }}>
           {PIPELINE_STAGES.map((stage, idx) => {
             const meta = WORKFLOW_META[stage];
             const count = pipelineCounts[stage] ?? 0;
@@ -872,6 +872,7 @@ export function S3Security() {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Risk Indicators Strip */}
@@ -892,13 +893,13 @@ export function S3Security() {
       </div>
 
       {/* Filter Bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {(["ALL","CRITICAL","HIGH","MEDIUM","LOW"] as const).map(sev => {
           const active = severityFilter === sev;
           const col = sev === "ALL" ? "#00ff88" : SEVERITY_COLORS[sev];
           return <button key={sev} onClick={() => setSeverityFilter(sev)} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer", ...ms, background: active ? `${col}25` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? col : "rgba(255,255,255,0.08)"}`, color: active ? col : "rgba(100,116,139,0.7)" }}>{sev}</button>;
         })}
-        <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
+        <div className="hidden sm:block" style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
         {statusFilter !== "ALL" && (
           <button
             onClick={() => setStatusFilter("ALL")}
@@ -907,7 +908,7 @@ export function S3Security() {
             {WORKFLOW_META[statusFilter as WorkflowStatus]?.label} ✕
           </button>
         )}
-        <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
           <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "rgba(100,116,139,0.5)" }} />
           <input value={findingSearch} onChange={e => setFindingSearch(e.target.value)} placeholder="Search findings, buckets…" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#e2e8f0", fontSize: 12, outline: "none", boxSizing: "border-box", ...ms }} />
         </div>
@@ -915,8 +916,8 @@ export function S3Security() {
       </div>
 
       {/* Findings Table */}
-      <div style={cs}>
-        <div style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
+      <div className="min-w-0" style={cs}>
+        <div className="hidden md:grid" style={{ gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", alignItems: "center" }}>
           <div />
           <span style={{ ...ls, paddingLeft: 12 }}>Resource / Finding</span>
           <span style={ls}>Severity</span>
@@ -944,9 +945,28 @@ export function S3Security() {
 
           return (
             <div key={f.id}>
+              <button
+                type="button"
+                className="block w-full border-b border-white/[0.04] px-3 py-3 text-left md:hidden"
+                onClick={() => toggleRow(f.id)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-slate-200">{f.bucket_name}</div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{f.finding_type}</div>
+                  </div>
+                  <SeverityBadge severity={f.severity} size="sm" />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">{exposureLabel}</span>
+                  <span className="text-[10px] text-slate-500">{f.encryption_type}</span>
+                  <span className="ml-auto font-mono text-[11px] font-bold" style={{ color: f.risk_score >= 9 ? "#ff0040" : f.risk_score >= 7 ? "#ff6b35" : f.risk_score >= 5 ? "#ffb000" : "#00ff88" }}>{f.risk_score}/10</span>
+                </div>
+              </button>
               <div
                 onClick={() => toggleRow(f.id)}
-                style={{ display: "grid", gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || isExpanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
+                className="hidden md:grid"
+                style={{ gridTemplateColumns: "4px 1fr 110px 130px 130px 120px 90px", gap: 0, padding: "12px 16px", alignItems: "center", cursor: "pointer", borderBottom: (!isLast || isExpanded) ? "1px solid rgba(255,255,255,0.04)" : "none", background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent", transition: "background 0.15s" }}
                 onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.015)"; }}
                 onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
               >
@@ -986,37 +1006,51 @@ export function S3Security() {
 
               {/* Expanded panel */}
               {isExpanded && (
-                <FindingDetailPanel
-                  finding={{
-                    id: f.id,
-                    title: f.finding_type,
-                    resource_name: f.bucket_name,
-                    resource_arn: `arn:aws:s3:::${f.bucket_name}`,
-                    severity: f.severity,
-                    description: f.description,
-                    recommendation: f.recommendation,
-                    risk_score: f.risk_score,
-                    compliance_frameworks: f.compliance_frameworks,
-                    last_seen: f.last_seen,
-                    first_seen: f.created_date,
-                    region: f.region,
-                    metadata: {
-                      "Bucket": f.bucket_name,
-                      ...(f.bucket_size_gb !== undefined ? { "Size": `${f.bucket_size_gb} GB` } : {}),
-                      ...(f.is_public !== undefined ? { "Public": f.is_public ? "Yes" : "No" } : {}),
-                      ...(f.encryption_status ? { "Encryption": f.encryption_status } : {}),
-                    },
-                  }}
-                  playbook={S3_PLAYBOOKS[f.id]}
-                  workflow={wf}
-                  assignees={ASSIGNEES}
-                  onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
-                  onAssign={(id, assignee) => { assignFinding(id, assignee); }}
-                  onMarkFalsePositive={(id) => { markFalsePositive(id); }}
-                  onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
-                  onClose={() => toggleRow(f.id)}
-                  isLast={isLast}
-                />
+                <>
+                  <div className="md:hidden px-3 pb-3">
+                    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ ...ms }}>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Bucket ARN</div>
+                      <div className="break-all text-[11px] text-slate-300">{`arn:aws:s3:::${f.bucket_name}`}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{f.description}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Recommendation</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{f.recommendation}</div>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                    <FindingDetailPanel
+                      finding={{
+                        id: f.id,
+                        title: f.finding_type,
+                        resource_name: f.bucket_name,
+                        resource_arn: `arn:aws:s3:::${f.bucket_name}`,
+                        severity: f.severity,
+                        description: f.description,
+                        recommendation: f.recommendation,
+                        risk_score: f.risk_score,
+                        compliance_frameworks: f.compliance_frameworks,
+                        last_seen: f.last_seen,
+                        first_seen: f.created_date,
+                        region: f.region,
+                        metadata: {
+                          "Bucket": f.bucket_name,
+                          ...(f.bucket_size_gb !== undefined ? { "Size": `${f.bucket_size_gb} GB` } : {}),
+                          ...(f.is_public !== undefined ? { "Public": f.is_public ? "Yes" : "No" } : {}),
+                          ...(f.encryption_status ? { "Encryption": f.encryption_status } : {}),
+                        },
+                      }}
+                      playbook={S3_PLAYBOOKS[f.id]}
+                      workflow={wf}
+                      assignees={ASSIGNEES}
+                      onAdvanceStatus={(id) => { advanceStatus(id); toast.success(`Status advanced`); }}
+                      onAssign={(id, assignee) => { assignFinding(id, assignee); }}
+                      onMarkFalsePositive={(id) => { markFalsePositive(id); }}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `Wire to JIRA for ${id}` })}
+                      onClose={() => toggleRow(f.id)}
+                      isLast={isLast}
+                    />
+                  </div>
+                </>
               )}
             </div>
           );

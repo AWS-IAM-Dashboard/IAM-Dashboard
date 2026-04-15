@@ -308,9 +308,8 @@ export function GuardDuty() {
   const maxCount = Math.max(...findings.map((f) => f.count), 1);
 
   return (
-    <div
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6"
       style={{
-        padding: "24px 32px",
         color: C.text,
         fontFamily: "DM Sans, sans-serif",
         minHeight: "100vh",
@@ -327,14 +326,7 @@ export function GuardDuty() {
       />
 
       {/* ── Stat cards ───────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginBottom: 20,
-          flexWrap: "wrap" as const,
-        }}
-      >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Active Threats"
           value={activeThreats}
@@ -512,6 +504,7 @@ export function GuardDuty() {
 
       {/* ── Findings table ───────────────────────────────────────────────── */}
       <div
+        className="min-w-0"
         style={{
           background: C.cardBg,
           border: `1px solid ${C.border}`,
@@ -552,8 +545,8 @@ export function GuardDuty() {
         {/* Column headers */}
         {filteredFindings.length > 0 && (
           <div
+            className="hidden md:grid"
             style={{
-              display: "grid",
               gridTemplateColumns: "90px 220px 1fr 100px 160px 180px",
               padding: "8px 16px",
               borderBottom: `1px solid ${C.border}`,
@@ -614,13 +607,31 @@ export function GuardDuty() {
 
           return (
             <div key={finding.id}>
+              <button
+                type="button"
+                className="block w-full border-b border-white/[0.06] px-3 py-3 text-left md:hidden"
+                onClick={() => setExpandedRow(isExpanded ? null : finding.id)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-slate-200">{finding.title}</div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.type}</div>
+                  </div>
+                  <SeverityBadge severity={getSeverityLabel(finding.severity).toUpperCase()} size="sm" />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[10px] text-slate-400">
+                  <span>{finding.resource_id}</span>
+                  <span className="ml-auto">{finding.count} events</span>
+                </div>
+              </button>
+
               {/* Main row */}
               <div
                 onClick={() =>
                   setExpandedRow(isExpanded ? null : finding.id)
                 }
+                className="hidden md:grid"
                 style={{
-                  display: "grid",
                   gridTemplateColumns: "90px 220px 1fr 100px 160px 180px",
                   alignItems: "center",
                   cursor: "pointer",
@@ -743,33 +754,47 @@ export function GuardDuty() {
 
               {/* Expanded detail panel */}
               {isExpanded && (
-                <FindingDetailPanel
-                  finding={{
-                    id: finding.id,
-                    title: finding.title ?? finding.type,
-                    resource_name: finding.resource_id,
-                    resource_arn: undefined,
-                    severity: finding.severity,
-                    description: finding.description,
-                    recommendation: undefined,
-                    risk_score: Math.round(finding.severity),
-                    compliance_frameworks: undefined,
-                    last_seen: finding.last_seen,
-                    first_seen: finding.first_seen,
-                    region: finding.region,
-                    metadata: {
-                      finding_type: finding.type,
-                      resource_type: finding.resource_type,
-                      account_id: finding.account_id,
-                    },
-                  }}
-                  workflow={workflows[finding.id]}
-                  onAdvanceStatus={advanceStatus}
-                  onAssign={assignFinding}
-                  onMarkFalsePositive={markFalsePositive}
-                  onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
-                  onClose={() => setExpandedRow(null)}
-                />
+                <>
+                  <div className="md:hidden px-3 pb-3">
+                    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3" style={{ fontFamily: C.mono }}>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Resource</div>
+                      <div className="break-all text-[11px] text-slate-300">{finding.resource_id}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Finding type</div>
+                      <div className="break-all text-[11px] text-slate-300">{finding.type}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                      <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                    </div>
+                  </div>
+                  <div className="hidden md:block">
+                    <FindingDetailPanel
+                      finding={{
+                        id: finding.id,
+                        title: finding.title ?? finding.type,
+                        resource_name: finding.resource_id,
+                        resource_arn: undefined,
+                        severity: finding.severity,
+                        description: finding.description,
+                        recommendation: undefined,
+                        risk_score: Math.round(finding.severity),
+                        compliance_frameworks: undefined,
+                        last_seen: finding.last_seen,
+                        first_seen: finding.first_seen,
+                        region: finding.region,
+                        metadata: {
+                          finding_type: finding.type,
+                          resource_type: finding.resource_type,
+                          account_id: finding.account_id,
+                        },
+                      }}
+                      workflow={workflows[finding.id]}
+                      onAdvanceStatus={advanceStatus}
+                      onAssign={assignFinding}
+                      onMarkFalsePositive={markFalsePositive}
+                      onCreateTicket={(id) => toast.info("Create ticket", { description: `${id}` })}
+                      onClose={() => setExpandedRow(null)}
+                    />
+                  </div>
+                </>
               )}
             </div>
           );

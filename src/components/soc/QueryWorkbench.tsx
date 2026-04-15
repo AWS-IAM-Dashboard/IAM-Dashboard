@@ -205,7 +205,7 @@ export function QueryWorkbench() {
         subtitle="CloudWatch Insights · Athena queries · Ctrl+Enter to run"
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 12, alignItems: "start" }}>
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[220px_minmax(0,1fr)]">
         {/* Library sidebar */}
         <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
           <div style={{ display: "flex", borderBottom: divider }}>
@@ -279,6 +279,7 @@ export function QueryWorkbench() {
             {/* Editor toolbar */}
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
+              flexWrap: "wrap",
               padding: "7px 12px",
               background: "rgba(255,255,255,0.025)",
               borderBottom: "1px solid rgba(255,255,255,0.06)",

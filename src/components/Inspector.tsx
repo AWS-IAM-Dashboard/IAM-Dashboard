@@ -212,7 +212,7 @@ export function Inspector() {
   ];
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6" style={{ color: '#e2e8f0' }}>
 
       <ScanPageHeader
         icon={<Lock size={20} color="#00ff88" />}
@@ -224,7 +224,7 @@ export function Inspector() {
       />
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total CVEs" value={totalCVEs} accent="#e2e8f0" icon={Package} />
         <StatCard label="Critical" value={criticalCount} accent="#ff0040" icon={AlertTriangle} />
         <StatCard label="High" value={highCount} accent="#ff6b35" icon={AlertTriangle} />
@@ -282,7 +282,7 @@ export function Inspector() {
       </div>
 
       {/* Findings Table */}
-      <div style={CARD_STYLE}>
+      <div className="min-w-0" style={{ ...CARD_STYLE, overflow: 'hidden' }}>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>
             Vulnerability Findings
@@ -293,8 +293,7 @@ export function Inspector() {
         </div>
 
         {/* Table Header */}
-        <div style={{
-          display: 'grid',
+        <div className="hidden md:grid" style={{
           gridTemplateColumns: '6px 200px 160px 170px 60px 100px 100px 30px',
           gap: 12,
           padding: '0 12px 10px',
@@ -322,10 +321,25 @@ export function Inspector() {
 
             return (
               <div key={finding.id}>
+                <button
+                  type="button"
+                  className="block w-full border-b border-white/[0.05] px-3 py-3 text-left md:hidden"
+                  onClick={() => setExpandedId(isExpanded ? null : finding.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-200">{finding.title}</div>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{finding.cve_id ?? finding.vulnerability_id}</div>
+                    </div>
+                    <SeverityBadge severity={finding.severity} size="sm" />
+                  </div>
+                  <div className="mt-2 truncate font-mono text-[10px] text-slate-500">{finding.resource_id}</div>
+                </button>
+
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : finding.id)}
+                  className="hidden md:grid"
                   style={{
-                    display: 'grid',
                     gridTemplateColumns: '6px 200px 160px 170px 60px 100px 100px 30px',
                     gap: 12,
                     padding: '14px 12px',
@@ -435,32 +449,44 @@ export function Inspector() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <FindingDetailPanel
-                    finding={{
-                      id: finding.id,
-                      title: finding.title ?? finding.cve_id ?? finding.vulnerability_id,
-                      resource_name: finding.resource_id,
-                      resource_arn: undefined,
-                      severity: finding.severity,
-                      description: finding.description,
-                      recommendation: getRemediation(finding.resource_type, finding.package_name),
-                      risk_score: undefined,
-                      compliance_frameworks: undefined,
-                      last_seen: finding.last_observed_at,
-                      first_seen: finding.first_observed_at,
-                      region: finding.region,
-                      metadata: {
-                        ...(finding.cve_id ? { "CVE": finding.cve_id } : {}),
-                        ...(finding.package_name ? { "Package": finding.package_name } : {}),
-                      },
-                    }}
-                    workflow={workflows[finding.id]}
-                    onAdvanceStatus={advanceStatus}
-                    onAssign={assignFinding}
-                    onMarkFalsePositive={markFalsePositive}
-                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
-                    onClose={() => setExpandedId(null)}
-                  />
+                  <>
+                    <div className="md:hidden px-3 pb-3">
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Vulnerability</div>
+                        <div className="break-all text-[11px] text-slate-300">{finding.cve_id ?? finding.vulnerability_id}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{finding.description}</div>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <FindingDetailPanel
+                        finding={{
+                          id: finding.id,
+                          title: finding.title ?? finding.cve_id ?? finding.vulnerability_id,
+                          resource_name: finding.resource_id,
+                          resource_arn: undefined,
+                          severity: finding.severity,
+                          description: finding.description,
+                          recommendation: getRemediation(finding.resource_type, finding.package_name),
+                          risk_score: undefined,
+                          compliance_frameworks: undefined,
+                          last_seen: finding.last_observed_at,
+                          first_seen: finding.first_observed_at,
+                          region: finding.region,
+                          metadata: {
+                            ...(finding.cve_id ? { "CVE": finding.cve_id } : {}),
+                            ...(finding.package_name ? { "Package": finding.package_name } : {}),
+                          },
+                        }}
+                        workflow={workflows[finding.id]}
+                        onAdvanceStatus={advanceStatus}
+                        onAssign={assignFinding}
+                        onMarkFalsePositive={markFalsePositive}
+                        onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                        onClose={() => setExpandedId(null)}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             );

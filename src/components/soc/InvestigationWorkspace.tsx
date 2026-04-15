@@ -102,7 +102,9 @@ function EvidenceRow({ ev }: { ev: Evidence }) {
       </div>
       {ev.hash_sha256 && (
         <div style={{ marginTop: 4 }}>
-          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.3)" }}>SHA-256: {ev.hash_sha256}</span>
+          <span style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.3)", display: "block", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+            SHA-256: {ev.hash_sha256}
+          </span>
         </div>
       )}
     </div>
@@ -138,7 +140,7 @@ export function InvestigationWorkspace() {
         { label: "Evidence Items", value: MOCK_INVESTIGATIONS.reduce((s, i) => s + i.evidence.length, 0), color: "#94a3b8" },
       ]} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 12 }}>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
         {/* Case list */}
         <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)", alignSelf: "start" }}>
           <div style={{ padding: "8px 12px", borderBottom: divider, background: "rgba(255,255,255,0.02)" }}>
@@ -187,12 +189,12 @@ export function InvestigationWorkspace() {
 
         {/* Case detail */}
         {selected ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
             {/* Header */}
             <div style={{ padding: "14px 16px", borderRadius: 10, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(96,165,250,0.2)" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>{selected.title}</div>
+              <div className="mb-2.5 flex flex-col items-start gap-2 sm:flex-row sm:items-start sm:justify-between" style={{ marginBottom: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0", marginBottom: 6, overflowWrap: "anywhere" }}>{selected.title}</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <InvStatusPill status={selected.status} />
                     <SeverityPill severity={selected.severity} />
@@ -201,7 +203,7 @@ export function InvestigationWorkspace() {
                     ))}
                   </div>
                 </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ textAlign: "left", flexShrink: 0 }}>
                   {selected.assignee && (
                     <div style={{ ...mono, fontSize: 10, color: "#94a3b8", marginBottom: 2 }}>{selected.assignee}</div>
                   )}
@@ -213,7 +215,7 @@ export function InvestigationWorkspace() {
                 </div>
               </div>
               {selected.summary && (
-                <p style={{ fontSize: 11, color: "rgba(148,163,184,0.7)", margin: 0, lineHeight: 1.6, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <p style={{ fontSize: 11, color: "rgba(148,163,184,0.7)", margin: 0, lineHeight: 1.6, padding: "8px 10px", borderRadius: 6, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", overflowWrap: "anywhere", wordBreak: "break-word" }}>
                   {selected.summary}
                 </p>
               )}
@@ -221,14 +223,14 @@ export function InvestigationWorkspace() {
                 <div style={{ marginTop: 10 }}>
                   <div style={{ ...ls, fontSize: 9, marginBottom: 5 }}>Affected Resources</div>
                   {selected.affected_resources.map(r => (
-                    <div key={r} style={{ ...mono, fontSize: 10, color: "#94a3b8", marginBottom: 2 }}>{r}</div>
+                    <div key={r} style={{ ...mono, fontSize: 10, color: "#94a3b8", marginBottom: 2, overflowWrap: "anywhere", wordBreak: "break-word" }}>{r}</div>
                   ))}
                 </div>
               )}
             </div>
 
             {/* Sub-nav */}
-            <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", width: "fit-content" }}>
+            <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 8, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)", width: "100%", flexWrap: "wrap", minWidth: 0 }}>
               {([
                 ["timeline", "Timeline", selected.timeline.length],
                 ["evidence", "Evidence", selected.evidence.length],
@@ -238,10 +240,10 @@ export function InvestigationWorkspace() {
                   key={id}
                   onClick={() => setActivePanel(id)}
                   className="soc-btn"
-                  style={{ padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: activePanel === id ? "rgba(96,165,250,0.12)" : "transparent", color: activePanel === id ? "#60a5fa" : "rgba(100,116,139,0.5)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s", ...mono }}
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: activePanel === id ? "rgba(96,165,250,0.12)" : "transparent", color: activePanel === id ? "#60a5fa" : "rgba(100,116,139,0.5)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", flex: "1 1 120px", minWidth: 0, gap: 6, transition: "all 0.15s", ...mono }}
                 >
-                  {label}
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>({count})</span>
+                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{label}</span>
+                  <span style={{ fontSize: 9, opacity: 0.7, flexShrink: 0 }}>({count})</span>
                 </button>
               ))}
             </div>
@@ -270,7 +272,7 @@ export function InvestigationWorkspace() {
 
             {/* Linked alerts */}
             {activePanel === "alerts" && (
-              <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)" }}>
+              <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden", background: "rgba(15,23,42,0.8)", minWidth: 0 }}>
                 {linkedAlerts.length === 0 ? (
                   <div style={{ padding: 14 }}>
                     <EmptyState icon={<Link2 size={28} />} title="No linked alerts" subtitle="Alerts can be linked to an investigation from the Alert Queue." />
@@ -279,11 +281,11 @@ export function InvestigationWorkspace() {
                   linkedAlerts.map(alert => {
                     const c = SEV_COLOR[alert.severity];
                     return (
-                      <div key={alert.id} style={{ padding: "10px 14px", borderBottom: divider, display: "flex", alignItems: "flex-start", gap: 12 }}>
-                        <span style={{ ...mono, fontSize: 9, padding: "0 8px", borderRadius: 999, background: `${c}14`, border: `1px solid ${c}28`, color: c, whiteSpace: "nowrap", marginTop: 2 }}>{alert.severity}</span>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", marginBottom: 2 }}>{alert.title}</div>
-                          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)" }}>{alert.source} · {alert.region} · {new Date(alert.created_at).toLocaleString()}</div>
+                      <div key={alert.id} style={{ padding: "10px 14px", borderBottom: divider, display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
+                        <span style={{ ...mono, fontSize: 9, padding: "0 8px", borderRadius: 999, background: `${c}14`, border: `1px solid ${c}28`, color: c, whiteSpace: "nowrap", marginTop: 2, flexShrink: 0 }}>{alert.severity}</span>
+                        <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#e2e8f0", marginBottom: 2, overflowWrap: "anywhere" }}>{alert.title}</div>
+                          <div style={{ ...mono, fontSize: 9, color: "rgba(100,116,139,0.4)", overflowWrap: "anywhere", wordBreak: "break-word" }}>{alert.source} · {alert.region} · {new Date(alert.created_at).toLocaleString()}</div>
                         </div>
                       </div>
                     );

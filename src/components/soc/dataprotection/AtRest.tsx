@@ -1,5 +1,5 @@
 // At Rest — encryption coverage, public snapshots
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HardDrive, ChevronDown, ChevronRight, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import type { StorageEncryptionEntry, PublicSnapshot } from "./types";
 import {
@@ -96,14 +96,22 @@ export function AtRest() {
   const publicResources = MOCK_STORAGE_ENCRYPTION.filter(e => e.public_accessible).length;
 
   const SECTIONS = [
-    { id: "encryption", label: "Encryption Coverage", accent: "#38bdf8", count: nonCompliant },
-    { id: "snapshots", label: "Public Snapshots", accent: "#ff0040", count: MOCK_PUBLIC_SNAPSHOTS.length },
-    { id: "audit", label: "Audit Trail", accent: "#a78bfa" },
-    { id: "scenarios", label: "Scenarios", accent: "#ffb000" },
+    { id: "encryption", label: "Encryption Coverage", shortLabel: "Encrypt", accent: "#38bdf8", count: nonCompliant },
+    { id: "snapshots", label: "Public Snapshots", shortLabel: "Public", accent: "#ff0040", count: MOCK_PUBLIC_SNAPSHOTS.length },
+    { id: "audit", label: "Audit Trail", shortLabel: "Audit", accent: "#a78bfa" },
+    { id: "scenarios", label: "Scenarios", shortLabel: "SIM", accent: "#ffb000" },
   ] as const;
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const }}>
+    <div className="min-w-0 max-w-full" style={{ display: "flex", flexDirection: "column" as const }}>
       <ModuleHeader icon={<HardDrive size={16} color="#8b5cf6" />} title="At Rest" subtitle="Storage encryption coverage, CMK adoption, and public snapshot exposure" accent="#8b5cf6" />
 
       <StatStrip stats={[
@@ -115,16 +123,26 @@ export function AtRest() {
         { label: "Total Resources", value: MOCK_STORAGE_ENCRYPTION.length },
       ]} />
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+      <div className="mb-3 grid min-w-0 w-full grid-cols-4 gap-1 sm:flex sm:flex-wrap sm:gap-2">
         {SECTIONS.map(s => {
           const active = section === s.id;
           return (
-            <button key={s.id} className="soc-btn" onClick={() => setSection(s.id as typeof section)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: active ? `${s.accent}12` : "transparent", border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`, color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono, fontSize: 11, fontWeight: active ? 700 : 500, transition: "all 0.12s" }}
+            <button
+              key={s.id}
+              type="button"
+              className="soc-btn flex min-w-0 w-full flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-2 text-center sm:w-auto sm:flex-row sm:gap-1.5 sm:px-2.5 sm:py-1.5"
+              onClick={() => setSection(s.id as typeof section)}
+              style={{
+                background: active ? `${s.accent}12` : "transparent",
+                border: `1px solid ${active ? s.accent + "30" : "rgba(255,255,255,0.06)"}`,
+                color: active ? s.accent : "rgba(100,116,139,0.5)", cursor: "pointer", ...mono,
+                fontSize: isMobile ? 9 : 11, fontWeight: active ? 700 : 500, transition: "all 0.12s",
+              }}
             >
-              {s.label}
+              <span className="hidden whitespace-nowrap sm:inline">{s.label}</span>
+              <span className="max-w-full truncate text-[8px] leading-tight sm:hidden">{s.shortLabel}</span>
               {("count" in s) && s.count > 0 && (
-                <span style={{ ...mono, fontSize: 9, fontWeight: 800, padding: "0 4px", height: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${s.accent}18`, border: `1px solid ${s.accent}30`, color: s.accent }}>{s.count}</span>
+                <span style={{ ...mono, fontSize: 8, fontWeight: 800, padding: "0 3px", minHeight: 14, display: "inline-flex", alignItems: "center", borderRadius: 999, background: `${s.accent}18`, border: `1px solid ${s.accent}30`, color: s.accent }}>{s.count}</span>
               )}
             </button>
           );
@@ -132,30 +150,36 @@ export function AtRest() {
       </div>
 
       {section === "encryption" && (
-        <div style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <span /><TH>Type</TH><TH>Resource</TH><TH>Algorithm</TH><TH>KMS Key</TH><TH>Class</TH><TH>Access</TH><TH right>Status</TH>
+        <div className="min-w-0 overflow-x-auto" style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ minWidth: 760 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "24px 80px 130px 80px 80px 100px 60px 100px", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+              <span /><TH>Type</TH><TH>Resource</TH><TH>Algorithm</TH><TH>KMS Key</TH><TH>Class</TH><TH>Access</TH><TH right>Status</TH>
+            </div>
+            {MOCK_STORAGE_ENCRYPTION.map(e => <EncRow key={e.id} entry={e} />)}
           </div>
-          {MOCK_STORAGE_ENCRYPTION.map(e => <EncRow key={e.id} entry={e} />)}
         </div>
       )}
 
       {section === "snapshots" && (
         <div style={{ borderRadius: 8, border: "1px solid rgba(255,0,64,0.2)", overflow: "hidden" }}>
-          <div style={{ padding: "8px 14px", borderBottom: "1px solid rgba(255,0,64,0.12)", background: "rgba(255,0,64,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ padding: "8px 14px", borderBottom: "1px solid rgba(255,0,64,0.12)", background: "rgba(255,0,64,0.04)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <AlertTriangle size={12} color="#ff0040" />
             <span style={{ fontSize: 11, color: "rgba(255,0,64,0.8)" }}>Public snapshots are immediately accessible to any AWS account — treat as data breach risk.</span>
             <MockBadge />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <TH>Severity</TH><TH>Snapshot ID</TH><TH>Type</TH><TH>Size</TH><TH>Encrypted</TH><TH>Created</TH><TH>Description</TH>
+          <div className="min-w-0 overflow-x-auto">
+            <div style={{ minWidth: 720 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "100px 160px 80px 80px 80px 80px 1fr", gap: 8, padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
+                <TH>Severity</TH><TH>Snapshot ID</TH><TH>Type</TH><TH>Size</TH><TH>Encrypted</TH><TH>Created</TH><TH>Description</TH>
+              </div>
+              {MOCK_PUBLIC_SNAPSHOTS.map(s => <SnapshotRow key={s.id} snap={s} />)}
+            </div>
           </div>
-          {MOCK_PUBLIC_SNAPSHOTS.map(s => <SnapshotRow key={s.id} snap={s} />)}
         </div>
       )}
 
       {section === "audit" && (
-        <div style={{ padding: "4px 0" }}>
+        <div className="min-w-0 max-w-full px-1 py-1 sm:px-0">
           {MOCK_AUDIT_TRAIL.filter(e => ["dev-scratch-bucket", "snap-0abc1234def56789", "mrk-ebs456"].includes(e.resource_id)).map(e => (
             <EvidenceAuditCard key={e.id} event={e} />
           ))}
@@ -163,7 +187,7 @@ export function AtRest() {
       )}
 
       {section === "scenarios" && (
-        <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+        <div className="flex min-w-0 max-w-full flex-col gap-3 px-1 py-1 sm:gap-3 sm:px-0">
           {DP_SCENARIOS.filter(s => s.id === "unencrypted_storage" || s.id === "public_snapshot").map(s => (
             <DPScenarioSimulator key={s.id} scenario={s} />
           ))}

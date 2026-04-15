@@ -174,7 +174,7 @@ export function AWSConfig() {
   };
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24, color: '#e2e8f0' }}>
+    <div className="flex min-w-0 w-full flex-col gap-4 p-3 sm:gap-5 sm:p-5 md:px-7 md:py-6" style={{ color: '#e2e8f0' }}>
 
       <ScanPageHeader
         icon={<Settings size={20} color="#00ff88" />}
@@ -186,7 +186,7 @@ export function AWSConfig() {
       />
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Rules" value={summary.total_rules} accent="#e2e8f0" icon={Settings2} />
         <StatCard label="Compliant" value={summary.compliant_rules} accent="#00ff88" icon={CheckCircle2} />
         <StatCard label="Non-Compliant" value={summary.non_compliant_rules} accent="#ff0040" icon={XCircle} />
@@ -194,7 +194,7 @@ export function AWSConfig() {
       </div>
 
       {/* Progress Bar */}
-      <div style={CARD_STYLE}>
+      <div className="min-w-0" style={{ ...CARD_STYLE, overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 13, color: 'rgba(100,116,139,0.7)' }}>Overall Compliance</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: complianceColor }}>{summary.compliance_percentage}%</span>
@@ -247,8 +247,7 @@ export function AWSConfig() {
         </div>
 
         {/* Table Header */}
-        <div style={{
-          display: 'grid',
+        <div className="hidden md:grid" style={{
           gridTemplateColumns: '36px 1fr 200px 120px 140px 36px',
           gap: 12,
           padding: '0 12px 10px',
@@ -272,10 +271,30 @@ export function AWSConfig() {
             const isExpanded = expandedId === rule.id;
             return (
               <div key={rule.id}>
+                <button
+                  type="button"
+                  className="block w-full border-b border-white/[0.05] px-3 py-3 text-left md:hidden"
+                  onClick={() => setExpandedId(isExpanded ? null : rule.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-200">{rule.name}</div>
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-slate-500">{rule.resource_type}</div>
+                    </div>
+                    {rule.compliance_status === 'NON_COMPLIANT' ? (
+                      <SeverityBadge severity="NON_COMPLIANT" size="sm" label={String(rule.resource_count)} />
+                    ) : rule.compliance_status === 'COMPLIANT' ? (
+                      <SeverityBadge severity="COMPLIANT" size="sm" label="0" />
+                    ) : (
+                      <SeverityBadge severity="NOT_APPLICABLE" size="sm" />
+                    )}
+                  </div>
+                </button>
+
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : rule.id)}
+                  className="hidden md:grid"
                   style={{
-                    display: 'grid',
                     gridTemplateColumns: '36px 1fr 200px 120px 140px 36px',
                     gap: 12,
                     padding: '14px 12px',
@@ -342,33 +361,45 @@ export function AWSConfig() {
 
                 {/* Expanded Detail */}
                 {isExpanded && (
-                  <FindingDetailPanel
-                    finding={{
-                      id: rule.id,
-                      title: rule.name,
-                      resource_name: rule.resource_type ?? rule.id,
-                      resource_arn: undefined,
-                      severity: "MEDIUM",
-                      description: rule.description,
-                      recommendation: getRemediationHint(rule.name),
-                      risk_score: undefined,
-                      compliance_frameworks: undefined,
-                      last_seen: rule.last_evaluated,
-                      first_seen: rule.last_evaluated,
-                      region: undefined,
-                      metadata: {
-                        ...(rule.compliance_status ? { "Status": rule.compliance_status } : {}),
-                        ...(rule.name ? { "Rule": rule.name } : {}),
-                        ...(rule.resource_type ? { "Resource Type": rule.resource_type } : {}),
-                      },
-                    }}
-                    workflow={workflows[rule.id]}
-                    onAdvanceStatus={advanceStatus}
-                    onAssign={assignFinding}
-                    onMarkFalsePositive={markFalsePositive}
-                    onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
-                    onClose={() => setExpandedId(null)}
-                  />
+                  <>
+                    <div className="md:hidden px-3 pb-3">
+                      <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Rule</div>
+                        <div className="break-all text-[11px] text-slate-300">{rule.name}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-slate-500">Description</div>
+                        <div className="text-[11px] leading-relaxed text-slate-300">{rule.description}</div>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                      <FindingDetailPanel
+                        finding={{
+                          id: rule.id,
+                          title: rule.name,
+                          resource_name: rule.resource_type ?? rule.id,
+                          resource_arn: undefined,
+                          severity: "MEDIUM",
+                          description: rule.description,
+                          recommendation: getRemediationHint(rule.name),
+                          risk_score: undefined,
+                          compliance_frameworks: undefined,
+                          last_seen: rule.last_evaluated,
+                          first_seen: rule.last_evaluated,
+                          region: undefined,
+                          metadata: {
+                            ...(rule.compliance_status ? { "Status": rule.compliance_status } : {}),
+                            ...(rule.name ? { "Rule": rule.name } : {}),
+                            ...(rule.resource_type ? { "Resource Type": rule.resource_type } : {}),
+                          },
+                        }}
+                        workflow={workflows[rule.id]}
+                        onAdvanceStatus={advanceStatus}
+                        onAssign={assignFinding}
+                        onMarkFalsePositive={markFalsePositive}
+                        onCreateTicket={(id) => toast.info("Create ticket", { description: id })}
+                        onClose={() => setExpandedId(null)}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             );

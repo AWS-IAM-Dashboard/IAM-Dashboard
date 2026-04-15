@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileText,
   Download,
@@ -97,7 +97,15 @@ export function Reports({ reports }: ReportsProps) {
   const [builderName, setBuilderName] = useState("");
   const [formats, setFormats] = useState({ pdf: true, csv: false, json: false });
   const [historySearch, setHistorySearch] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const { getScanResult, getAllScanResults } = useActiveScanResults();
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // ── Shared data helpers ──────────────────────────────────────────────────
   const extractFindingsFromResult = (scanResult: any): any[] => {
@@ -289,14 +297,7 @@ export function Reports({ reports }: ReportsProps) {
   );
 
   return (
-    <div
-      style={{
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "24px",
-              }}
-    >
+    <div className="min-w-0 max-w-full overflow-x-hidden p-3 sm:p-6" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* ── Page header ── */}
       <ScanPageHeader
         icon={<FileText size={20} color="#00ff88" />}
@@ -322,13 +323,7 @@ export function Reports({ reports }: ReportsProps) {
         >
           Quick Generate
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "8px",
-          }}
-        >
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {QUICK_REPORTS.map((qr) => {
             const Icon = qr.icon;
             const isRunning = generating === qr.id;
@@ -451,8 +446,9 @@ export function Reports({ reports }: ReportsProps) {
         </div>
       </div>
 
-      {/* ── Advanced report builder (collapsed) ── */}
+      {/* ── Advanced report builder ── */}
       <div
+        className="min-w-0 max-w-full"
         style={{
           background: "rgba(15,23,42,0.5)",
           border: "1px solid rgba(255,255,255,0.06)",
@@ -461,59 +457,41 @@ export function Reports({ reports }: ReportsProps) {
         }}
       >
         <button
+          type="button"
           onClick={() => setShowBuilder((v) => !v)}
-          style={{
-            width: "100%",
-            padding: "16px 16px",
-            background: "transparent",
-            border: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-          }}
+          className="flex w-full min-w-0 cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-3 text-left sm:items-center sm:p-4"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <FileText style={{ width: 14, height: 14, color: "rgba(100,116,139,0.6)" }} />
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "#cbd5e1" }}>
-              Advanced Report Builder
-            </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <FileText className="h-3.5 w-3.5 shrink-0" style={{ color: "rgba(100,116,139,0.6)" }} />
+              <span className="min-w-0 text-[13px] font-medium leading-snug text-slate-300">
+                Advanced Report Builder
+              </span>
+            </div>
             <span
+              className="w-fit shrink-0 rounded px-2 py-1 font-mono text-[10px]"
               style={{
-                fontSize: "10px",
                 color: "rgba(100,116,139,0.5)",
-                fontFamily: "'JetBrains Mono', monospace",
                 background: "rgba(255,255,255,0.04)",
-                padding: "4px 8px",
-                borderRadius: "4px",
               }}
             >
-              Custom formats &amp; scope
+              <span className="sm:hidden">Custom</span>
+              <span className="hidden sm:inline">Custom formats & scope</span>
             </span>
           </div>
-          {showBuilder ? (
-            <ChevronUp style={{ width: 14, height: 14, color: "rgba(100,116,139,0.5)" }} />
-          ) : (
-            <ChevronDown style={{ width: 14, height: 14, color: "rgba(100,116,139,0.5)" }} />
-          )}
+          <span className="shrink-0 pt-0.5 sm:pt-0" aria-hidden>
+            {showBuilder ? (
+              <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            )}
+          </span>
         </button>
 
         {showBuilder && (
-          <div
-            style={{
-              padding: "0 16px 16px",
-              borderTop: "1px solid rgba(255,255,255,0.04)",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-                paddingTop: "16px",
-              }}
-            >
-              <div>
+          <div className="min-w-0 max-w-full border-t border-white/[0.04] px-3 pb-4 pt-0 sm:px-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 pt-4 sm:grid-cols-2 sm:gap-3">
+              <div className="min-w-0">
                 <label
                   style={{
                     display: "block",
@@ -528,28 +506,32 @@ export function Reports({ reports }: ReportsProps) {
                 >
                   Report Type
                 </label>
-                <select
-                  value={builderType}
-                  onChange={(e) => setBuilderType(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    background: "rgba(30,41,59,0.8)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "6px",
-                    color: "#e2e8f0",
-                    fontSize: "12px",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  {Object.entries(REPORT_TYPE_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
-                </select>
+                <div className="relative min-w-0">
+                  <select
+                    value={builderType}
+                    onChange={(e) => setBuilderType(e.target.value)}
+                    className="min-w-0 max-w-full w-full cursor-pointer rounded-md border border-[rgba(0,255,136,0.3)] py-2 pl-3 pr-10 font-mono text-[12px] font-medium text-[#00ff88] shadow-none outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/35 sm:py-1.5"
+                    style={{
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
+                      appearance: "none",
+                      backgroundColor: "rgba(0,255,136,0.12)",
+                      boxShadow: "none",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {Object.entries(REPORT_TYPE_LABELS).map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#00ff88]/80"
+                    aria-hidden
+                  />
+                </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label
                   style={{
                     display: "block",
@@ -568,8 +550,10 @@ export function Reports({ reports }: ReportsProps) {
                   value={builderName}
                   onChange={(e) => setBuilderName(e.target.value)}
                   placeholder="Auto-named if blank"
+                  className="min-w-0 max-w-full"
                   style={{
                     width: "100%",
+                    maxWidth: "100%",
                     padding: "8px 12px",
                     background: "rgba(30,41,59,0.8)",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -583,7 +567,7 @@ export function Reports({ reports }: ReportsProps) {
               </div>
             </div>
 
-            <div style={{ marginTop: "16px" }}>
+            <div className="mt-4 min-w-0 max-w-full">
               <label
                 style={{
                   display: "block",
@@ -598,14 +582,14 @@ export function Reports({ reports }: ReportsProps) {
               >
                 Export Formats
               </label>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div className="grid min-w-0 grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
                 {(["pdf", "csv", "json"] as const).map((fmt) => (
                   <button
                     key={fmt}
+                    type="button"
                     onClick={() => setFormats((f) => ({ ...f, [fmt]: !f[fmt] }))}
+                    className="min-h-10 w-full min-w-0 rounded-md py-2 text-center sm:min-h-0 sm:w-auto sm:px-4 sm:py-1.5"
                     style={{
-                      padding: "4px 16px",
-                      borderRadius: "6px",
                       background: formats[fmt] ? "rgba(0,255,136,0.12)" : "rgba(255,255,255,0.04)",
                       border: formats[fmt] ? "1px solid rgba(0,255,136,0.3)" : "1px solid rgba(255,255,255,0.07)",
                       color: formats[fmt] ? "#00ff88" : "rgba(100,116,139,0.7)",
@@ -623,23 +607,19 @@ export function Reports({ reports }: ReportsProps) {
             </div>
 
             <button
+              type="button"
               onClick={runBuilderGenerate}
+              className="mt-4 flex w-full min-w-0 max-w-full items-center justify-center gap-2 rounded-md px-4 py-2.5 sm:w-auto sm:justify-start"
               style={{
-                marginTop: "16px",
-                padding: "8px 16px",
                 background: "rgba(0,255,136,0.1)",
                 border: "1px solid rgba(0,255,136,0.25)",
-                borderRadius: "6px",
                 color: "#00ff88",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
               }}
             >
-              <Download style={{ width: 13, height: 13 }} />
+              <Download style={{ width: 13, height: 13, flexShrink: 0 }} />
               Generate Report
             </button>
           </div>
@@ -656,15 +636,7 @@ export function Reports({ reports }: ReportsProps) {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              padding: "16px 16px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
+          <div style={{ padding: "16px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#e2e8f0" }}>
               Report History
             </span>
@@ -690,21 +662,14 @@ export function Reports({ reports }: ReportsProps) {
                   outline: "none",
                   color: "#e2e8f0",
                   fontSize: "12px",
-                  width: "160px",
+                  width: isMobile ? "120px" : "160px",
                 }}
               />
             </div>
           </div>
 
           {/* Table header */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
-              padding: "8px 16px",
-              borderBottom: "1px solid rgba(255,255,255,0.04)",
-            }}
-          >
+          {!isMobile && <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 130px 80px 70px 80px", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
             {["Report Name", "Type", "Date", "Status", "Threats", "Actions"].map((h) => (
               <span
                 key={h}
@@ -720,7 +685,7 @@ export function Reports({ reports }: ReportsProps) {
                 {h}
               </span>
             ))}
-          </div>
+          </div>}
 
           {filteredReports.map((report) => {
             const sc = getStatusColor(report.status);
@@ -728,18 +693,7 @@ export function Reports({ reports }: ReportsProps) {
               report.threats > 10 ? "#ff0040" : report.threats > 0 ? "#ffb000" : "#00ff88";
 
             return (
-              <div
-                key={report.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 100px 130px 80px 70px 80px",
-                  padding: "8px 16px",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  alignItems: "center",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
+              <div key={report.id} style={{ display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : undefined, gridTemplateColumns: isMobile ? undefined : "1fr 100px 130px 80px 70px 80px", gap: isMobile ? 8 : undefined, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center" }}>
                 <span style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: 500 }}>
                   {report.name}
                 </span>
@@ -850,17 +804,7 @@ export function Reports({ reports }: ReportsProps) {
       )}
 
       {/* ── Scheduled reports placeholder ── */}
-      <div
-        style={{
-          background: "rgba(15,23,42,0.4)",
-          border: "1px dashed rgba(255,255,255,0.06)",
-          borderRadius: "10px",
-          padding: "20px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <div style={{ background: "rgba(15,23,42,0.4)", border: "1px dashed rgba(255,255,255,0.06)", borderRadius: "10px", padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <div>
           <span style={{ fontSize: "13px", fontWeight: 500, color: "rgba(100,116,139,0.7)" }}>
             Scheduled Reports
