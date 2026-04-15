@@ -76,6 +76,10 @@ resource "aws_dynamodb_table" "scan_results" {
   }
 }
 
+# Terraform import/state migration notes:
+# - If this table already exists, import it into state before applying:
+#     terraform -chdir=infra/dynamodb import aws_dynamodb_table.iam_findings <EXISTING_TABLE_NAME>
+# - After import, run plan/apply to ensure TTL, tags, and encryption match this config.
 # DynamoDB table for IAM findings (TTL aligns with data retention policy)
 resource "aws_dynamodb_table" "iam_findings" {
   name         = var.iam_findings_table_name
