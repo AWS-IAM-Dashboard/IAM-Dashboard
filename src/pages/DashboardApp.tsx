@@ -108,19 +108,6 @@ export function DashboardApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isMobile, isSidebarOpen]);
 
-  /** Prevent double scroll (body + main) and extra “empty” scroll past the shell */
-  useEffect(() => {
-    const html = document.documentElement;
-    const prevHtml = html.style.overflow;
-    const prevBody = document.body.style.overflow;
-    html.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      html.style.overflow = prevHtml;
-      document.body.style.overflow = prevBody;
-    };
-  }, []);
-
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
   }, []);
@@ -199,15 +186,20 @@ export function DashboardApp() {
   return (
     <ScanResultsProvider>
       <AwsAccountProvider>
-        <div className="flex h-dvh min-h-0 max-h-dvh flex-col overflow-hidden bg-background dark">
+        <div className={isMobile
+          ? "flex h-dvh min-h-0 max-h-dvh flex-col overflow-hidden bg-background dark"
+          : "flex h-screen flex-col bg-background dark"
+        }>
           <Header
             onNavigate={setActiveTab}
             activeTab={activeTab}
-            onToggleSidebar={() => setIsSidebarOpen((o) => !o)}
-            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={isMobile ? () => setIsSidebarOpen((o) => !o) : undefined}
+            isSidebarOpen={isMobile ? isSidebarOpen : undefined}
           />
-          <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-            {/* Dimmed backdrop below header — tap outside drawer to close */}
+          <div className={isMobile
+            ? "relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
+            : "flex flex-1 overflow-hidden"
+          }>
             {isMobile && isSidebarOpen ? (
               <button
                 type="button"
@@ -216,18 +208,29 @@ export function DashboardApp() {
                 onClick={() => setIsSidebarOpen(false)}
               />
             ) : null}
-            <Sidebar
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              isMobile={isMobile}
-              isOpen={isSidebarOpen}
-              onClose={() => setIsSidebarOpen(false)}
-            />
-            <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col">
-              <main className="relative z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
-                {renderContent()}
-              </main>
-            </div>
+            {isMobile ? (
+              <>
+                <Sidebar
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  isMobile
+                  isOpen={isSidebarOpen}
+                  onClose={() => setIsSidebarOpen(false)}
+                />
+                <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col">
+                  <main className="relative z-0 min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                    {renderContent()}
+                  </main>
+                </div>
+              </>
+            ) : (
+              <>
+                <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+                <main className="flex-1 overflow-auto">
+                  {renderContent()}
+                </main>
+              </>
+            )}
           </div>
           <Toaster
             position="top-right"
