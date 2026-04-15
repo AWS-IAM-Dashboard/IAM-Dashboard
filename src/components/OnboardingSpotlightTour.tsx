@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
@@ -43,7 +43,7 @@ const STEPS: TourStep[] = [
   {
     id: "security-alerts",
     selector: '[data-tour="sidebar-security-alerts"]',
-    tab: "dashboard",
+    tab: "alerts",
     title: "Open Security Alerts",
     description: "This view is where you track and action alerts across services and severity levels.",
   },
@@ -78,12 +78,24 @@ export function OnboardingSpotlightTour({ open, onOpenChange, onNavigate, onStar
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+  const tourRef = useRef<HTMLElement | null>(null);
 
   const currentStep = STEPS[stepIndex];
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === STEPS.length - 1;
 
   const refreshTarget = useCallback(() => {
+    const element = document.querySelector(currentStep.selector) as HTMLElement | null;
+    if (!element) {
+      setTargetRect(null);
+      return false;
+    }
+    const nextRect = element.getBoundingClientRect();
+    setTargetRect(nextRect);
+    return true;
+  }, [currentStep.selector]);
+
+  const ensureTargetVisible = useCallback(() => {
     const element = document.querySelector(currentStep.selector) as HTMLElement | null;
     if (!element) {
       setTargetRect(null);
@@ -101,13 +113,13 @@ export function OnboardingSpotlightTour({ open, onOpenChange, onNavigate, onStar
       onNavigate?.(currentStep.tab);
     }
     const timeout = window.setTimeout(() => {
-      const found = refreshTarget();
+      const found = ensureTargetVisible();
       if (!found && stepIndex < STEPS.length - 1) {
         setStepIndex((prev) => prev + 1);
       }
     }, STEP_ADVANCE_DELAY_MS);
     return () => window.clearTimeout(timeout);
-  }, [open, currentStep.tab, refreshTarget, stepIndex, onNavigate]);
+  }, [open, currentStep.tab, ensureTargetVisible, stepIndex, onNavigate]);
 
   useEffect(() => {
     if (!open) return;
@@ -150,10 +162,18 @@ export function OnboardingSpotlightTour({ open, onOpenChange, onNavigate, onStar
   useEffect(() => {
     if (!open) return;
     const handleKeys = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const insideTour = !!(target && tourRef.current?.contains(target));
+      const interactiveSelector = "button, a, input, textarea, select, [role='button']";
+      const isInteractive =
+        !!target &&
+        (target.isContentEditable || !!target.closest(interactiveSelector));
+
       if (event.key === "Escape") {
         onOpenChange(false);
         return;
       }
+      if (!insideTour && isInteractive) return;
       if (event.key === "Enter" || event.key === "ArrowRight") {
         event.preventDefault();
         if (isLast) {
@@ -200,6 +220,7 @@ export function OnboardingSpotlightTour({ open, onOpenChange, onNavigate, onStar
       />
 
       <aside
+        ref={tourRef}
         className={cn(
           "absolute w-[320px] rounded-xl border border-white/10 bg-[rgba(8,12,24,0.98)] p-4 text-slate-100 shadow-2xl backdrop-blur-md",
         )}

@@ -237,6 +237,7 @@ export function ProductTour({ active, onClose, onNavigate }: ProductTourProps) {
 
   useEffect(() => {
     if (!active) return;
+    let cancelled = false;
 
     setRect(null);
     setLoading(true);
@@ -249,17 +250,25 @@ export function ProductTour({ active, onClose, onNavigate }: ProductTourProps) {
       if (cur.tab && onNavigate) {
         onNavigate(cur.tab);
         await new Promise(r => setTimeout(r, 300));
+        if (cancelled) return;
       }
       const el = await findElement(cur.selector);
+      if (cancelled) return;
       setLoading(false);
       if (el) {
+        if (cancelled) return;
         attachToElement(el);
         // Scroll element into view, but don't scroll horizontally for right-placed tooltips
         el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
       }
     };
 
-    go();
+    void go();
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearTimeout(pollRef.current);
+      observerRef.current?.disconnect();
+    };
   }, [step, active, cur.tab, cur.selector, onNavigate, findElement, attachToElement]);
 
   useEffect(() => {
