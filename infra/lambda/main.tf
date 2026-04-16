@@ -197,6 +197,24 @@ resource "aws_lambda_function" "ses_notification" {
   ]
 }
 
+# KMS decrypt permission scoped to the Lambda KMS key (cannot be expressed in static JSON)
+resource "aws_iam_role_policy" "lambda_ses_kms_policy" {
+  name = "${var.lambda_ses_function}-kms-policy"
+  role = aws_iam_role.lambda_ses_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowKMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = var.lambda_kms_key_arn
+      }
+    ]
+  })
+}
+
 resource "aws_lambda_permission" "allow_scan_results_s3_invoke_ses_notification" {
   statement_id  = "AllowScanResultsS3InvokeSesNotification"
   action        = "lambda:InvokeFunction"

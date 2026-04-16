@@ -17,7 +17,7 @@
       "Action": [
         "s3:GetObject"
       ],
-      "Resource": "arn:aws:s3:::iam-dashboard-project"
+      "Resource": "arn:aws:s3:::iam-dashboard-project/*"
     },
     {
       "Sid": "AllowSesEmailSend",
@@ -25,6 +25,15 @@
       "Action": [
         "ses:SendEmail",
         "ses:SendRawEmail"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AllowXRayTracing",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
       ],
       "Resource": "*"
     }

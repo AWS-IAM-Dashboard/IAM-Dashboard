@@ -7,10 +7,6 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = var.aws_region
-}
-
 # S3 bucket for frontend static hosting
 resource "aws_s3_bucket" "frontend" {
   bucket = var.s3_bucket_name

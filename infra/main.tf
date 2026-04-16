@@ -52,6 +52,8 @@ module "s3" {
   s3_logging_bucket_name       = "${var.s3_bucket_name}-access-logs"
   scan_notification_lambda_arn = module.lambda.lambda_ses_function_arn
   scan_notification_prefix     = var.scan_notification_prefix
+
+  depends_on = [module.lambda]
 }
 
 # DynamoDB Module
