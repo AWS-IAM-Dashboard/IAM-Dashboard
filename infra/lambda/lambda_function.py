@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 # ── Bedrock API key — fetched once from SSM per warm instance ─────────────────
 _ssm_client = boto3.client("ssm", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
-_bedrock_key_cache: Optional[str] = None
+_bedrock_model_id_cache: Optional[str] = None
 
 def _get_bedrock_api_key() -> Optional[str]:
     global _bedrock_key_cache
@@ -38,6 +38,20 @@ def _get_bedrock_api_key() -> Optional[str]:
         return None
 
 
+def _get_bedrock_model_id() -> str:
+    global _bedrock_model_id_cache
+    if _bedrock_model_id_cache:
+        return _bedrock_model_id_cache
+    try:
+        resp = _ssm_client.get_parameter(Name="/iam-dashboard/dev/bedrock-model-id")
+        _bedrock_model_id_cache = resp["Parameter"]["Value"]
+        return _bedrock_model_id_cache
+    except Exception as e:
+        logger.warning("Could not fetch Bedrock model ID from SSM, using default: %s", e)
+        _bedrock_model_id_cache = "anthropic.claude-haiku-4-5-20251001"
+        return _bedrock_model_id_cache
+
+
 def _get_bedrock_client():
     api_key = _get_bedrock_api_key()
     region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
@@ -46,7 +60,7 @@ def _get_bedrock_client():
     return boto3.client("bedrock-runtime", region_name=region)
 
 
-_BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-haiku-4-5-20251001")
+_BEDROCK_MODEL_ID = _get_bedrock_model_id
 
 _SYSTEM_RUNBOOK = (
     "You are a cloud security incident responder. "
@@ -72,7 +86,7 @@ def _invoke_claude(prompt: str, system: Optional[str] = None, max_tokens: int = 
         }
         if system:
             body["system"] = system
-        response = client.invoke_model(modelId=_BEDROCK_MODEL_ID, body=json.dumps(body))
+        response = client.invoke_model(modelId=_BEDROCK_MODEL_ID(), body=json.dumps(body))
         result = json.loads(response["body"].read())
         return result["content"][0]["text"]
     except Exception as e:
@@ -94,7 +108,7 @@ def _handle_llm_triage(body: Dict[str, Any]) -> Dict[str, Any]:
     )
     response = _invoke_claude(prompt)
     if response:
-        return {"triage_summary": response, "model": _BEDROCK_MODEL_ID}
+        return {"triage_summary": response, "model": _BEDROCK_MODEL_ID()}
     return {
         "triage_summary": "TRUE POSITIVE with HIGH confidence. Source IP associated with Tor exit nodes.",
         "confidence_score": 0.97,
@@ -117,7 +131,7 @@ def _handle_llm_root_cause(body: Dict[str, Any]) -> Dict[str, Any]:
     )
     response = _invoke_claude(prompt)
     if response:
-        return {"root_cause_narrative": response, "model": _BEDROCK_MODEL_ID}
+        return {"root_cause_narrative": response, "model": _BEDROCK_MODEL_ID()}
     return {
         "root_cause_narrative": "Initial access via compromised long-lived access key.",
         "mitre_techniques": ["T1078", "T1580"],
@@ -162,7 +176,7 @@ def _handle_llm_runbook(body: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning("Runbook JSON parse failed: %s | raw=%r", e, raw[:200])
 
     if steps:
-        return {"runbook_steps": steps, "model": _BEDROCK_MODEL_ID}
+        return {"runbook_steps": steps, "model": _BEDROCK_MODEL_ID()}
     return {
         "runbook_steps": [
             {"step": 1, "phase": "IDENTIFY", "title": "Validate Finding via CloudTrail",

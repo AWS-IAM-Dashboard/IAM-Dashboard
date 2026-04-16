@@ -1,8 +1,9 @@
 # API Gateway + Lambda — Flow & Checklist
 ## Argus Voice: TTS, Voice Intent, LLM Triage
 
-**Status:** Planning
+**Status:** In Progress
 **Ref doc:** `API-Gateway-Lambda-Integration.md`
+**Approach:** All infrastructure via Terraform (IaC only — no console changes)
 
 ---
 
@@ -57,54 +58,52 @@ flowchart LR
 
     subgraph API_Gateway[Amazon API Gateway — erh3a09d7l  existing gateway]
         R0[existing: /auth /scan — unchanged]
-        R1[NEW: POST /tts/synthesize]
-        R2[NEW: POST /voice/intent]
-        R3[NEW: POST /llm/triage]
-        APIKEY[API Key + Usage Plan\nx-api-key header]
-        CORS[CORS + Binary Media Types]
+        R1[NEW: POST /llm/triage]
+        R2[NEW: POST /llm/root-cause]
+        R3[NEW: POST /llm/runbook]
+        THROTTLE[Throttle: 10 burst / 5 rps]
     end
 
-    subgraph Lambdas[Lambda Functions]
-        L1[argus-tts-synthesize\nPython 3.11 / 256MB / 15s]
-        L2[argus-voice-intent\nPython 3.11 / 256MB / 30s]
-        L3[argus-llm-triage\nPython 3.11 / 512MB / 60s]
+    subgraph Lambda[iam-dashboard-scanner  existing Lambda]
+        LH[_handle_llm_triage\n_handle_llm_root_cause\n_handle_llm_runbook]
+        SSM_FETCH[_get_bedrock_api_key\n_get_bedrock_model_id\nfrom SSM]
     end
 
-    subgraph IAM[IAM]
-        ROLE[ArgusVoiceLambdaRole\nExecution Role]
-        POL[Inline Policy\nbedrock:InvokeModel\npolly:SynthesizeSpeech\nlogs:PutLogEvents]
+    subgraph IAM[IAM — iam-dashboard-lambda-role]
+        ROLE[Existing execution role]
+        POL[Updated policy\nssm:GetParameter\nbedrock:InvokeModel\nkms:Decrypt already present]
+    end
+
+    subgraph SSM[SSM Parameter Store]
+        P1[/iam-dashboard/dev/bedrock-api-key\nSecureString — from GitHub secret]
+        P2[/iam-dashboard/dev/bedrock-model-id\nString — Terraform managed]
     end
 
     subgraph AWS_Services[AWS Services]
-        POLLY[Amazon Polly Neural]
         BEDROCK[Amazon Bedrock\nClaude Haiku 4.5]
-        CW[CloudWatch Logs\n/aws/lambda/argus-*]
+        CW[CloudWatch Logs\n/aws/lambda/iam-dashboard-scanner]
     end
 
     subgraph Flask[Flask Container — unchanged]
-        FLASK[All other routes\n/aws/* /ir/* /dashboard etc.]
+        FLASK[All other routes\n/aws/* /ir/* /tts/* /voice/* etc.]
     end
 
-    FE -->|x-api-key header| R1
-    FE -->|x-api-key header| R2
-    FE -->|x-api-key header| R3
+    FE -->|existing gateway URL| R1
+    FE -->|existing gateway URL| R2
+    FE -->|existing gateway URL| R3
 
-    R1 --> L1
-    R2 --> L2
-    R3 --> L3
+    R1 --> LH
+    R2 --> LH
+    R3 --> LH
 
-    ROLE --> L1
-    ROLE --> L2
-    ROLE --> L3
+    LH --> SSM_FETCH
+    SSM_FETCH --> P1
+    SSM_FETCH --> P2
+    ROLE --> LH
     POL --> ROLE
 
-    L1 --> POLLY
-    L2 --> BEDROCK
-    L3 --> BEDROCK
-
-    L1 --> CW
-    L2 --> CW
-    L3 --> CW
+    LH --> BEDROCK
+    LH --> CW
 
     FE -->|direct — no Gateway| FLASK
 ```
@@ -113,164 +112,86 @@ flowchart LR
 
 ## Deployment Checklist
 
-Work through these in order. Each section must be complete before moving to the next.
+All steps are IaC via Terraform. CI deploys on merge to `main`. No console changes.
 
 ---
 
-### 1. IAM Setup
+### 1. IAM — Lambda Role Policy ✅ Done
 
-- [ ] Open IAM console → Roles → Create role
-- [ ] Trusted entity: AWS service → Lambda
-- [ ] Skip managed policies — do not attach `AmazonBedrockFullAccess` or `AmazonPollyFullAccess`
-- [ ] Add inline permission policy (copy from `API-Gateway-Lambda-Integration.md` — IAM section)
-- [ ] Name the role `ArgusVoiceLambdaRole`
-- [ ] Confirm the role ARN is saved — needed when creating each Lambda
+- [x] `infra/lambda/lambda-role-policy.json` — `ssm:GetParameter` scoped to both SSM parameter paths
+- [x] `BedrockInvokeModel` scoped to `anthropic.claude-haiku-4-5-20251001`
+- [x] `kms:Decrypt` already present — covers SecureString decryption
 
 ---
 
-### 2. Lambda — `argus-tts-synthesize`
+### 2. Lambda — `iam-dashboard-scanner` ✅ Done
 
-- [ ] Lambda console → Create function → Author from scratch
-- [ ] Runtime: Python 3.11
-- [ ] Execution role: existing → `ArgusVoiceLambdaRole`
-- [ ] Paste handler code from integration doc (Lambda 1 skeleton)
-- [ ] Set environment variables:
-  - [ ] `AWS_DEFAULT_REGION` = `us-east-1`
-  - [ ] `CORS_ALLOW_ORIGIN` = your frontend domain
-- [ ] Set timeout: **15 seconds**
-- [ ] Set memory: **256 MB**
-- [ ] Deploy function
-- [ ] Test with Lambda console test event:
-  ```json
-  { "body": "{\"text\": \"Test audio.\", \"voice\": \"Matthew\", \"engine\": \"neural\"}" }
-  ```
-- [ ] Confirm response has `isBase64Encoded: true` and `Content-Type: audio/mpeg`
+- [x] `_get_bedrock_api_key()` — fetches from SSM, warm-instance cached
+- [x] `_get_bedrock_model_id()` — fetches from SSM, falls back to Haiku default
+- [x] `_get_bedrock_client()` — uses SSM key, no hardcoded credentials
+- [x] `_handle_llm_triage()`, `_handle_llm_root_cause()`, `_handle_llm_runbook()` added
+- [x] `lambda_handler` routing added for `llm-triage`, `llm-root-cause`, `llm-runbook`
 
 ---
 
-### 3. Lambda — `argus-voice-intent`
+### 3. SSM Parameters — IaC ✅ Done
 
-- [ ] Lambda console → Create function → Author from scratch
-- [ ] Runtime: Python 3.11
-- [ ] Execution role: existing → `ArgusVoiceLambdaRole`
-- [ ] Paste handler code from integration doc (Lambda 2 skeleton)
-- [ ] Set environment variables:
-  - [ ] `AWS_DEFAULT_REGION` = `us-east-1`
-  - [ ] `BEDROCK_MODEL_ID` = `anthropic.claude-haiku-4-5-20251001`
-  - [ ] `CORS_ALLOW_ORIGIN` = your frontend domain
-- [ ] Set timeout: **30 seconds**
-- [ ] Set memory: **256 MB**
-- [ ] Deploy function
-- [ ] Test with Lambda console test event:
-  ```json
-  { "body": "{\"utterance\": \"what is the threat level\", \"context_turns\": [], \"finding_context\": null}" }
-  ```
-- [ ] Confirm response contains `intent`, `spoken_reply`, `confidence`
-- [ ] Confirm `model` in response is NOT `"mock"` (confirms Bedrock is live)
+- [x] `aws_ssm_parameter.bedrock_api_key` — `/iam-dashboard/dev/bedrock-api-key` (SecureString, `lifecycle ignore_changes`)
+- [x] `aws_ssm_parameter.bedrock_model_id` — `/iam-dashboard/dev/bedrock-model-id` (String)
+- [x] Both vars declared in `infra/lambda/variables.tf` and `infra/variables.tf`
+- [x] Both vars passed through `infra/main.tf` to `module "lambda"`
 
 ---
 
-### 4. Lambda — `argus-llm-triage`
+### 4. CI Workflow ✅ Done
 
-- [ ] Lambda console → Create function → Author from scratch
-- [ ] Runtime: Python 3.11
-- [ ] Execution role: existing → `ArgusVoiceLambdaRole`
-- [ ] Paste handler code from integration doc (Lambda 3 skeleton)
-- [ ] Set environment variables:
-  - [ ] `AWS_DEFAULT_REGION` = `us-east-1`
-  - [ ] `BEDROCK_MODEL_ID` = `anthropic.claude-haiku-4-5-20251001`
-  - [ ] `CORS_ALLOW_ORIGIN` = your frontend domain
-- [ ] Set timeout: **60 seconds**
-- [ ] Set memory: **512 MB**
-- [ ] Deploy function
-- [ ] Test with Lambda console test event:
-  ```json
-  {
-    "body": "{\"finding_id\": \"test-001\", \"severity\": \"CRITICAL\", \"finding_type\": \"UnauthorizedAccess:IAMUser\", \"resource_name\": \"arn:aws:iam::123456789012:user/test\", \"description\": \"Suspicious API calls from Tor exit node.\"}"
-  }
-  ```
-- [ ] Confirm `status: "succeeded"` and `model` is NOT `"mock"`
+- [x] `TF_VAR_bedrock_api_key_placeholder: ${{ secrets.BEDROCK_API_KEY }}` added to both `plan` and `apply` jobs in `terraform-apply.yml`
 
 ---
 
-### 5. API Gateway — Add Resources to Existing Gateway
+### 5. API Gateway Routes ✅ Done
 
-> The existing API Gateway (`erh3a09d7l`) already handles `/auth` and `/scan`. Do **not** create a new one — add the 3 new resources to it.
-
-- [ ] API Gateway console → APIs → open `erh3a09d7l`
-- [ ] Add resources and methods:
-  - [ ] Resource `/tts` → child `/synthesize` → method `POST` → Lambda proxy → `argus-tts-synthesize`
-  - [ ] Resource `/voice` → child `/intent` → method `POST` → Lambda proxy → `argus-voice-intent`
-  - [ ] Resource `/llm` → child `/triage` → method `POST` → Lambda proxy → `argus-llm-triage`
-- [ ] Enable Lambda proxy integration on all 3 methods
-- [ ] API Settings → Binary Media Types → confirm `audio/mpeg` is present (add if missing)
+- [x] `POST /llm/triage`, `POST /llm/root-cause`, `POST /llm/runbook` added to `infra/api-gateway/main.tf`
+- [x] Per-route throttle settings: burst 10, rate 5 req/s
 
 ---
 
-### 6. CORS
+### 6. Add GitHub Secret ⬜ Pending (human step)
 
-- [ ] Select `/tts/synthesize` → Actions → Enable CORS
-  - [ ] `Access-Control-Allow-Origin`: your frontend domain
-  - [ ] Allow headers: `Content-Type,x-api-key`
-  - [ ] Allow methods: `POST,OPTIONS`
-- [ ] Repeat for `/voice/intent`
-- [ ] Repeat for `/llm/triage`
+- [ ] GitHub → repo → Settings → Secrets → Actions → New secret
+- [ ] Name: `BEDROCK_API_KEY` — Value: key from AWS Bedrock console
 
 ---
 
-### 7. API Key + Usage Plan
+### 7. Deploy via CI ⬜ Pending
 
-- [ ] API Keys → Create → name: `argus-dev-key`
-- [ ] Copy and save the key value securely
-- [ ] Usage Plans → Create plan:
-  - [ ] Name: `argus-dev`
-  - [ ] Throttle: 50 req/sec burst, 20 req/sec steady
-  - [ ] Quota: 10,000 requests/day
-- [ ] Add stage to plan (after deploying in next step)
-- [ ] Add `argus-dev-key` to the plan
+- [ ] Merge to `main`
+- [ ] Confirm CI `plan` step passes in GitHub Actions
+- [ ] Confirm CI `apply` step completes successfully
 
 ---
 
-### 8. Deploy Stage
+### 8. Smoke Test ⬜ Pending
 
-- [ ] Actions → Deploy API
-- [ ] Redeploy to the **existing stage** (the same one serving `/auth` and `/scan`)
-- [ ] Invoke URL stays: `https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1`
+- [ ] `POST /llm/triage` returns `model` ≠ `"mock"`
+- [ ] `POST /llm/root-cause` returns `model` ≠ `"mock"`
+- [ ] `POST /llm/runbook` returns 4-step `runbook_steps`, `model` ≠ `"mock"`
+- [ ] CloudWatch Logs → `/aws/lambda/iam-dashboard-scanner` — no SSM or Bedrock errors
 
 ---
 
-### 9. Frontend Config
+### 9. Frontend Config ⬜ Pending
 
-- [ ] Update `.env.live`:
-  - [ ] `VITE_IR_API_BASE=https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1`
-  - [ ] `VITE_API_GATEWAY_KEY=your-api-key-value`
-- [ ] Add `x-api-key` header to `irFetch()` in `src/services/irEngine.ts`
-- [ ] Add `x-api-key` header to `pollySpeak()` fetch call in `src/services/ttsService.ts`
+- [ ] Confirm `VITE_IR_API_BASE=https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1` in `.env.live`
 - [ ] Rebuild frontend: `docker compose build --no-cache frontend`
-- [ ] Restart app container: `docker compose up -d --force-recreate app`
 
 ---
 
-### 10. End-to-End Validation
+### 10. Promote to Staging ⬜ Pending
 
-- [ ] Open Argus panel in browser (Chrome or Edge)
-- [ ] Press mic → say "brief me" → confirm Polly audio plays (not browser TTS)
-- [ ] Press mic → say "what is the threat level" → confirm spoken response
-- [ ] Press CRITICAL quick command → confirm LLMTriageCard appears with real Claude summary
-- [ ] Check CloudWatch Logs → `/aws/lambda/argus-tts-synthesize` — confirm invocations logged
-- [ ] Check CloudWatch Logs → `/aws/lambda/argus-llm-triage` — confirm no errors
-- [ ] Confirm `model` field in triage card is NOT `"mock"`
-- [ ] Test fallback: set `VITE_DATA_MODE=mock` → confirm browser TTS kicks in, no Gateway calls
-
----
-
-### 11. Promote to Staging
-
-- [ ] Deploy API → redeploy or create a `staging` stage on the same gateway
-- [ ] Create new API key `argus-staging-key` and usage plan `argus-staging`
-- [ ] Update staging environment config with new key
-- [ ] Re-run end-to-end validation against staging stage
-- [ ] Update `Voice-Incident-Response-Agent.md` Phase 4 checklist items
+- [ ] Update Terraform staging vars with new secrets
+- [ ] Re-run smoke tests against staging Gateway URL
+- [ ] Update `Voice-Incident-Response-Agent.md` Phase 4 checklist
 
 ---
 
@@ -278,14 +199,14 @@ Work through these in order. Each section must be complete before moving to the 
 
 | Item | Value |
 |---|---|
-| Execution role | `ArgusVoiceLambdaRole` |
-| Lambda runtime | Python 3.11 |
+| Lambda function | `iam-dashboard-scanner` (existing) |
+| Lambda role | `iam-dashboard-lambda-role` (existing, updated policy) |
 | Bedrock model | `anthropic.claude-haiku-4-5-20251001` |
-| Polly voice | `Matthew` (Neural) |
+| SSM key path | `/iam-dashboard/dev/bedrock-api-key` |
+| SSM model path | `/iam-dashboard/dev/bedrock-model-id` |
 | Existing API Gateway ID | `erh3a09d7l` |
 | Existing Gateway URL | `https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1` |
-| Binary media type | `audio/mpeg` |
-| Auth method | API key via `x-api-key` header |
-| Frontend env var (base URL) | `VITE_IR_API_BASE` |
-| Frontend env var (key) | `VITE_API_GATEWAY_KEY` |
-| CloudWatch log group prefix | `/aws/lambda/argus-*` |
+| LLM throttle | burst 10 / rate 5 req/s |
+| CloudWatch log group | `/aws/lambda/iam-dashboard-scanner` |
+| CI workflow | `.github/workflows/terraform-apply.yml` |
+| GitHub secret needed | `BEDROCK_API_KEY` |

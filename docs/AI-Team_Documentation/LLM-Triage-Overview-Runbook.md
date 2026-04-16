@@ -1,6 +1,7 @@
 # LLM Triage, Overview & Runbook — Setup Guide
 
-**Goal:** Get the three Claude-powered features working via the existing API Gateway and Lambda, with the Bedrock API key stored securely in AWS Parameter Store.
+**Goal:** Get the three Claude-powered features working via the existing Lambda and API Gateway, with the Bedrock API key stored securely in AWS Parameter Store.
+**Approach:** All infrastructure via Terraform — CI deploys on merge to `main`. No console changes.
 
 ---
 
@@ -12,147 +13,105 @@
 | Overview | `POST /llm/root-cause` | Attack chain reconstruction, root cause narrative, contributing factors |
 | Runbook | `POST /llm/runbook` | 4-step IR playbook: IDENTIFY → CONTAIN → REMEDIATE → VERIFY |
 
----
-
-## Step 1 — Store the Bedrock API Key in Parameter Store
-
-1. AWS Console → Systems Manager → Parameter Store → Create parameter
-2. Fill in:
-   - Name: `/iam-dashboard/dev/bedrock-api-key`
-   - Tier: Standard
-   - Type: **SecureString**
-   - KMS key: use the default `aws/ssm` key (or your team's CMK)
-   - Value: your Bedrock API key from AWS Console → Bedrock → API keys
-3. Create parameter
+All three route through the **existing scanner Lambda** (`iam-dashboard-scanner`) — no new Lambda functions needed. The Lambda detects `/llm/*` paths and handles them before the scan routing runs.
 
 ---
 
-## Step 2 — Allow the Lambda to Read the Parameter
+## What's Already Done (IaC committed)
 
-Add this statement to the `ArgusVoiceLambdaRole` inline policy:
+### `infra/lambda/lambda_function.py`
+- [x] `_get_bedrock_api_key()` — fetches `/iam-dashboard/dev/bedrock-api-key` from SSM, cached per warm instance
+- [x] `_get_bedrock_model_id()` — fetches `/iam-dashboard/dev/bedrock-model-id` from SSM, falls back to Haiku default
+- [x] `_get_bedrock_client()` — sets `AWS_BEARER_TOKEN_BEDROCK` from SSM key, returns bedrock-runtime client
+- [x] `_handle_llm_triage()`, `_handle_llm_root_cause()`, `_handle_llm_runbook()` — full handlers with mock fallback
+- [x] `lambda_handler` — routes `llm-triage`, `llm-root-cause`, `llm-runbook` paths before scan routing
 
-```json
-{
-  "Sid": "ReadBedrockKeyFromSSM",
-  "Effect": "Allow",
-  "Action": [
-    "ssm:GetParameter"
-  ],
-  "Resource": "arn:aws:ssm:us-east-1:YOUR_ACCOUNT_ID:parameter/iam-dashboard/dev/bedrock-api-key"
-},
-{
-  "Sid": "DecryptSSMKey",
-  "Effect": "Allow",
-  "Action": [
-    "kms:Decrypt"
-  ],
-  "Resource": "arn:aws:kms:us-east-1:YOUR_ACCOUNT_ID:key/YOUR_KMS_KEY_ID"
-}
-```
+### `infra/lambda/lambda-role-policy.json`
+- [x] `SSMBedrockKey` — `ssm:GetParameter` scoped to both `/iam-dashboard/dev/bedrock-api-key` and `/iam-dashboard/dev/bedrock-model-id`
+- [x] `BedrockInvokeModel` — `bedrock:InvokeModel` scoped to `anthropic.claude-haiku-4-5-20251001`
+- [x] `kms:Decrypt` already present — covers SSM SecureString decryption
 
-> If you used the default `aws/ssm` key, the `kms:Decrypt` statement is still required — use the ARN of the `aws/ssm` managed key in your account.
+### `infra/lambda/main.tf`
+- [x] `aws_ssm_parameter.bedrock_api_key` — `/iam-dashboard/dev/bedrock-api-key` (SecureString, `lifecycle ignore_changes` on value)
+- [x] `aws_ssm_parameter.bedrock_model_id` — `/iam-dashboard/dev/bedrock-model-id` (String, Terraform-managed)
 
----
+### `infra/lambda/variables.tf`
+- [x] `bedrock_model_id` variable (default: `anthropic.claude-haiku-4-5-20251001`)
+- [x] `bedrock_api_key_placeholder` variable (sensitive, default: `REPLACE_ME`)
 
-## Step 3 — Update the Lambda to Fetch the Key from Parameter Store
+### `infra/main.tf`
+- [x] `bedrock_model_id` and `bedrock_api_key_placeholder` passed through to `module "lambda"`
 
-Replace the hardcoded `BEDROCK_API_KEY` env var lookup in each Lambda handler with a Parameter Store fetch. Add this helper at the top of each Lambda:
+### `infra/variables.tf`
+- [x] Both Bedrock variables declared at root level — picked up by `TF_VAR_*` in CI
 
-```python
-import boto3
-import os
+### `infra/api-gateway/main.tf`
+- [x] `POST /llm/triage`, `POST /llm/root-cause`, `POST /llm/runbook` routes → existing scanner Lambda integration
+- [x] Per-route throttle settings (`burst: 10`, `rate: 5`)
 
-_ssm = boto3.client("ssm", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
-_bedrock_key_cache = None
+### `infra/api-gateway/variables.tf`
+- [x] `throttling_llm_burst_limit` (default: 10) and `throttling_llm_rate_limit` (default: 5)
 
-def _get_bedrock_api_key() -> str | None:
-    global _bedrock_key_cache
-    if _bedrock_key_cache:
-        return _bedrock_key_cache
-    try:
-        resp = _ssm.get_parameter(
-            Name="/iam-dashboard/dev/bedrock-api-key",
-            WithDecryption=True
-        )
-        _bedrock_key_cache = resp["Parameter"]["Value"]
-        return _bedrock_key_cache
-    except Exception:
-        return None
-```
-
-Then update the Bedrock client setup in the handler to use it:
-
-```python
-def _get_bedrock_client():
-    api_key = _get_bedrock_api_key()
-    region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-    if api_key:
-        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
-    return boto3.client("bedrock-runtime", region_name=region)
-```
-
-The key is fetched once per Lambda warm instance and cached — no SSM call on every invocation.
+### `.github/workflows/terraform-apply.yml`
+- [x] `TF_VAR_bedrock_api_key_placeholder: ${{ secrets.BEDROCK_API_KEY }}` added to both `plan` and `apply` jobs
 
 ---
 
-## Step 4 — Remove BEDROCK_API_KEY from Lambda Environment Variables
+## What Still Needs to Be Done
 
-In each Lambda's configuration:
+### 1 — Add `BEDROCK_API_KEY` as a GitHub Actions secret
 
-1. Lambda console → Function → Configuration → Environment variables
-2. Delete `BEDROCK_API_KEY` if it exists
-3. Keep only:
-   - `AWS_DEFAULT_REGION` = `us-east-1`
-   - `BEDROCK_MODEL_ID` = `anthropic.claude-haiku-4-5-20251001`
-   - `CORS_ALLOW_ORIGIN` = your frontend domain
+This is the only step requiring human input:
 
-The key now lives exclusively in Parameter Store — not in env vars, not in code.
+1. GitHub → repository → Settings → Secrets and variables → Actions
+2. New repository secret → Name: `BEDROCK_API_KEY` → Value: your key from AWS Bedrock console
 
----
+### 2 — Merge to `main`
 
-## Step 5 — Register the API Gateway Route
+The CI workflow `terraform-apply.yml` runs automatically on merge to `main`. It:
+- Passes `TF_VAR_bedrock_api_key_placeholder` from the `BEDROCK_API_KEY` secret
+- Runs `terraform apply` from `infra/` — covers `module "lambda"` and `module "api_gateway"` in one apply
+- Creates both SSM parameters, updates the Lambda code, deploys the 3 new API Gateway routes
 
-In the existing API Gateway (`erh3a09d7l`):
-
-1. Resources → Create resource → `/llm`
-2. Under `/llm` → Create resource → `/triage`
-3. Under `/triage` → Create method → `POST`
-   - Integration type: Lambda Function
-   - Lambda proxy integration: ✅ enabled
-   - Lambda function: `argus-llm-triage`
-4. Repeat for `/llm/root-cause` → Lambda: `argus-llm-root-cause`
-5. Repeat for `/llm/runbook` → Lambda: `argus-llm-runbook`
-6. Enable CORS on each resource (Actions → Enable CORS)
-7. Actions → Deploy API → redeploy existing stage
+Terraform will not overwrite the SSM key value on subsequent applies (`lifecycle ignore_changes`).
 
 ---
 
-## Step 6 — Verify It's Working
+## Smoke Test (after CI apply)
 
 ```bash
+# Triage
 curl -X POST https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1/llm/triage \
   -H "Content-Type: application/json" \
-  -d '{
-    "finding_id": "test-001",
-    "severity": "CRITICAL",
-    "finding_type": "UnauthorizedAccess:IAMUser",
-    "resource_name": "arn:aws:iam::123456789012:user/test",
-    "description": "Suspicious API calls from Tor exit node."
-  }'
+  -d '{"finding_id":"test-001","severity":"CRITICAL","finding_type":"UnauthorizedAccess:IAMUser","resource_name":"arn:aws:iam::123456789012:user/test","description":"Suspicious API calls from Tor exit node."}'
+
+# Root cause
+curl -X POST https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1/llm/root-cause \
+  -H "Content-Type: application/json" \
+  -d '{"finding_id":"test-001","severity":"CRITICAL","finding_type":"UnauthorizedAccess:IAMUser","resource_name":"arn:aws:iam::123456789012:user/test","description":"Suspicious API calls."}'
+
+# Runbook
+curl -X POST https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1/llm/runbook \
+  -H "Content-Type: application/json" \
+  -d '{"finding_id":"test-001","severity":"CRITICAL","finding_type":"UnauthorizedAccess:IAMUser","resource_name":"arn:aws:iam::123456789012:user/test","resource_arn":"arn:aws:iam::123456789012:user/test","description":"Suspicious API calls."}'
 ```
 
-**Live:** `"model": "anthropic.claude-haiku-4-5-20251001"` in the response
-**Mock fallback:** `"model": "mock"` — check CloudWatch Logs for the Lambda for the error
+**Pass:** `"model": "anthropic.claude-haiku-4-5-20251001"` in each response
+**Fail:** `"model": "mock"` — check CloudWatch Logs → `/aws/lambda/iam-dashboard-scanner`
 
 ---
 
 ## Checklist
 
-- [ ] Parameter `/iam-dashboard/dev/bedrock-api-key` created as SecureString in SSM
-- [ ] `ArgusVoiceLambdaRole` updated with `ssm:GetParameter` + `kms:Decrypt` permissions
-- [ ] Each Lambda updated to fetch key from SSM via `_get_bedrock_api_key()`
-- [ ] `BEDROCK_API_KEY` removed from Lambda environment variables
-- [ ] `/llm/triage`, `/llm/root-cause`, `/llm/runbook` resources added to existing Gateway
-- [ ] CORS enabled on all 3 new resources
-- [ ] Stage redeployed
-- [ ] Smoke test returns `model` ≠ `"mock"` on all 3 endpoints
+- [x] `lambda_function.py` — SSM fetch, Bedrock client, LLM handlers, routing
+- [x] `lambda-role-policy.json` — SSM + Bedrock permissions for both parameters
+- [x] `infra/lambda/main.tf` — both SSM parameter resources added
+- [x] `infra/lambda/variables.tf` — Bedrock variables declared
+- [x] `infra/main.tf` — Bedrock vars passed to `module "lambda"`
+- [x] `infra/variables.tf` — Bedrock vars declared at root
+- [x] `infra/api-gateway/main.tf` — 3 LLM routes + throttle settings
+- [x] `.github/workflows/terraform-apply.yml` — `TF_VAR_bedrock_api_key_placeholder` injected from CI secret
+- [ ] `BEDROCK_API_KEY` GitHub Actions secret added
+- [ ] Merge to `main` — CI applies everything automatically
+- [ ] Smoke test: all 3 endpoints return `model` ≠ `"mock"`
+- [ ] CloudWatch Logs confirm no SSM or Bedrock errors

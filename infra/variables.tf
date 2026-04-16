@@ -143,3 +143,16 @@ variable "main_account_id" {
   type        = string
   sensitive   = true
 }
+
+variable "bedrock_model_id" {
+  description = "Amazon Bedrock model ID for LLM triage/runbook features"
+  type        = string
+  default     = "anthropic.claude-haiku-4-5-20251001"
+}
+
+variable "bedrock_api_key_placeholder" {
+  description = "Initial value for /iam-dashboard/dev/bedrock-api-key SSM parameter. Set via TF_VAR_bedrock_api_key_placeholder in CI (GitHub secret BEDROCK_API_KEY). Terraform will not overwrite after first apply."
+  type        = string
+  default     = "REPLACE_ME"
+  sensitive   = true
+}

@@ -48,6 +48,41 @@ resource "aws_iam_role_policy" "lambda_policy" {
   policy = file("${path.module}/lambda-role-policy.json")
 }
 
+# SSM Parameter — Bedrock API key (SecureString)
+resource "aws_ssm_parameter" "bedrock_api_key" {
+  name        = "/iam-dashboard/dev/bedrock-api-key"
+  description = "Amazon Bedrock API key for LLM triage/runbook features"
+  type        = "SecureString"
+  value       = var.bedrock_api_key_placeholder
+  key_id      = var.lambda_kms_key_arn
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Name      = "bedrock-api-key"
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+  }
+}
+
+# SSM Parameter — Bedrock model ID (String)
+resource "aws_ssm_parameter" "bedrock_model_id" {
+  name        = "/iam-dashboard/dev/bedrock-model-id"
+  description = "Amazon Bedrock model ID for LLM triage/runbook features"
+  type        = "String"
+  value       = var.bedrock_model_id
+
+  tags = {
+    Name      = "bedrock-model-id"
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+  }
+}
+
 # Package Lambda function code
 data "archive_file" "lambda_zip" {
   count       = var.lambda_zip_file == "" ? 1 : 0
