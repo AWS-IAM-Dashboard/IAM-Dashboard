@@ -64,7 +64,7 @@ variable "cognito_domain_prefix" {
 variable "kms_key_id" {
   description = "ID or alias of the existing KMS key (e.g. alias/iamdash-prod-logs)"
   type        = string
-  default     = ""
+  default     = "arn:aws:kms:us-east-1:562559071105:key/9fa1e2a4-3ed2-4c6d-a2b4-4542904f47cc"
   validation {
     condition     = length(var.kms_key_id) > 0
     error_message = "kms_key_id must be set via TF_VAR_kms_key_id, terraform.tfvars, or environment-specific configuration."
@@ -137,9 +137,27 @@ variable "cross_account_role_arn_pattern" {
   default     = "arn:aws:iam::*:role/iam-dashboard-scan-role"
 }
 
-
 variable "main_account_id" {
   description = "AWS account ID where the scanner and account-management Lambdas run."
   type        = string
   sensitive   = true
 }
+
+variable "scan_notification_prefix" {
+  description = "S3 object prefix used for SES notification filtering"
+  type        = string
+  default     = "scan-result/prod"
+}
+
+variable "sender_email" {
+  description = "SES sender identity for sandbox-mode scan notifications"
+  type        = string
+  default     = "ajant001@fiu.edu"
+}
+
+variable "recipient_email" {
+  description = "SES recipient identity for sandbox-mode scan notifications"
+  type        = string
+  default     = "ajant001@fiu.edu"
+}
+

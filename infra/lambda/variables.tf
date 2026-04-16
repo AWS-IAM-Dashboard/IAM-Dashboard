@@ -68,6 +68,39 @@ variable "lambda_environment_variables" {
   default     = {}
 }
 
+variable "lambda_ses_environment_variables" {
+  description = "Additional environment variables for the SES notification Lambda function"
+  type        = map(string)
+  default     = {}
+}
+
+variable "ses_from_email" {
+  description = "Verified SES sender email address for scan notifications"
+  type        = string
+}
+
+variable "scan_alert_recipients" {
+  description = "Comma-separated recipient list for SES scan notifications"
+  type        = string
+}
+
+variable "lambda_ses_bucket_name" {
+  description = "S3 bucket name referenced in SES scan notifications"
+  type        = string
+}
+
+variable "ses_subject_prefix" {
+  description = "Optional subject prefix for SES scan notification emails"
+  type        = string
+  default     = "IAM Dashboard"
+}
+
+variable "lambda_ses_function" {
+  description = "Name of the SES notification Lambda function"
+  type        = string
+  default     = "iam-dashboard-ses"
+}
+
 variable "lambda_kms_key_arn" {
   description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
   type        = string
