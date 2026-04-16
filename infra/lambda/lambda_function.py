@@ -430,8 +430,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     
     try:
         logger.info("Received event: %s", json.dumps(sanitize_event_for_logging(event)))
-        
+
         is_http_request = 'httpMethod' in event or 'requestContext' in event
+
+        # Deployment verification (D13): answer GET /health with no downstream calls.
+        if is_http_request:
+            req_path = event.get('path') or event.get('requestContext', {}).get('http', {}).get('path', '')
+            req_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', '')
+            if req_method == 'GET' and req_path and req_path.rstrip('/').endswith('/health'):
+                return create_response(200, {
+                    'status': 'healthy',
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
+                    'function_version': getattr(context, 'function_version', None),
+                }, event)
 
         # Parse event (API Gateway or direct invocation)
         if is_http_request:
