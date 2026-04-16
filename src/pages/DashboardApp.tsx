@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 
 function PlaceholderPage({ title, subtitle, items }: { title: string; subtitle: string; items: string[] }) {
@@ -80,6 +80,7 @@ import { Toaster } from "../components/ui/sonner";
 import { ScanResultsProvider } from "../context/ScanResultsContext";
 import { AwsAccountProvider } from "../context/AwsAccountContext";
 import type { ReportRecord } from "../types/report";
+import { emitPageLoadMetric } from "../services/telemetry";
 
 export function DashboardApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -87,6 +88,10 @@ export function DashboardApp() {
 
   const handleFullScanComplete = useCallback((report: ReportRecord) => {
     setReportHistory((prev) => [report, ...prev]);
+  }, []);
+
+  useEffect(() => {
+    emitPageLoadMetric("dashboard");
   }, []);
 
   const renderContent = () => {

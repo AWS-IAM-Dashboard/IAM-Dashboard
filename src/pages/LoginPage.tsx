@@ -1,9 +1,11 @@
 import { Shield, Github, Mail, ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 import logoImage from "@/assets/logo.png";
+import { emitPageLoadMetric } from "../services/telemetry";
 
 export function LoginPage() {
   const auth = useAuth();
@@ -13,6 +15,10 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    emitPageLoadMetric("login");
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

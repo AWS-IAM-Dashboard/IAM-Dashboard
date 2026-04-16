@@ -20,6 +20,7 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { useNavigate } from "react-router-dom";
 import logoImage from "@/assets/logo.png";
 import dashboardMockup from "@/assets/dashboard-mockup.png";
+import { emitPageLoadMetric } from "../services/telemetry";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -31,6 +32,10 @@ export function LandingPage() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    emitPageLoadMetric("landing");
   }, []);
 
   const onGetStarted = () => navigate("/login");

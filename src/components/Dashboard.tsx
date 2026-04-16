@@ -14,6 +14,7 @@ import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { toast } from "sonner";
 import type { ReportRecord } from "../types/report";
 import { formatRelativeTime } from "../utils/ui";
+import { emitScanTriggeredMetric } from "../services/telemetry";
 import { useFilteredPaginatedData, type FilterDefinition } from "../hooks/useFilteredPaginatedData";
 import { FindingsTableToolbar } from "./FindingsTableToolbar";
 import { FindingsTablePagination } from "./FindingsTablePagination";
@@ -537,6 +538,7 @@ export function Dashboard({ onNavigate, onFullScanComplete }: DashboardProps) {
       let response: ScanResponse;
       try {
         response = await scanFull('us-east-1');
+        emitScanTriggeredMetric("full");
       } catch (apiError) {
         const msg = apiError instanceof Error ? apiError.message : String(apiError);
         const normalized = msg.toLowerCase();

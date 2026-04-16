@@ -11,6 +11,7 @@ import { StatCard } from "./ui/StatCard";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
+import { emitScanTriggeredMetric } from "../services/telemetry";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
 
 interface AWSIAMFinding {
@@ -315,6 +316,7 @@ export function AWSIAMScan() {
       });
 
       const response: ScanResponse = await scanIAM(selectedRegion);
+      emitScanTriggeredMetric("iam");
 
       const transformedResult: AWSScanResult = {
         scan_id: response.scan_id,

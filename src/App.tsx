@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -7,6 +8,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { DashboardApp } from "./pages/DashboardApp";
 import { AboutPage } from "./pages/AboutPage";
+import { emitJsErrorMetric } from "./services/telemetry";
 
 function AppRouter() {
   const auth = useAuth();
@@ -38,6 +40,19 @@ function AppRouter() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const onError = () => emitJsErrorMetric("runtime");
+    const onUnhandledRejection = () => emitJsErrorMetric("promise_rejection");
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <AppRouter />
