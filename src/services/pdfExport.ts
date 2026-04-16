@@ -240,6 +240,12 @@ function escapeHtml(raw: string | undefined | null): string {
     .replace(/>/g, "&gt;");
 }
 
+/** Coerce unknown API values to a finite number (avoids string/HTML injection in numeric slots). */
+function toSafeCount(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 /** Total findings: prefer live list length; if empty, use severity counts from summary. */
 function getTotalFindingsCount(
   findings: any[],
@@ -320,10 +326,25 @@ function generateReportHTML(data: ScanResultData, title: string): string {
 
   // Executive Summary specific content
   if (reportType === 'executive-summary') {
-    const totalFindings = (summary.critical_findings || 0) + (summary.high_findings || 0) + (summary.medium_findings || 0) + (summary.low_findings || 0);
-    const compliancePercentage = (data.results as any)?.executive_metrics?.compliance_percentage || 
-      (data.results as any)?.scan_summary?.compliance_score || 
-      (totalFindings === 0 ? 100 : Math.max(0, Math.round(100 - ((summary.critical_findings || 0) * 10 + (summary.high_findings || 0) * 5) / (totalFindings || 1) * 100)));
+    const critC = toSafeCount(summary.critical_findings);
+    const highC = toSafeCount(summary.high_findings);
+    const medC = toSafeCount(summary.medium_findings);
+    const lowC = toSafeCount(summary.low_findings);
+    const complianceTotalFindings = critC + highC + medC + lowC;
+    const fromApi = Number(
+      (data.results as any)?.executive_metrics?.compliance_percentage ??
+        (data.results as any)?.scan_summary?.compliance_score
+    );
+    const computedPct =
+      complianceTotalFindings === 0
+        ? 100
+        : Math.max(
+            0,
+            Math.round(100 - ((critC * 10 + highC * 5) / (complianceTotalFindings || 1)) * 100)
+          );
+    const compliancePercentage = Number.isFinite(fromApi)
+      ? Math.min(100, Math.max(0, Math.round(fromApi)))
+      : computedPct;
     
     complianceSection = `
     <div class="section" style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -339,7 +360,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
           <strong>Total Scans Analyzed:</strong> ${escapeHtml(String((data.results as any)?.scan_summary?.total_scans ?? 'N/A'))}
         </div>
         <div style="padding: 15px; background: white; border-radius: 5px;">
-          <strong>Total Findings:</strong> ${summary.total_findings || summary.critical_findings + summary.high_findings + summary.medium_findings + summary.low_findings || 0}
+          <strong>Total Findings:</strong> ${summary.total_findings != null && summary.total_findings !== "" ? toSafeCount(summary.total_findings) : complianceTotalFindings}
         </div>
       </div>
     </div>
@@ -350,15 +371,21 @@ function generateReportHTML(data: ScanResultData, title: string): string {
   if (reportType === 'threat-intelligence') {
     const threatAnalysis = (data.results as any)?.threat_analysis || {};
     const threatsByType = (data.results as any)?.threats_by_type || {};
-    
+    const totalThreatsN = toSafeCount(threatAnalysis.total_threats, findings.length);
+    const criticalThreatsN = toSafeCount(threatAnalysis.critical_count, findingsBySeverity.Critical.length);
+    const highThreatsN = toSafeCount(threatAnalysis.high_count, findingsBySeverity.High.length);
+    const categoriesN = Array.isArray(threatAnalysis.threat_types)
+      ? threatAnalysis.threat_types.length
+      : Object.keys(threatsByType).length;
+
     threatAnalysisSection = `
     <div class="section">
       <h2>Threat Analysis</h2>
       <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffb000; margin: 20px 0;">
-        <p><strong>Total Threats Identified:</strong> ${threatAnalysis.total_threats || findings.length}</p>
-        <p><strong>Critical Threats:</strong> ${threatAnalysis.critical_count || findingsBySeverity.Critical.length}</p>
-        <p><strong>High Severity Threats:</strong> ${threatAnalysis.high_count || findingsBySeverity.High.length}</p>
-        <p><strong>Threat Categories:</strong> ${threatAnalysis.threat_types?.length || Object.keys(threatsByType).length}</p>
+                <p><strong>Total Threats Identified:</strong> ${totalThreatsN}</p>
+                <p><strong>Critical Threats:</strong> ${criticalThreatsN}</p>
+                <p><strong>High Severity Threats:</strong> ${highThreatsN}</p>
+                <p><strong>Threat Categories:</strong> ${categoriesN}</p>
       </div>
       
       ${Object.keys(threatsByType).length > 0 ? `
@@ -553,10 +580,10 @@ ${topRisksNestedHtml}
         <th>Resource Type</th>
         <th>Count</th>
       </tr>
-      ${summary.users ? `<tr><td>Users</td><td>${summary.users}</td></tr>` : ''}
-      ${summary.roles ? `<tr><td>Roles</td><td>${summary.roles}</td></tr>` : ''}
-      ${summary.policies ? `<tr><td>Policies</td><td>${summary.policies}</td></tr>` : ''}
-      ${summary.groups ? `<tr><td>Groups</td><td>${summary.groups}</td></tr>` : ''}
+      ${summary.users ? `<tr><td>Users</td><td>${toSafeCount(summary.users)}</td></tr>` : ''}
+      ${summary.roles ? `<tr><td>Roles</td><td>${toSafeCount(summary.roles)}</td></tr>` : ''}
+      ${summary.policies ? `<tr><td>Policies</td><td>${toSafeCount(summary.policies)}</td></tr>` : ''}
+      ${summary.groups ? `<tr><td>Groups</td><td>${toSafeCount(summary.groups)}</td></tr>` : ''}
     </table>
   </div>
   ` : ''}
