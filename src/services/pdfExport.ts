@@ -336,7 +336,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">
         <div style="padding: 15px; background: white; border-radius: 5px;">
-          <strong>Total Scans Analyzed:</strong> ${(data.results as any)?.scan_summary?.total_scans || 'N/A'}
+          <strong>Total Scans Analyzed:</strong> ${escapeHtml(String((data.results as any)?.scan_summary?.total_scans ?? 'N/A'))}
         </div>
         <div style="padding: 15px; background: white; border-radius: 5px;">
           <strong>Total Findings:</strong> ${summary.total_findings || summary.critical_findings + summary.high_findings + summary.medium_findings + summary.low_findings || 0}
@@ -365,12 +365,12 @@ function generateReportHTML(data: ScanResultData, title: string): string {
       <h3 style="margin-top: 30px;">Threats by Category</h3>
       ${Object.entries(threatsByType).map(([type, threats]: [string, any[]]) => `
         <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px;">
-          <h4 style="margin-top: 0; color: #0066cc;">${type} (${threats.length} threats)</h4>
+          <h4 style="margin-top: 0; color: #0066cc;">${escapeHtml(type)} (${threats.length} threats)</h4>
           <ul style="margin: 10px 0; padding-left: 20px;">
             ${threats.slice(0, 5).map((threat: any) => `
               <li style="margin: 5px 0;">
-                <strong>${threat.resource_name || threat.resource_id || 'Unknown'}:</strong> 
-                ${threat.description || threat.title || 'No description'}
+                <strong>${escapeHtml(String(threat.resource_name || threat.resource_id || 'Unknown'))}:</strong> 
+                ${escapeHtml(String(threat.description || threat.title || 'No description'))}
               </li>
             `).join('')}
             ${threats.length > 5 ? `<li style="color: #666; font-style: italic;">... and ${threats.length - 5} more</li>` : ''}
@@ -420,7 +420,7 @@ ${topRisksNestedHtml}
 <!DOCTYPE html>
 <html>
 <head>
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -506,15 +506,15 @@ ${topRisksNestedHtml}
 </head>
 <body>
   <div class="header">
-    <h1>${title}</h1>
+    <h1>${escapeHtml(title)}</h1>
     <div class="meta-info">
       <p><strong>Account:</strong> ${formatAccountForPdf(data)}</p>
-      <p><strong>Scan ID:</strong> ${data.scan_id}</p>
-      <p><strong>Scanner Type:</strong> ${data.scanner_type.toUpperCase()}</p>
+      <p><strong>Scan ID:</strong> ${escapeHtml(data.scan_id)}</p>
+      <p><strong>Scanner Type:</strong> ${escapeHtml(data.scanner_type.toUpperCase())}</p>
       <p><strong>Scanner Version:</strong> ${escapeHtml(data.scanner_version)}</p>
-      <p><strong>Region:</strong> ${data.region}</p>
-      <p><strong>Status:</strong> ${data.status}</p>
-      <p><strong>Generated:</strong> ${date}</p>
+      <p><strong>Region:</strong> ${escapeHtml(data.region)}</p>
+      <p><strong>Status:</strong> ${escapeHtml(data.status)}</p>
+      <p><strong>Generated:</strong> ${escapeHtml(date)}</p>
     </div>
   </div>
 
@@ -580,11 +580,11 @@ ${topRisksNestedHtml}
         <tbody>
           ${findingsBySeverity.Critical.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
-              <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
+              <td style="font-size: 10px; word-break: break-all;">${escapeHtml(String(finding.resource_arn || finding.arn || 'N/A'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -608,11 +608,11 @@ ${topRisksNestedHtml}
         <tbody>
           ${findingsBySeverity.High.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
-              <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
+              <td style="font-size: 10px; word-break: break-all;">${escapeHtml(String(finding.resource_arn || finding.arn || 'N/A'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -635,10 +635,10 @@ ${topRisksNestedHtml}
         <tbody>
           ${findingsBySeverity.Medium.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -661,10 +661,10 @@ ${topRisksNestedHtml}
         <tbody>
           ${findingsBySeverity.Low.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -685,14 +685,14 @@ ${topRisksNestedHtml}
     <h2>Scan Details</h2>
     <p style="color: #666; margin-bottom: 10px;">Raw scan results (findings may be nested in this data):</p>
     <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 10px; max-height: 400px; overflow-y: auto;">
-${JSON.stringify(data.results || {}, null, 2)}
+${escapeHtml(JSON.stringify(data.results || {}, null, 2))}
     </pre>
   </div>
   ` : ''}
 
   <div class="footer">
     <p>Generated by IAM Dashboard Security Scanner</p>
-    <p>This report was automatically generated on ${new Date().toLocaleString()}</p>
+    <p>This report was automatically generated on ${escapeHtml(new Date().toLocaleString())}</p>
   </div>
 </body>
 </html>
