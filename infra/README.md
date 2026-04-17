@@ -31,8 +31,7 @@ infra/
 ### S3 (`infra/s3/`)
 - **Bucket**: `iam-dashboard-project` (static hosting)
 - **Bucket**: `iam-dashboard-scan-results-{random}` (scan results storage)
-- **Bucket**: `iam-dashboard-terraform-state` (terraform state file)
-- **Purpose**: Static site hosting, storing state file, and storing scan results
+- **Purpose**: Static site hosting, and storing scan results
 
 ### DynamoDB (`infra/dynamodb/`)
 - **Table**: `iam-dashboard-scan-results`
@@ -62,7 +61,7 @@ infra/
 
 ### IAM (`infra/IAM`)
 - **Role**: iam-dashboard-scan-role
-- **Purpose**: Create an IAM role with the correct policies to allow the scanner lambda to assume and run scans in the account
+- **Purpose**: Creates an IAM role with the correct policies to allow the scanner lambda to assume and run scans in the account
 
 ## Terraform state bucket (important)
 
@@ -225,9 +224,9 @@ terraform output
 - **API Gateway** → Lambda (triggers scans)
 - **Frontend** → API Gateway (calls scan endpoints)
 - **Frontend** → S3 (serves static site)
-- **Scanner Lambda** -> S3 writes scan-result JSON
-- **S3** -> SES notification Lambda invokes on matching result JSON objects
-- **SES notification Lambda** -> SES sends email notification
+- **Scanner Lambda** → S3 writes scan-result JSON
+- **S3** → SES notification Lambda invokes on matching result JSON objects
+- **SES notification Lambda** → SES sends email notification
 
 ## 📝 Environment Variables
 
@@ -251,12 +250,13 @@ terraform apply -var="environment=prod" -var="aws_region=us-west-2"
 
 ## 📚 Documentation
 
-Each service directory contains its own README with detailed documentation:
+Key service directories include documentation where available 
 - `infra/bootstrap/README.md` - One-time setup for state bucket and lock table
 - `infra/s3/README.md` - S3 configuration details
 - `infra/dynamodb/README.md` - DynamoDB schema and usage
-- `infra/lambda/README.md` - Lambda function and IAM setup
+- `infra/lambda/README.md` - Scanner and SES Lambda functions and IAM setup
 - `infra/api-gateway/README.md` - API Gateway structure and endpoints
+- `infra/cognito/COGNITO_CONFIG.md` - Cognito setup and configuration
 
 ## Security Scanning
 
