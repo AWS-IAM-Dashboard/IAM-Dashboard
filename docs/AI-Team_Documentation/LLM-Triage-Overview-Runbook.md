@@ -79,6 +79,15 @@ Terraform will not overwrite the SSM key value on subsequent applies (`lifecycle
 
 ## Smoke Test (after CI apply)
 
+The Flask container reads BEDROCK_API_KEY and BEDROCK_MODEL_ID from your host .env. The .env.live file you have doesn't have either — they need to be in your root .env (not .env.live).
+
+Before running the curl, check your root .env has:
+
+BEDROCK_API_KEY=your-key-here
+BEDROCK_MODEL_ID=anthropic.claude-haiku-4-5-20251001
+
+
+
 ```bash
 # Triage
 curl -X POST https://erh3a09d7l.execute-api.us-east-1.amazonaws.com/v1/llm/triage \
