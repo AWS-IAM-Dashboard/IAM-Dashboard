@@ -18,6 +18,7 @@ import { exportScanResultToPDF, exportScanResultToCSV, exportScanResultToJSON, t
 import { toast } from "sonner";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import type { ReportRecord } from "../types/report";
+import { useAwsAccount } from "../context/AwsAccountContext";
 import { FindingsCsvExportCard } from "./reporting/FindingsCsvExportCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,6 +100,13 @@ export function Reports({ reports }: ReportsProps) {
   const [formats, setFormats] = useState({ pdf: true, csv: false, json: false });
   const [historySearch, setHistorySearch] = useState("");
   const { getScanResult, getAllScanResults } = useActiveScanResults();
+  const { selectedAccount } = useAwsAccount();
+
+  const pdfReportMeta = (): Pick<ScanResultData, "aws_account_id" | "aws_account_label" | "scanner_version"> => ({
+    aws_account_id: selectedAccount?.accountId,
+    aws_account_label: selectedAccount?.label,
+    scanner_version: "IAM Dashboard 0.1.0", // change when you have a real API/build version
+  });
 
   // ── Shared data helpers ──────────────────────────────────────────────────
   const extractFindingsFromResult = (scanResult: any): any[] => {
@@ -117,6 +125,7 @@ export function Reports({ reports }: ReportsProps) {
     if (allScans.length === 0) return null;
     const allFindings = allScans.flatMap((s) => s.findings || []);
     return {
+      ...pdfReportMeta(),
       scan_id: `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
       scanner_type: "comprehensive",
       region: allScans[0]?.region || "us-east-1",
@@ -157,6 +166,7 @@ export function Reports({ reports }: ReportsProps) {
           return s === "critical" || s === "high";
         });
         const data: ScanResultData = {
+          ...pdfReportMeta(),
           scan_id: `threat-intel-${Date.now()}`,
           scanner_type: "threat-intelligence",
           region: allScans[0]?.region || "us-east-1",
@@ -184,6 +194,7 @@ export function Reports({ reports }: ReportsProps) {
         const total = crit + high + med + low;
         const compliance = total === 0 ? 100 : Math.max(0, Math.round(100 - ((crit * 10 + high * 5 + med * 2 + low) / total * 100)));
         const data: ScanResultData = {
+          ...pdfReportMeta(),
           scan_id: `exec-brief-${Date.now()}`,
           scanner_type: "executive-summary",
           region: allScans[0]?.region || "us-east-1",
@@ -216,7 +227,7 @@ export function Reports({ reports }: ReportsProps) {
           exportScanResultToPDF(data, "IAM & Access Report");
         } else {
           const findings = extractFindingsFromResult(iamScan);
-          const d: ScanResultData = { ...iamScan, findings };
+          const d: ScanResultData = { ...iamScan, findings, ...pdfReportMeta() };
           exportScanResultToPDF(d, "IAM & Access Report");
         }
         toast.success("IAM & Access report generated");
@@ -247,14 +258,15 @@ export function Reports({ reports }: ReportsProps) {
 
     let data: ScanResultData;
     if (realScan) {
-      data = { ...realScan, findings: extractFindingsFromResult(realScan) };
+      data = { ...realScan, findings: extractFindingsFromResult(realScan), ...pdfReportMeta() };
       toast.info("Using real scan data");
     } else {
       const combined = buildCombinedScanData(title);
       if (combined) {
-        data = combined;
+        data = { ...combined, ...pdfReportMeta() };
       } else {
         data = {
+          ...pdfReportMeta(),
           scan_id: `report-${Date.now()}`,
           scanner_type: builderType,
           region: "us-east-1",
@@ -794,7 +806,7 @@ export function Reports({ reports }: ReportsProps) {
                       const scanResult = getScanResult("full");
                       if (scanResult) {
                         exportScanResultToPDF(
-                          { ...scanResult, findings: extractFindingsFromResult(scanResult) },
+                          { ...scanResult, findings: extractFindingsFromResult(scanResult), ...pdfReportMeta() },
                           report.name
                         );
                       } else {
@@ -822,7 +834,7 @@ export function Reports({ reports }: ReportsProps) {
                       const scanResult = getScanResult("full");
                       if (scanResult) {
                         exportScanResultToPDF(
-                          { ...scanResult, findings: extractFindingsFromResult(scanResult) },
+                          { ...scanResult, findings: extractFindingsFromResult(scanResult), ...pdfReportMeta() },
                           report.name
                         );
                       }

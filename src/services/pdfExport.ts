@@ -8,7 +8,10 @@ export interface ScanResultData {
   scanner_type: string;
   region: string;
   status: string;
-  timestamp: string;
+  timestamp: string;  
+  aws_account_id?: string;        // 12-digit AWS account id (for PDF header)
+  aws_account_label?: string;     // Friendly name from AwsAccountContext (for PDF header)
+  scanner_version?: string;       // Scanner version (for PDF header)
   results?: any;
   findings?: any[];
   scan_summary?: {
@@ -194,14 +197,105 @@ function extractScanSummary(data: ScanResultData): ScanResultData['scan_summary'
   return {};
 }
 
+function formatAccountForPdf(data: ScanResultData): string {
+  const id = data.aws_account_id?.trim();
+  const label = data.aws_account_label?.trim();
+  if (label && id) return `${escapeHtml(label)} (${escapeHtml(id)})`;
+  if (id) return escapeHtml(id);
+  if (label) return escapeHtml(label);
+  return "—";
+}
+
+/** Map severities to sort order (lower = more severe). */
+const SEVERITY_ORDER: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
+function severityRank(severity: string | undefined): number {
+  const s = (severity || "").toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SEVERITY_ORDER, s)
+    ? SEVERITY_ORDER[s]
+    : 4;
+}
+
+/** CSS classes .critical / .high / .medium / .low must exist in the report <style>. */
+function severityColorClass(severity: string | undefined): string {
+  const s = (severity || "").toLowerCase();
+  if (s === "critical") return "critical";
+  if (s === "high") return "high";
+  if (s === "medium") return "medium";
+  if (s === "low") return "low";
+  return "sev-other";
+}
+
+/** Escape text so finding titles/descriptions can't break HTML. */
+function escapeHtml(raw: string | undefined | null): string {
+  if (raw == null) return "";
+  return String(raw)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Coerce unknown API values to a finite number (avoids string/HTML injection in numeric slots). */
+function toSafeCount(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Total findings: prefer live list length; if empty, use severity counts from summary. */
+function getTotalFindingsCount(
+  findings: any[],
+  summary: ScanResultData["scan_summary"] | undefined
+): number {
+  if (findings.length > 0) return findings.length;
+  const s = summary || {};
+  return (
+    (s.critical_findings || 0) +
+    (s.high_findings || 0) +
+    (s.medium_findings || 0) +
+    (s.low_findings || 0)
+  );
+}
+
+/** Highest severity first, then higher risk_score first. */
+function pickTopRisks(findings: any[], n: number): any[] {
+  return [...findings]
+    .sort((a, b) => {
+      const ra = severityRank(a.severity);
+      const rb = severityRank(b.severity);
+      if (ra !== rb) return ra - rb;
+      const sa = Number(a.risk_score) || 0;
+      const sb = Number(b.risk_score) || 0;
+      return sb - sa;
+    })
+    .slice(0, n);
+}
+
+/**
+ * One line hint under the severity cards that points readers to Top risks when present,
+ * otherwise to the severity tables.
+ */
+function buildExecutiveNarrative(top5: any[]): string {
+  return top5.length > 0
+      ? "Key items to review first are listed under Top risks below."
+      : "Use the severity breakdown and detailed tables to prioritize remediation.";
+}
+
 /**
  * Generate HTML content for the PDF report
  */
 function generateReportHTML(data: ScanResultData, title: string): string {
   const date = new Date(data.timestamp).toLocaleString();
-  const summary = extractScanSummary(data);
+  const summary = { ...(extractScanSummary(data) || {}) };
   const findings = extractFindings(data);
   const reportType = data.scanner_type || 'comprehensive';
+  const totalFindings = getTotalFindingsCount(findings, summary);
+  const topRisks = pickTopRisks(findings, 5);
+  const narrative = buildExecutiveNarrative(topRisks);
   
   // Group findings by severity
   const findingsBySeverity = {
@@ -215,6 +309,16 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     })
   };
 
+  // Align severity card counts with the findings list used for "Detailed findings"
+  if (findings.length > 0) {
+    Object.assign(summary, {
+      critical_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "critical").length,
+      high_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "high").length,
+      medium_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "medium").length,
+      low_findings: findings.filter((f: any) => (f.severity || "").toLowerCase() === "low").length,
+    });
+  }
+
   // Generate template-specific content
   let executiveSection = '';
   let threatAnalysisSection = '';
@@ -222,10 +326,25 @@ function generateReportHTML(data: ScanResultData, title: string): string {
 
   // Executive Summary specific content
   if (reportType === 'executive-summary') {
-    const totalFindings = (summary.critical_findings || 0) + (summary.high_findings || 0) + (summary.medium_findings || 0) + (summary.low_findings || 0);
-    const compliancePercentage = (data.results as any)?.executive_metrics?.compliance_percentage || 
-      (data.results as any)?.scan_summary?.compliance_score || 
-      (totalFindings === 0 ? 100 : Math.max(0, Math.round(100 - ((summary.critical_findings || 0) * 10 + (summary.high_findings || 0) * 5) / (totalFindings || 1) * 100)));
+    const critC = toSafeCount(summary.critical_findings);
+    const highC = toSafeCount(summary.high_findings);
+    const medC = toSafeCount(summary.medium_findings);
+    const lowC = toSafeCount(summary.low_findings);
+    const complianceTotalFindings = critC + highC + medC + lowC;
+    const fromApi = Number(
+      (data.results as any)?.executive_metrics?.compliance_percentage ??
+        (data.results as any)?.scan_summary?.compliance_score
+    );
+    const computedPct =
+      complianceTotalFindings === 0
+        ? 100
+        : Math.max(
+            0,
+            Math.round(100 - ((critC * 10 + highC * 5) / (complianceTotalFindings || 1)) * 100)
+          );
+    const compliancePercentage = Number.isFinite(fromApi)
+      ? Math.min(100, Math.max(0, Math.round(fromApi)))
+      : computedPct;
     
     complianceSection = `
     <div class="section" style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -238,10 +357,10 @@ function generateReportHTML(data: ScanResultData, title: string): string {
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">
         <div style="padding: 15px; background: white; border-radius: 5px;">
-          <strong>Total Scans Analyzed:</strong> ${(data.results as any)?.scan_summary?.total_scans || 'N/A'}
+          <strong>Total Scans Analyzed:</strong> ${escapeHtml(String((data.results as any)?.scan_summary?.total_scans ?? 'N/A'))}
         </div>
         <div style="padding: 15px; background: white; border-radius: 5px;">
-          <strong>Total Findings:</strong> ${summary.total_findings || summary.critical_findings + summary.high_findings + summary.medium_findings + summary.low_findings || 0}
+          <strong>Total Findings:</strong> ${summary.total_findings != null && summary.total_findings !== "" ? toSafeCount(summary.total_findings) : complianceTotalFindings}
         </div>
       </div>
     </div>
@@ -252,27 +371,33 @@ function generateReportHTML(data: ScanResultData, title: string): string {
   if (reportType === 'threat-intelligence') {
     const threatAnalysis = (data.results as any)?.threat_analysis || {};
     const threatsByType = (data.results as any)?.threats_by_type || {};
-    
+    const totalThreatsN = toSafeCount(threatAnalysis.total_threats, findings.length);
+    const criticalThreatsN = toSafeCount(threatAnalysis.critical_count, findingsBySeverity.Critical.length);
+    const highThreatsN = toSafeCount(threatAnalysis.high_count, findingsBySeverity.High.length);
+    const categoriesN = Array.isArray(threatAnalysis.threat_types)
+      ? threatAnalysis.threat_types.length
+      : Object.keys(threatsByType).length;
+
     threatAnalysisSection = `
     <div class="section">
       <h2>Threat Analysis</h2>
       <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffb000; margin: 20px 0;">
-        <p><strong>Total Threats Identified:</strong> ${threatAnalysis.total_threats || findings.length}</p>
-        <p><strong>Critical Threats:</strong> ${threatAnalysis.critical_count || findingsBySeverity.Critical.length}</p>
-        <p><strong>High Severity Threats:</strong> ${threatAnalysis.high_count || findingsBySeverity.High.length}</p>
-        <p><strong>Threat Categories:</strong> ${threatAnalysis.threat_types?.length || Object.keys(threatsByType).length}</p>
+                <p><strong>Total Threats Identified:</strong> ${totalThreatsN}</p>
+                <p><strong>Critical Threats:</strong> ${criticalThreatsN}</p>
+                <p><strong>High Severity Threats:</strong> ${highThreatsN}</p>
+                <p><strong>Threat Categories:</strong> ${categoriesN}</p>
       </div>
       
       ${Object.keys(threatsByType).length > 0 ? `
       <h3 style="margin-top: 30px;">Threats by Category</h3>
       ${Object.entries(threatsByType).map(([type, threats]: [string, any[]]) => `
         <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px;">
-          <h4 style="margin-top: 0; color: #0066cc;">${type} (${threats.length} threats)</h4>
+          <h4 style="margin-top: 0; color: #0066cc;">${escapeHtml(type)} (${threats.length} threats)</h4>
           <ul style="margin: 10px 0; padding-left: 20px;">
             ${threats.slice(0, 5).map((threat: any) => `
               <li style="margin: 5px 0;">
-                <strong>${threat.resource_name || threat.resource_id || 'Unknown'}:</strong> 
-                ${threat.description || threat.title || 'No description'}
+                <strong>${escapeHtml(String(threat.resource_name || threat.resource_id || 'Unknown'))}:</strong> 
+                ${escapeHtml(String(threat.description || threat.title || 'No description'))}
               </li>
             `).join('')}
             ${threats.length > 5 ? `<li style="color: #666; font-style: italic;">... and ${threats.length - 5} more</li>` : ''}
@@ -284,11 +409,45 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     `;
   }
 
+  // HTML for the nested list under "Top risks": either a fallback message or up to 5 rows
+  // (resource, type, description) with severity styled via severityColorClass / escapeHtml
+  const topRisksNestedHtml =
+    topRisks.length === 0
+      ? `<ul style="margin: 6px 0 0 0; padding-left: 22px;"><li>No individual findings in this export; see detailed sections below.</li></ul>`
+      : `<ul style="margin: 6px 0 0 0; padding-left: 22px;">
+${topRisks
+  .map((f: any) => {
+    const resource = escapeHtml(
+      f.resource_name || f.resource_id || f.resource_arn?.split("/").pop() || "Unknown"
+    );
+    const typ = escapeHtml(f.type || f.finding_type || f.resource_type || "—");
+    const rawDesc = f.description || f.title || "No description";
+    const desc = escapeHtml(
+      rawDesc.length > 200 ? `${rawDesc.slice(0, 200)}…` : rawDesc
+    );
+    const sev = escapeHtml(String(f.severity || "—"));
+    const sevClass = severityColorClass(f.severity);
+    return `          <li style="margin: 4px 0;"><span class="${sevClass}"><strong>${sev}</strong></span> — ${resource} (<em>${typ}</em>): ${desc}</li>`;
+  })
+  .join("\n")}
+        </ul>`;
+
+  // HTML for the bullets under "Executive Summary" that list total findings and top risks
+  const executiveSummaryBulletsHtml = `
+    <p style="line-height: 1.5; margin: 18px 0 0 0; font-size: 13px; color: #555;">${narrative}</p>
+    <ul style="margin: 12px 0 0 0; padding-left: 20px;">
+      <li style="margin-bottom: 12px;"><strong>Total findings:</strong> ${totalFindings}</li>
+      <li><strong>Top risks</strong>
+${topRisksNestedHtml}
+      </li>
+    </ul>
+`;
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -333,7 +492,6 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     .summary-card h3 {
       margin: 0;
       font-size: 24px;
-      color: #0066cc;
     }
     .summary-card p {
       margin: 5px 0 0 0;
@@ -343,7 +501,8 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     .critical { color: #ff0040; }
     .high { color: #ff6b35; }
     .medium { color: #ffb000; }
-    .low { color: #00ff88; }
+    .low { color: #00d900; }
+    .sev-other { color: #555; font-weight: bold; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -374,18 +533,20 @@ function generateReportHTML(data: ScanResultData, title: string): string {
 </head>
 <body>
   <div class="header">
-    <h1>${title}</h1>
+    <h1>${escapeHtml(title)}</h1>
     <div class="meta-info">
-      <p><strong>Scan ID:</strong> ${data.scan_id}</p>
-      <p><strong>Scanner Type:</strong> ${data.scanner_type.toUpperCase()}</p>
-      <p><strong>Region:</strong> ${data.region}</p>
-      <p><strong>Status:</strong> ${data.status}</p>
-      <p><strong>Generated:</strong> ${date}</p>
+      <p><strong>Account:</strong> ${formatAccountForPdf(data)}</p>
+      <p><strong>Scan ID:</strong> ${escapeHtml(data.scan_id)}</p>
+      <p><strong>Scanner Type:</strong> ${escapeHtml(data.scanner_type.toUpperCase())}</p>
+      <p><strong>Scanner Version:</strong> ${escapeHtml(data.scanner_version)}</p>
+      <p><strong>Region:</strong> ${escapeHtml(data.region)}</p>
+      <p><strong>Status:</strong> ${escapeHtml(data.status)}</p>
+      <p><strong>Generated:</strong> ${escapeHtml(date)}</p>
     </div>
   </div>
 
   <div class="section">
-    <h2>${reportType === 'executive-summary' ? 'Key Metrics' : 'Executive Summary'}</h2>
+    <h2>Executive Summary</h2>
     <div class="summary-grid">
       <div class="summary-card">
         <h3 class="critical">${summary.critical_findings || 0}</h3>
@@ -404,6 +565,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <p>Low Findings</p>
       </div>
     </div>
+    ${executiveSummaryBulletsHtml}
   </div>
 
   ${complianceSection}
@@ -418,10 +580,10 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <th>Resource Type</th>
         <th>Count</th>
       </tr>
-      ${summary.users ? `<tr><td>Users</td><td>${summary.users}</td></tr>` : ''}
-      ${summary.roles ? `<tr><td>Roles</td><td>${summary.roles}</td></tr>` : ''}
-      ${summary.policies ? `<tr><td>Policies</td><td>${summary.policies}</td></tr>` : ''}
-      ${summary.groups ? `<tr><td>Groups</td><td>${summary.groups}</td></tr>` : ''}
+      ${summary.users ? `<tr><td>Users</td><td>${toSafeCount(summary.users)}</td></tr>` : ''}
+      ${summary.roles ? `<tr><td>Roles</td><td>${toSafeCount(summary.roles)}</td></tr>` : ''}
+      ${summary.policies ? `<tr><td>Policies</td><td>${toSafeCount(summary.policies)}</td></tr>` : ''}
+      ${summary.groups ? `<tr><td>Groups</td><td>${toSafeCount(summary.groups)}</td></tr>` : ''}
     </table>
   </div>
   ` : ''}
@@ -445,11 +607,11 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <tbody>
           ${findingsBySeverity.Critical.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
-              <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
+              <td style="font-size: 10px; word-break: break-all;">${escapeHtml(String(finding.resource_arn || finding.arn || 'N/A'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -473,11 +635,11 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <tbody>
           ${findingsBySeverity.High.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
-              <td style="font-size: 10px; word-break: break-all;">${finding.resource_arn || finding.arn || 'N/A'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
+              <td style="font-size: 10px; word-break: break-all;">${escapeHtml(String(finding.resource_arn || finding.arn || 'N/A'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -500,10 +662,10 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <tbody>
           ${findingsBySeverity.Medium.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -513,7 +675,7 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     
     ${findingsBySeverity.Low.length > 0 ? `
     <div class="severity-section" style="margin: 20px 0;">
-      <h3 style="color: #00ff88; margin-bottom: 10px;">Low Findings (${findingsBySeverity.Low.length})</h3>
+      <h3 style="color: #00d900; margin-bottom: 10px;">Low Findings (${findingsBySeverity.Low.length})</h3>
       <table>
         <thead>
           <tr>
@@ -526,10 +688,10 @@ function generateReportHTML(data: ScanResultData, title: string): string {
         <tbody>
           ${findingsBySeverity.Low.map((finding: any) => `
             <tr>
-              <td><strong>${finding.resource_name || finding.resource_id || 'N/A'}</strong></td>
-              <td>${finding.type || finding.finding_type || finding.resource_type || 'N/A'}</td>
-              <td>${finding.description || finding.title || 'No description available'}</td>
-              <td>${finding.recommendation || finding.remediation || 'Review and remediate'}</td>
+              <td><strong>${escapeHtml(String(finding.resource_name || finding.resource_id || 'N/A'))}</strong></td>
+              <td>${escapeHtml(String(finding.type || finding.finding_type || finding.resource_type || 'N/A'))}</td>
+              <td>${escapeHtml(String(finding.description || finding.title || 'No description available'))}</td>
+              <td>${escapeHtml(String(finding.recommendation || finding.remediation || 'Review and remediate'))}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -550,14 +712,14 @@ function generateReportHTML(data: ScanResultData, title: string): string {
     <h2>Scan Details</h2>
     <p style="color: #666; margin-bottom: 10px;">Raw scan results (findings may be nested in this data):</p>
     <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 10px; max-height: 400px; overflow-y: auto;">
-${JSON.stringify(data.results || {}, null, 2)}
+${escapeHtml(JSON.stringify(data.results || {}, null, 2))}
     </pre>
   </div>
   ` : ''}
 
   <div class="footer">
     <p>Generated by IAM Dashboard Security Scanner</p>
-    <p>This report was automatically generated on ${new Date().toLocaleString()}</p>
+    <p>This report was automatically generated on ${escapeHtml(new Date().toLocaleString())}</p>
   </div>
 </body>
 </html>
