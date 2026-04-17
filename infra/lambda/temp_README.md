@@ -224,7 +224,7 @@ The SES notification Lambda is invoked by an S3 object-created notification.
 4. Read the top-level `scanner_type` field.
 5. Branch based on scan type:
    - **`iam`, `ec2`, `s3`**: read `results.account_id` and `results.scan_summary`; sum numeric values for `total_findings`.
-   - **`full`**: aggregate nested operational scan summaries from `results.iam`, `results.ec2`, and `results.s3`; derive `account_id` and merged `scan_summary` from those sections.
+   - **`full`**: aggregate nested operational scan summaries from nested operational sections such as `results.iam`, `results.ec2`, and `results.s3`; derive `account_id` and merged `scan_summary` from those sections.
    - **`config`, `guardduty`, `inspector`, `security-hub`**: send a fallback "resource not enabled" message using the top-level `timestamp`.
    - **Unsupported types**: raise a clear `ValueError`.
 6. Format the ISO timestamp using `EMAIL_TIMEZONE` (naive timestamps are treated as UTC before conversion).
@@ -239,7 +239,7 @@ The SES notification Lambda is invoked by an S3 object-created notification.
 ### Email Content
 
 **Operational and full scans** (`iam`, `ec2`, `s3`, `full`):
-- First line: `scan_summary: {...}` — the serialized `results.scan_summary` object
+- First line: `scan_summary: {...}` — the serialized scan summary, either `results.scan_summary` for operational scans or the merged nested summary for full scans.
 - Notification sentence containing: scanner type, account ID, human-readable formatted timestamp, total findings count, and bucket name
 - Example timestamp: `March 18, 2026 at 10:40 AM EDT`
 
@@ -247,7 +247,8 @@ The SES notification Lambda is invoked by an S3 object-created notification.
 - No `scan_summary` line
 - Fallback message: the resource is currently not enabled so no information could be extracted
 
-`total_findings` is calculated by summing the numeric values in `results.scan_summary`.
+`total_findings` is calculated by summing numeric values in `results.scan_summary` for operational scans, or from the merged summary for full
+scans.
 
 Timestamps without timezone info are treated as UTC before conversion to `EMAIL_TIMEZONE`.
 
@@ -277,7 +278,9 @@ Terraform will automatically:
 2. Deploy the Lambda functions with the packaged code
 3. Configure IAM roles and permissions
 
-**Note**: The Lambda runtime includes `boto3` and `botocore`, so no additional dependencies need to be bundled. If you need custom dependencies, you can:
+**Note**: The Lambda runtime includes `boto3` and `botocore`, so no additional dependencies need to be bundled for those libraries.
+`EMAIL_TIMEZONE` relies on runtime timezone data; use `UTC` or package `tzdata` if a chosen timezone is unavailable. If you need custom
+dependencies, you can:
 - Use Lambda Layers
 - Create a custom deployment package with `lambda_zip_file` variable
 
