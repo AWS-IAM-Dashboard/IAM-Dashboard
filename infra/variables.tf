@@ -161,3 +161,8 @@ variable "recipient_email" {
   default     = "ajant001@fiu.edu"
 }
 
+variable "email_timezone" {
+  description = "Timezone used when formatting SES notification timestamps"
+  type        = string
+  default     = "America/New_York"
+}

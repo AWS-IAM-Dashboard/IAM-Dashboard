@@ -101,6 +101,11 @@ variable "lambda_ses_function" {
   default     = "iam-dashboard-ses"
 }
 
+variable "email_timezone" {
+  description = "Timezone used when formatting SES notification timestamps"
+  type        = string
+}
+
 variable "lambda_kms_key_arn" {
   description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
   type        = string

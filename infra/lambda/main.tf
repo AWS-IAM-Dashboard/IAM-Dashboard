@@ -174,6 +174,7 @@ resource "aws_lambda_function" "ses_notification" {
         SCAN_ALERT_RECIPIENTS = var.scan_alert_recipients
         S3_BUCKET_NAME        = var.lambda_ses_bucket_name
         SES_SUBJECT_PREFIX    = var.ses_subject_prefix
+        EMAIL_TIMEZONE        = var.email_timezone
         PROJECT_NAME          = var.project_name
         ENVIRONMENT           = var.environment
       }

@@ -104,6 +104,7 @@ module "lambda" {
   scan_alert_recipients  = module.ses.recipient_email
   ses_from_email         = module.ses.sender_email
   lambda_ses_bucket_name = var.s3_bucket_name
+  email_timezone         = var.email_timezone
 
   lambda_kms_key_arn = data.aws_kms_key.logs.arn
 
