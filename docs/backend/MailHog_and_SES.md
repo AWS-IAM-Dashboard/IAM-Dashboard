@@ -42,19 +42,6 @@ That means:
 - MailHog is not the active source of truth for scan-result notifications today.
 - The current implemented notification path is SES in the cloud flow described above.
 
-## Cognito-related notifications
-
-The frontend currently uses Cognito through the SDK for login and logout.
-
-The frontend does not currently have:
-
-- an implemented signup screen
-- an implemented reset-password screen
-
-Because those UI flows are not implemented yet, Cognito-triggered welcome/reset-password notification logic remains future work.
-
-`infra/lambda/lambda_cognito.py` exists only as a scaffold for that later work. It is intentionally not wired yet.
-
 ## Architecture guidance
 
 - Mail sending belongs in backend or Lambda code, not in the frontend.
