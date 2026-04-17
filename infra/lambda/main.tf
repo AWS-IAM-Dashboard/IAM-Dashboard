@@ -193,7 +193,8 @@ resource "aws_lambda_function" "ses_notification" {
   }
 
   depends_on = [
-    aws_iam_role_policy.lambda_ses_policy
+    aws_iam_role_policy.lambda_ses_policy,
+    aws_iam_role_policy.lambda_ses_kms_policy,
   ]
 }
 
