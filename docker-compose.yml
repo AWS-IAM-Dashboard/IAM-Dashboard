@@ -53,6 +53,8 @@ services:
       - PASSWORD_RESET_TOKEN_SECRET=${PASSWORD_RESET_TOKEN_SECRET:-local-dev-reset-secret-do-not-use-in-prod}
       # Optional: comma-separated origins for Flask-CORS (defaults in app.py match infra allowed_urls)
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      # A17: enable DynamoDB age-based backfill deletes in dev (TTL still applies regardless)
+      - BACKFILL_DELETE_ENABLED=${BACKFILL_DELETE_ENABLED:-true}
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
@@ -112,6 +114,9 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_MAX_ANNOTATIONS_TO_KEEP=1000
+      - GF_ANNOTATIONS_CLEANUPJOB_BATCHSIZE=100
+      - GF_SNAPSHOTS_EXTERNAL_ENABLED=false
     ports:
       - "3000:3000"
     volumes:
@@ -138,7 +143,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
+      - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
     networks:
       - cybersecurity-network

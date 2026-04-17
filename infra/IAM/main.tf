@@ -81,7 +81,7 @@ resource "aws_iam_role_policy" "scan_policy" {
         Effect = "Allow"
         Action = [
           "securityhub:GetFindings", "securityhub:GetInsights",
-          , "securityhub:GetComplianceSummary"
+          "securityhub:GetComplianceSummary"
         ]
         Resource = "*"
       },

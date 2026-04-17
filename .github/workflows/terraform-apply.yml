@@ -34,11 +34,9 @@ jobs:
     needs: devsecops_scan
     runs-on: ubuntu-latest
     env:
-      # KMS key alias or ID used by the KMS data source in infra/.
-      # Set this secret in GitHub as KMS_KEY_ID (e.g. alias/IAM-Dashboard-Keys).
-      TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
-      # Main account ID where the scanner lambda function lives
-      TF_VAR_main_account_id: ${{ secrets.MAIN_ACCOUNT_ID }}
+      # Fork PRs do not receive repository secrets; use placeholders so validate can run (see below).
+      TF_VAR_kms_key_id: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'alias/ci-terraform-validate-only' || secrets.KMS_KEY_ID }}
+      TF_VAR_main_account_id: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '000000000000' || secrets.MAIN_ACCOUNT_ID }}
     defaults:
       run:
         working-directory: infra
@@ -46,26 +44,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform fmt
         run: terraform fmt -check -recursive
 
-      - name: Terraform init
+      # Secrets (AWS_ROLE_ARN, KMS_KEY_ID, …) are not available for pull_request workflows when the
+      # head branch is from a fork. Skip OIDC and run init -backend=false + validate only.
+      - name: Verify AWS_ROLE_ARN secret (required when AWS credentials are used)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ROLE_ARN" ]; then
+            echo "::error::AWS_ROLE_ARN is empty. Add it under Settings → Secrets and variables → Actions."
+            echo "Use the IAM role ARN trusted for GitHub OIDC (see infra/github-actions and token.actions.githubusercontent.com:sub for this repo)."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Terraform init (remote state)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: terraform init -input=false
+
+      - name: Terraform init (no backend — fork PR)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: terraform init -backend=false -input=false
 
       - name: Terraform validate
         run: terraform validate
 
       - name: Terraform plan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: terraform plan -input=false -no-color
+
+      - name: Terraform plan skipped (fork PR)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::notice::Skipped terraform plan: fork PRs do not receive repository Actions secrets, so AWS OIDC cannot run."
+          echo "fmt and validate still ran. For a full plan, push a branch on the target repository or run plan locally with credentials."
 
   apply:
     name: Terraform Apply
@@ -83,6 +107,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify AWS_ROLE_ARN secret
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ROLE_ARN" ]; then
+            echo "::error::AWS_ROLE_ARN is empty. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4

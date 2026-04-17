@@ -7,7 +7,7 @@ import logging
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class DatabaseService:
     """Service for database operations"""
     
     def __init__(self):
+        """Create SQLAlchemy engine and session factory from ``DATABASE_URL``."""
         self.database_url = os.environ.get('DATABASE_URL', 'sqlite:///cybersecurity.db')
         self.engine = create_engine(self.database_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
@@ -177,6 +178,48 @@ class DatabaseService:
             logger.error(f"Error getting performance metrics: {str(e)}")
             return []
     
+    def cleanup_old_records(self, days: int = 90) -> dict:
+        """Delete rows older than ``days`` from security_findings and performance_metrics."""
+        if days <= 0:
+            raise ValueError("days must be positive")
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        session = None
+        try:
+            session = self.get_session()
+            n_findings = (
+                session.query(SecurityFinding)
+                .filter(SecurityFinding.created_at < cutoff)
+                .delete(synchronize_session=False)
+            )
+            n_metrics = (
+                session.query(PerformanceMetric)
+                .filter(PerformanceMetric.timestamp < cutoff)
+                .delete(synchronize_session=False)
+            )
+            session.commit()
+            return {
+                "security_findings_deleted": n_findings,
+                "performance_metrics_deleted": n_metrics,
+            }
+        except Exception as e:
+            logger.error(f"Error during cleanup_old_records: {str(e)}")
+            if session is not None:
+                try:
+                    session.rollback()
+                except Exception as rb_err:
+                    logger.exception(
+                        "cleanup_old_records: session.rollback failed: %s", rb_err
+                    )
+            raise
+        finally:
+            if session is not None:
+                try:
+                    session.close()
+                except Exception as close_err:
+                    logger.exception(
+                        "cleanup_old_records: session.close failed: %s", close_err
+                    )
+
     def get_dashboard_summary(self) -> dict:
         """Get dashboard summary data"""
         try:

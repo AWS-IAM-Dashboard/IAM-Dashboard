@@ -5,6 +5,8 @@ Main application entry point with API endpoints for AWS integrations
 
 import os
 import logging
+import threading
+import time
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api
@@ -40,6 +42,7 @@ from api.tts import TTSSynthesizeResource
 from api.voice_intent import VoiceIntentResource
 from api.signup import SignupWelcomeEmailResource
 from api.password_reset import ForgotPasswordResource, ResetPasswordResource
+from api.retention import RetentionCleanupResource, run_retention_pass
 
 # Import services
 from services.aws_service import AWSService
@@ -52,6 +55,123 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def _parse_retention_interval_seconds() -> int:
+    """Parse RETENTION_SCHEDULER_INTERVAL_SEC with a safe minimum."""
+    raw_interval = os.environ.get("RETENTION_SCHEDULER_INTERVAL_SEC", "86400")
+    try:
+        interval = int(raw_interval)
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid RETENTION_SCHEDULER_INTERVAL_SEC=%r; defaulting to 86400s",
+            raw_interval,
+        )
+        interval = 86400
+    if interval <= 0:
+        logger.warning(
+            "Non-positive RETENTION_SCHEDULER_INTERVAL_SEC=%r; defaulting to 86400s",
+            raw_interval,
+        )
+        interval = 86400
+    if interval < 60:
+        logger.warning(
+            "RETENTION_SCHEDULER_INTERVAL_SEC=%r too small; clamping to 60s",
+            raw_interval,
+        )
+        interval = 60
+    return interval
+
+
+def start_retention_scheduler(flask_app: Flask) -> None:
+    """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval.
+
+    When ``REDIS_URL`` is set and ``RETENTION_SCHEDULER_REDIS_LOCK`` is truthy
+    (default), a short-lived Redis lock prevents concurrent runs across WSGI
+    workers. If Redis is unavailable, a warning is logged once and passes run
+    without coordination (avoid multiple app replicas without Redis).
+    """
+    if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
+        "1",
+        "true",
+        "yes",
+    ):
+        logger.info("Retention scheduler disabled (RETENTION_SCHEDULER_ENABLED).")
+        return
+    interval = _parse_retention_interval_seconds()
+
+    redis_url = os.environ.get("REDIS_URL", "").strip()
+    use_redis_lock = os.environ.get(
+        "RETENTION_SCHEDULER_REDIS_LOCK", "true"
+    ).lower() in ("1", "true", "yes")
+    redis_client = None
+    if use_redis_lock and redis_url:
+        try:
+            from redis import Redis
+
+            redis_client = Redis.from_url(redis_url, socket_connect_timeout=2)
+            redis_client.ping()
+        except Exception:
+            logger.exception(
+                "Retention scheduler: Redis unavailable; scheduled passes are not "
+                "coordinated across workers. Set RETENTION_SCHEDULER_REDIS_LOCK=false "
+                "to silence this if intentional."
+            )
+            redis_client = None
+    elif use_redis_lock and not redis_url:
+        logger.warning(
+            "Retention scheduler: REDIS_URL unset; retention runs are not coordinated "
+            "across workers. Set REDIS_URL or disable RETENTION_SCHEDULER_REDIS_LOCK."
+        )
+
+    lock_timeout_sec = int(os.environ.get("RETENTION_SCHEDULER_LOCK_TIMEOUT_SEC", "7200"))
+
+    def _worker():
+        """Run retention on startup delay, then loop with ``interval`` sleeps."""
+        time.sleep(60)
+        while True:
+            try:
+                with flask_app.app_context():
+                    if redis_client is not None:
+                        lock = redis_client.lock(
+                            "iam-dashboard:retention:scheduler",
+                            timeout=lock_timeout_sec,
+                        )
+                        if not lock.acquire(blocking=False):
+                            logger.debug(
+                                "Retention pass skipped: another worker holds the "
+                                "Redis scheduler lock"
+                            )
+                        else:
+                            try:
+                                run_retention_pass()
+                            except Exception:
+                                logger.exception("Scheduled retention pass failed")
+                            finally:
+                                try:
+                                    lock.release()
+                                except Exception:
+                                    logger.exception(
+                                        "Retention scheduler: error releasing Redis lock"
+                                    )
+                    else:
+                        try:
+                            run_retention_pass()
+                        except Exception:
+                            logger.exception("Scheduled retention pass failed")
+            except Exception:
+                logger.exception("Scheduled retention pass failed (outer)")
+            time.sleep(interval)
+
+    threading.Thread(
+        target=_worker,
+        daemon=True,
+        name="retention-scheduler",
+    ).start()
+    logger.info(
+        "Retention scheduler started (interval=%ss, first run after 60s startup delay).",
+        interval,
+    )
 
 
 def create_app():
@@ -99,6 +219,7 @@ def create_app():
     api.add_resource(SecurityHubResource, '/aws/security-hub')
     api.add_resource(ConfigResource, '/aws/config')
     api.add_resource(GrafanaResource, '/grafana')
+    api.add_resource(RetentionCleanupResource, '/system/retention')
 
     # IR Action Engine routes
     api.add_resource(LLMTriageResource,           '/llm/triage')
@@ -123,25 +244,34 @@ def create_app():
     # Serve static files (React frontend)
     @app.route('/')
     def serve_frontend():
+        """Serve the React SPA entry (``index.html``) at ``/``."""
         return send_from_directory(app.static_folder, 'index.html')
 
     @app.route('/<path:path>')
     def serve_static(path):
+        """Serve built static assets for client-side routes."""
         return send_from_directory(app.static_folder, path)
 
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):
+        """Return a JSON body for HTTP 404 responses."""
         return jsonify({'error': 'Not found'}), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        """Return a JSON body for HTTP 500 responses."""
         return jsonify({'error': 'Internal server error'}), 500
 
     # Initialize database
     with app.app_context():
         database_service.init_db()
         logger.info("Database initialized")
+
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and os.environ.get(
+        "WERKZEUG_RUN_MAIN", "true"
+    ) == "true":
+        start_retention_scheduler(app)
 
     return app
 
