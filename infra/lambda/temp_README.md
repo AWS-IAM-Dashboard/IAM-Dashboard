@@ -18,6 +18,8 @@ Creates an AWS Lambda function that aggregates security findings from AWS native
 - **Timeout**: 300 seconds (5 minutes)
 - **Memory**: 512 MB
 
+Function name, KMS key, runtime, memory, timeout, and architecture are Terraform resource settings configured in `main.tf`, not runtime environment variables.
+
 ## 🔐 IAM Permissions
 
 The Lambda role (`iam-dashboard-lambda-role`) has permissions for:
@@ -47,21 +49,19 @@ Python deps (boto3, etc.) are **not** committed. They are installed at package t
 
 ## 📝 Environment Variables
 
-The Lambda function automatically receives these environment variables:
+The scanner Lambda receives these runtime environment variables:
 
-- `DYNAMODB_TABLE_NAME`: Name of DynamoDB table (from variable)
-- `S3_BUCKET_NAME`: Name of S3 bucket (from variable)
+- `DYNAMODB_TABLE_NAME`: Name of the DynamoDB table for scan results
+- `S3_BUCKET_NAME`: Name of the S3 bucket for scan results
 - `PROJECT_NAME`: Project name for tagging
 - `ENVIRONMENT`: Environment name (dev, staging, prod)
-- `lambda_function_name`: Name of the scanner lambda function
-- `session_table_name`: Name of the DynamoDB table that holds user session metadata
-- `lambda_kms_key_arn`: KMS key used to encrypt CloudWatch logs
-- `CORS_ALLOWED_ORIGINS`: List of origin URLs that are granted access to scan resources
-- `ACCOUNTS_TABLE_NAME`: DynamoDB table that contains the registered accounts for multi-scanning
+- `SESSION_TABLE_NAME`: Name of the DynamoDB table that holds user session metadata
+- `CORS_ALLOWED_ORIGINS`: Comma-separated list of origin URLs granted access to scan resources
+- `ACCOUNTS_TABLE_NAME`: DynamoDB table that contains registered accounts for multi-account scanning
 - `CROSS_ACCOUNT_ROLE_NAME`: Name of the IAM role used for cross-account scanning
-- `MAIN_ACCOUNT_ID`: The account ID that owns the scanner lambda
+- `MAIN_ACCOUNT_ID`: The account ID that owns the scanner Lambda
 
-Additional variables can be added via `lambda_environment_variables` map.
+Additional variables can be added via the `lambda_environment_variables` map in `variables.tf`.
 
 ## 🔄 Lambda Handler Structure
 
@@ -82,20 +82,18 @@ The Lambda function supports the following scanner types:
   "httpMethod": "POST",
   "path": "/scan/{scanner_type}",
   "pathParameters": {
-    "scanner_type": "security-hub"
+    "scanner_type": "s3"
   },
-  "body": "{\"region\": \"us-east-1\", optional -> \"account_id\": \"123456789\"}"
+  "body": "{\"region\": \"us-east-1\", \"account_id\": \"123456789\"}"
 }
 ```
 
 ### Event Structure (Direct Invocation):
 ```json
 {
-  "scanner_type": "security-hub",
+  "scanner_type": "s3",
   "region": "us-east-1",
-  "scan_parameters": {
-    "severity": "HIGH"
-  }
+  "scan_parameters": {}
 }
 ```
 
@@ -104,11 +102,11 @@ The Lambda function supports the following scanner types:
 {
   "statusCode": 200,
   "body": {
-    "scan_id": "security-hub-2024-01-01T00:00:00",
-    "scanner_type": "security-hub",
+    "scan_id": "s3-2024-01-01T00:00:00",
+    "scanner_type": "s3",
     "region": "us-east-1",
     "status": "completed",
-    "results": {...},
+    "results": {},
     "timestamp": "2024-01-01T00:00:00"
   }
 }
@@ -159,7 +157,7 @@ The Lambda function is tagged with:
 
 ## 🎯 What This Does
 
-Triggered by an S3 object-created notification. The SES Lambda reads the exact bucket and object key from the event payload, loads the exact JSON object that triggered the event, parses the required scan values, builds a concise email message, and sends it to the configured SES recipient addresses.
+Triggered by an S3 object-created notification. The SES Lambda reads the exact bucket and object key from the event payload, loads the scan-result JSON object that triggered the event, parses the required scan values, builds a concise email message, and sends it to the configured SES recipient addresses.
 
 ## 🔧 Lambda Configuration
 
@@ -171,25 +169,30 @@ Triggered by an S3 object-created notification. The SES Lambda reads the exact b
 
 ## 🔐 IAM Permissions
 
-The Lambda role (`iam-dashboard-ses-role`) has permissions for:
+The Lambda role (`iam-dashboard-ses-role`) has permissions split across two IAM policies:
 
+**`lambda_ses_policy.json` (static — generic permissions):**
 - **CloudWatch Logs**: Create log groups/streams and write logs
-- **S3**: Read the scan-result JSON objects that triggered the notification
-- **SES**: `SendEmail` and `SendRawEmail` to send SES notification messages
+- **SES**: `SendEmail` and `SendRawEmail`
+- **X-Ray**: `PutTraceSegments` and `PutTelemetryRecords`
+
+**`lambda_ses_resource_policy` (Terraform `jsonencode` — variable-scoped permissions):**
+- **S3**: `GetObject` on `arn:aws:s3:::${var.lambda_ses_bucket_name}/*`
+- **KMS**: `Decrypt` on `var.lambda_kms_key_arn`
 
 ## 📝 Environment Variables
 
-The Lambda function automatically receives these environment variables:
+The SES notification Lambda receives these runtime environment variables:
 
 - `SES_FROM_EMAIL`: Email address the SES notification is sent from
-- `scan_alert_recipients`: String containing a list of email addresses separated by a commad (,)
-- `ENVIRONMENT`: Environment name (dev, staging, prod)
+- `SCAN_ALERT_RECIPIENTS`: Comma-separated list of recipient email addresses
+- `S3_BUCKET_NAME`: Bucket name included in the notification message body
+- `SES_SUBJECT_PREFIX`: Prefix used for SES email subject lines (default: `IAM Dashboard`)
+- `EMAIL_TIMEZONE`: Timezone used for human-readable timestamp formatting in emails (e.g. `America/New_York`)
 - `PROJECT_NAME`: Project name for tagging
-- `SES_SUBJECT_PREFIX`: Prefix used for SES email subject lines
-- `lambda_ses_bucket_name`: Bucket name included in the notification message body
-- `email_timezone`: Local timezone configured for email notifications
+- `ENVIRONMENT`: Environment name (dev, staging, prod)
 
-Additional variables can be added via `lambda_ses_environment_variables` map.
+Additional variables can be added via the `lambda_ses_environment_variables` map in `variables.tf`.
 
 ## 🔄 Lambda Handler Structure
 
@@ -216,11 +219,15 @@ The SES notification Lambda is invoked by an S3 object-created notification.
 ### Handler Flow
 
 1. Parse the bucket name and object key from `Records[].s3`.
-2. Ignore records whose object key does not end in `.json`.
-3. Read the exact S3 object referenced by the event.
-4. Parse the scan-result JSON document.
-5. Extract `scanner_type`, `region`, `timestamp`, `results.account_id`, and `results.scan_summary`.
-6. Compute `total_findings` by summing numeric values in `results.scan_summary`.
+2. Skip records whose object key does not end in `.json`.
+3. Load the exact S3 object referenced by the event.
+4. Read the top-level `scanner_type` field.
+5. Branch based on scan type:
+   - **`iam`, `ec2`, `s3`**: read `results.account_id` and `results.scan_summary`; sum numeric values for `total_findings`.
+   - **`full`**: aggregate nested operational scan summaries from `results.iam`, `results.ec2`, and `results.s3`; derive `account_id` and merged `scan_summary` from those sections.
+   - **`config`, `guardduty`, `inspector`, `security-hub`**: send a fallback "resource not enabled" message using the top-level `timestamp`.
+   - **Unsupported types**: raise a clear `ValueError`.
+6. Format the ISO timestamp using `EMAIL_TIMEZONE` (naive timestamps are treated as UTC before conversion).
 7. Build the email subject and body.
 8. Send the email through SES.
 
@@ -231,20 +238,18 @@ The SES notification Lambda is invoked by an S3 object-created notification.
 
 ### Email Content
 
-The SES notification parses these fields from the scan-result JSON:
+**Operational and full scans** (`iam`, `ec2`, `s3`, `full`):
+- First line: `scan_summary: {...}` — the serialized `results.scan_summary` object
+- Notification sentence containing: scanner type, account ID, human-readable formatted timestamp, total findings count, and bucket name
+- Example timestamp: `March 18, 2026 at 10:40 AM EDT`
 
-- `scanner_type`
-- `region`
-- `timestamp`
-- `results.account_id`
-- `results.scan_summary`
-
-The email body:
-
-- begins with a `scan_summary: {...}` line containing the serialized `results.scan_summary` object
-- follows with a notification sentence containing the scanner type, account ID, timestamp, total findings, and bucket name
+**Non-operational scans** (`config`, `guardduty`, `inspector`, `security-hub`):
+- No `scan_summary` line
+- Fallback message: the resource is currently not enabled so no information could be extracted
 
 `total_findings` is calculated by summing the numeric values in `results.scan_summary`.
+
+Timestamps without timezone info are treated as UTC before conversion to `EMAIL_TIMEZONE`.
 
 ## 🏷️ Tags
 
@@ -253,14 +258,6 @@ The Lambda function is tagged with:
 - `Env = dev` (or from variable)
 - `ManagedBy = terraform`
 - `Service = ses-notification`
-
----
-
-# Welcome Message and Password Reset Notifications
-
-## 🎯 What This Does
-
-`lambda_cognito.py` currently serves only as a placeholder scaffold for future Cognito-triggered welcome and password-reset notifications. It is intentionally not wired yet.
 
 ---
 
@@ -295,18 +292,13 @@ Terraform will automatically:
 
 ### `lambda_ses.py`
 - This is the implemented SES notification Lambda for scan-result emails.
-- It owns the S3-triggered notification flow, including reading the exact scan-result JSON object, extracting the required values, and building the SES message.
+- It owns the S3-triggered notification flow, including reading the exact scan-result JSON object, extracting the required values, formatting the timestamp, and building the SES message.
 - It defines the runtime behavior for scan-result notification delivery after new results are written to S3.
-
-### `lambda_cognito.py`
-- This is the scaffolded future Cognito notification Lambda.
-- It owns the placeholder entrypoint for later welcome and password-reset notification work.
-- It is intentionally not wired yet, so it does not affect current deployment behavior.
 
 ### `main.tf`
 - This is the Terraform resource-definition and packaging entrypoint for the Lambda module.
 - It owns the Lambda resources, IAM role attachments, log groups, packaging steps, and related wiring for deployment.
-- It determines how the Python handlers in this directory are built and deployed into AWS Lambda.
+- Variable-scoped SES Lambda permissions (S3 `GetObject` on `var.lambda_ses_bucket_name` and KMS `Decrypt` on `var.lambda_kms_key_arn`) are defined here using `jsonencode` in `aws_iam_role_policy.lambda_ses_resource_policy`.
 
 ### `variables.tf`
 - This is the module input surface for the Lambda stack.
@@ -324,14 +316,9 @@ Terraform will automatically:
 - It directly controls what the primary scan Lambda can do once deployed.
 
 ### `lambda_ses_policy.json`
-- This is the IAM policy document for the SES notification Lambda.
-- It owns the permissions needed to read scan-result objects from S3, write logs, and send email through SES.
-- It governs the runtime access available to the scan-result notification path.
-
-### `lambda_cognito_policy.json`
-- This is the IAM policy scaffold for the future Cognito notification Lambda.
-- It owns the placeholder permission shape for later Cognito-triggered notification work.
-- It is present for future deployment wiring, but it does not drive any active notification path yet.
+- This is the static IAM policy document for the SES notification Lambda.
+- It owns generic permissions that do not depend on Terraform variables: CloudWatch Logs, SES `SendEmail`/`SendRawEmail`, and X-Ray tracing.
+- Variable-scoped permissions (S3 read and KMS decrypt) are defined separately in `main.tf` using `jsonencode`.
 
 ### `requirements.txt`
 - This is the Python dependency manifest for the Lambda module.
@@ -343,26 +330,16 @@ Terraform will automatically:
 - It owns the module-level documentation for the scanner Lambda, the SES notification Lambda, deployment flow, and current notification behavior.
 - It helps keep the deployment and runtime intent understandable without reading every implementation file first.
 
-## Implemented vs scaffolded
-
-Implemented now:
-- `lambda_function.py`
-- `lambda_ses.py`
-
-Scaffolded only:
-- `lambda_cognito.py`
-
 ## 📊 Monitoring
 
-- **CloudWatch Logs**: Automatic logging to the respective CloudWatchLog grou[s]
+- **CloudWatch Logs**: Automatic logging to the respective CloudWatch log groups
 - **CloudWatch Metrics**: Automatic metrics for invocations, errors, duration, throttles
 - **X-Ray Tracing**: Can be enabled for distributed tracing
 
 ## 🔗 Integration
 
-After deployment, the Lambda function can be integrated with:
-- **API Gateway**: For REST API endpoints
+After deployment, the Lambda functions can be integrated with:
+- **API Gateway**: For REST API endpoints (scanner Lambda)
 - **EventBridge**: For scheduled scans
-- **S3 Event Notifications**: For triggering scans on S3 events
+- **S3 Event Notifications**: Trigger the SES notification Lambda when new scan-result objects are written to S3
 - **CloudWatch Events**: For cron-based scheduling
-- **Cognito Triggers**: For welcomes messages, and password reset emails
