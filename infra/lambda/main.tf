@@ -195,18 +195,24 @@ resource "aws_lambda_function" "ses_notification" {
 
   depends_on = [
     aws_iam_role_policy.lambda_ses_policy,
-    aws_iam_role_policy.lambda_ses_kms_policy,
+    aws_iam_role_policy.lambda_ses_resource_policy,
   ]
 }
 
-# KMS decrypt permission scoped to the Lambda KMS key (cannot be expressed in static JSON)
-resource "aws_iam_role_policy" "lambda_ses_kms_policy" {
-  name = "${var.lambda_ses_function}-kms-policy"
+# Variable-scoped S3 and KMS permissions (bucket name and KMS ARN come from Terraform variables)
+resource "aws_iam_role_policy" "lambda_ses_resource_policy" {
+  name = "${var.lambda_ses_function}-resource-policy"
   role = aws_iam_role.lambda_ses_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "AllowReadScanResultsFromS3"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "arn:aws:s3:::${var.lambda_ses_bucket_name}/*"
+      },
       {
         Sid      = "AllowKMSDecrypt"
         Effect   = "Allow"
