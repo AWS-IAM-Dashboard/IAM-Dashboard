@@ -146,7 +146,7 @@ variable "main_account_id" {
 variable "scan_notification_prefix" {
   description = "S3 object prefix used for SES notification filtering"
   type        = string
-  default     = "scan-result/prod"
+  default     = "scan-results/prod"
 }
 
 variable "sender_email" {

@@ -40,13 +40,13 @@ def format_scan_timestamp(timestamp: str, timezone_name: str) -> str:
     """
     try:
         tz = ZoneInfo(timezone_name)
-    except (ZoneInfoNotFoundError, KeyError):
-        raise ValueError(f"Unknown timezone: {timezone_name!r}")
+    except (ZoneInfoNotFoundError, KeyError) as exc:
+        raise ValueError(f"Unknown timezone: {timezone_name!r}") from exc
 
     try:
         dt = datetime.fromisoformat(timestamp)
-    except (ValueError, TypeError):
-        raise ValueError(f"Invalid ISO timestamp: {timestamp!r}")
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid ISO timestamp: {timestamp!r}") from exc
 
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
