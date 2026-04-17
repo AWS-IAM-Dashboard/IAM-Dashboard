@@ -49,10 +49,16 @@ infra/
 - **Purpose**: Aggregate findings from AWS security services and run OPA policy scans
 - **Runtime**: Python 3.13 (arm64)
 
+### Account Lambda (`infra/lambda-accounts/`)
+- **Function**: `iam-dashboard-account-mgmt`
+- **Role**: `iam-dashboard-account-mgmt-role`
+- **Purpose**: Manages registered AWS accounts for multi-account scanning, including account registration, account listing, and account deletion
+- **Runtime**: Python 3.13 (arm64)
+
 ### API Gateway (`infra/api-gateway/`)
 - **API**: `iam-dashboard-api`
 - **Purpose**: HTTP API endpoints for scans and authentication
-- **Status**: Currently 12 route endpoints exist
+- **Status**: Currently 15 route endpoints exist
 
 ### SES (`infra/ses`)
 - **Identities**: Sender and recipient emails
