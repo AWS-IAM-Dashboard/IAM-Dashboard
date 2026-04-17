@@ -33,7 +33,7 @@ Exact Grafana behavior can vary by major version; validate in staging after upgr
 
 - **Tables:** Scan results (`scan_id` + `timestamp`) and IAM findings (`finding_id` + `detected_at`, with GSI `resource-index` on `resource_type` + `detected_at`) as defined in Terraform and `backend/services/dynamodb_service.py`.
 - **TTL:** Attribute name **`expires_at`** (Number, Unix seconds). Terraform enables TTL on both tables. New writes set `expires_at` to **now + 90 days** so AWS can expire items automatically.
-- **Application cleanup:** `DynamoDBService.delete_old_records()` performs paginated scans and deletes items older than the configured day threshold using the correct primary key per table (complements TTL for legacy items without `expires_at`).
+- **Application cleanup:** `DynamoDBService.delete_old_records()` performs paginated scans (with a DynamoDB `FilterExpression` on sort keys) and deletes items older than the configured day threshold using the correct primary key per table (complements TTL for legacy items without `expires_at`). This path is **opt-in**: set environment variable **`BACKFILL_DELETE_ENABLED=true`** (or `1`/`yes`) before the job will run table scans and deletes; leave it unset in environments where you rely on TTL only.
 
 ## PostgreSQL (`security_findings`, `performance_metrics`)
 
@@ -42,8 +42,12 @@ Exact Grafana behavior can vary by major version; validate in staging after upgr
 
 ## Scheduled job & HTTP trigger
 
-- **Background:** When `RETENTION_SCHEDULER_ENABLED` is `true` (default), a daemon thread runs the full retention pass once per `RETENTION_SCHEDULER_INTERVAL_SEC` (default **86400** = 24h), after an initial **60s** startup delay.
+- **Background:** When `RETENTION_SCHEDULER_ENABLED` is `true` (default), a daemon thread runs the full retention pass once per `RETENTION_SCHEDULER_INTERVAL_SEC` (default **86400** = 24h), after an initial **60s** startup delay. When `REDIS_URL` is set, **`RETENTION_SCHEDULER_REDIS_LOCK`** (default `true`) acquires a Redis lock around each pass so only one WSGI worker runs retention at a time; set `RETENTION_SCHEDULER_REDIS_LOCK=false` only if you accept overlapping runs or use a single-worker deployment.
 - **HTTP (optional):** `POST /api/v1/system/retention` with header `X-Retention-Run-Key` equal to `RETENTION_RUN_KEY` runs the same pass on demand. If `RETENTION_RUN_KEY` is unset, the endpoint returns **503** (disabled).
+
+**Operational safety (`POST /api/v1/system/retention`):** Treat this route as **internal-only** — do not expose it on a public ingress; front it with network controls (VPC, security groups, private API Gateway, or admin-only paths). Use a **high-entropy** `RETENTION_RUN_KEY`, **rotate** it on a schedule, and **store it in a secrets manager** (not in git or plain env files in prod). **Audit every invocation** (caller identity, timestamp, and response payload or outcome) so destructive runs are traceable.
+
+`(As of April 2026 / PR #390)`
 
 ## Current state vs. recommended
 

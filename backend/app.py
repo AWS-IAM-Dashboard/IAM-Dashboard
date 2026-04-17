@@ -84,7 +84,13 @@ def _parse_retention_interval_seconds() -> int:
 
 
 def start_retention_scheduler(flask_app: Flask) -> None:
-    """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval."""
+    """Start a daemon thread that runs ``run_retention_pass`` on a fixed interval.
+
+    When ``REDIS_URL`` is set and ``RETENTION_SCHEDULER_REDIS_LOCK`` is truthy
+    (default), a short-lived Redis lock prevents concurrent runs across WSGI
+    workers. If Redis is unavailable, a warning is logged once and passes run
+    without coordination (avoid multiple app replicas without Redis).
+    """
     if os.environ.get("RETENTION_SCHEDULER_ENABLED", "true").lower() not in (
         "1",
         "true",
@@ -94,15 +100,67 @@ def start_retention_scheduler(flask_app: Flask) -> None:
         return
     interval = _parse_retention_interval_seconds()
 
+    redis_url = os.environ.get("REDIS_URL", "").strip()
+    use_redis_lock = os.environ.get(
+        "RETENTION_SCHEDULER_REDIS_LOCK", "true"
+    ).lower() in ("1", "true", "yes")
+    redis_client = None
+    if use_redis_lock and redis_url:
+        try:
+            from redis import Redis
+
+            redis_client = Redis.from_url(redis_url, socket_connect_timeout=2)
+            redis_client.ping()
+        except Exception:
+            logger.exception(
+                "Retention scheduler: Redis unavailable; scheduled passes are not "
+                "coordinated across workers. Set RETENTION_SCHEDULER_REDIS_LOCK=false "
+                "to silence this if intentional."
+            )
+            redis_client = None
+    elif use_redis_lock and not redis_url:
+        logger.warning(
+            "Retention scheduler: REDIS_URL unset; retention runs are not coordinated "
+            "across workers. Set REDIS_URL or disable RETENTION_SCHEDULER_REDIS_LOCK."
+        )
+
+    lock_timeout_sec = int(os.environ.get("RETENTION_SCHEDULER_LOCK_TIMEOUT_SEC", "7200"))
+
     def _worker():
         """Run retention on startup delay, then loop with ``interval`` sleeps."""
         time.sleep(60)
         while True:
             try:
                 with flask_app.app_context():
-                    run_retention_pass()
+                    if redis_client is not None:
+                        lock = redis_client.lock(
+                            "iam-dashboard:retention:scheduler",
+                            timeout=lock_timeout_sec,
+                        )
+                        if not lock.acquire(blocking=False):
+                            logger.debug(
+                                "Retention pass skipped: another worker holds the "
+                                "Redis scheduler lock"
+                            )
+                        else:
+                            try:
+                                run_retention_pass()
+                            except Exception:
+                                logger.exception("Scheduled retention pass failed")
+                            finally:
+                                try:
+                                    lock.release()
+                                except Exception:
+                                    logger.exception(
+                                        "Retention scheduler: error releasing Redis lock"
+                                    )
+                    else:
+                        try:
+                            run_retention_pass()
+                        except Exception:
+                            logger.exception("Scheduled retention pass failed")
             except Exception:
-                logger.exception("Scheduled retention pass failed")
+                logger.exception("Scheduled retention pass failed (outer)")
             time.sleep(interval)
 
     threading.Thread(
@@ -211,8 +269,8 @@ def create_app():
         logger.info("Database initialized")
 
     if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and os.environ.get(
-        "WERKZEUG_RUN_MAIN", "false"
-    ) != "true":
+        "WERKZEUG_RUN_MAIN", "true"
+    ) == "true":
         start_retention_scheduler(app)
 
     return app

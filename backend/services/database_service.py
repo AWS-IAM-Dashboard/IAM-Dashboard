@@ -206,16 +206,19 @@ class DatabaseService:
             if session is not None:
                 try:
                     session.rollback()
-                except Exception:
-                    pass
-            raise
+                except Exception as rb_err:
+                    logger.exception(
+                        "cleanup_old_records: session.rollback failed: %s", rb_err
+                    )
             raise
         finally:
             if session is not None:
                 try:
                     session.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.exception(
+                        "cleanup_old_records: session.close failed: %s", close_err
+                    )
 
     def get_dashboard_summary(self) -> dict:
         """Get dashboard summary data"""

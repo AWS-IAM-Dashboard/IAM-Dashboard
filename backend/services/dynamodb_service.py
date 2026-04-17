@@ -275,13 +275,31 @@ class DynamoDBService:
         """Delete records older than ``days`` using a paginated table scan.
 
         Uses the correct primary key for scan results vs IAM findings tables.
+        Server-side ``FilterExpression`` reduces scanned volume; items are still
+        validated client-side before delete. The scan runs only when
+        ``BACKFILL_DELETE_ENABLED`` is truthy (off by default to avoid accidental
+        full-table scans in production).
         """
         if days <= 0:
             raise ValueError("days must be positive")
+        if os.environ.get("BACKFILL_DELETE_ENABLED", "").lower() not in (
+            "1",
+            "true",
+            "yes",
+        ):
+            logger.info(
+                "delete_old_records skipped for %s: set BACKFILL_DELETE_ENABLED to "
+                "enable legacy age-based deletes (see docs/data-retention-policy.md)",
+                table_name,
+            )
+            return 0
         cutoff_dt = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
         ) - timedelta(days=days)
         cutoff_epoch = cutoff_dt.timestamp()
+        cutoff_iso = (
+            cutoff_dt.astimezone(timezone.utc).replace(tzinfo=None).isoformat()
+        )
 
         table = self.dynamodb.Table(table_name)
         is_scan = table_name == self.scan_results_table
@@ -290,7 +308,17 @@ class DynamoDBService:
             logger.warning("delete_old_records: unsupported table name %s", table_name)
             return 0
         deleted_count = 0
-        scan_kwargs: Dict[str, Any] = {}
+        if is_scan:
+            scan_kwargs: Dict[str, Any] = {
+                "FilterExpression": "#ts < :cutoff",
+                "ExpressionAttributeNames": {"#ts": "timestamp"},
+                "ExpressionAttributeValues": {":cutoff": cutoff_iso},
+            }
+        else:
+            scan_kwargs = {
+                "FilterExpression": "(detected_at < :cutoff) OR (created_at < :cutoff)",
+                "ExpressionAttributeValues": {":cutoff": cutoff_iso},
+            }
 
         try:
             while True:
