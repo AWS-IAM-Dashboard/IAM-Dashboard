@@ -212,7 +212,7 @@ resource "aws_iam_role_policy" "lambda_ses_resource_policy" {
         Sid      = "AllowReadScanResultsFromS3"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::${var.lambda_ses_bucket_name}/*"
+        Resource = "arn:aws:s3:::${var.lambda_ses_bucket_name}/${trimsuffix(var.scan_notification_prefix, "/")}/*"
       },
       {
         Sid      = "AllowKMSDecrypt"

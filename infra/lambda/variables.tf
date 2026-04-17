@@ -106,6 +106,11 @@ variable "email_timezone" {
   type        = string
 }
 
+variable "scan_notification_prefix" {
+  description = "S3 object prefix used for SES notification filtering"
+  type        = string
+}
+
 variable "lambda_kms_key_arn" {
   description = "ARN of the shared/root KMS CMK used to encrypt Lambda environment variables"
   type        = string

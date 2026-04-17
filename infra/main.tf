@@ -94,19 +94,19 @@ module "ses" {
 module "lambda" {
   source = "./lambda"
 
-  aws_region             = var.aws_region
-  environment            = var.environment
-  project_name           = var.project_name
-  lambda_function_name   = var.lambda_function_name
-  dynamodb_table_name    = var.dynamodb_table_name
-  session_table_name     = module.auth_dynamodb.dynamodb_table_name
-  s3_bucket_name         = var.s3_bucket_name
-  scan_alert_recipients  = module.ses.recipient_email
-  ses_from_email         = module.ses.sender_email
-  lambda_ses_bucket_name = var.s3_bucket_name
-  email_timezone         = var.email_timezone
-
-  lambda_kms_key_arn = data.aws_kms_key.logs.arn
+  aws_region               = var.aws_region
+  environment              = var.environment
+  project_name             = var.project_name
+  lambda_function_name     = var.lambda_function_name
+  dynamodb_table_name      = var.dynamodb_table_name
+  session_table_name       = module.auth_dynamodb.dynamodb_table_name
+  s3_bucket_name           = var.s3_bucket_name
+  scan_alert_recipients    = module.ses.recipient_email
+  ses_from_email           = module.ses.sender_email
+  lambda_ses_bucket_name   = var.s3_bucket_name
+  email_timezone           = var.email_timezone
+  scan_notification_prefix = var.scan_notification_prefix
+  lambda_kms_key_arn       = data.aws_kms_key.logs.arn
 
   lambda_environment_variables = {
     CORS_ALLOWED_ORIGINS    = join(",", var.allowed_urls)
