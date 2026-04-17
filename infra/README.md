@@ -12,14 +12,17 @@ The IAM Dashboard infrastructure is defined as Terraform modules. Each service h
 
 ```graphql
 infra/
-├── bootstrap/       # One-time: S3 state bucket + DynamoDB lock table (run before main)
-├── s3/              # S3 bucket for static hosting and scan results and terraform state file
-├── dynamodb/        # DynamoDB table for storing scan results and terraform state locking
-├── DynamoDB_Auth/   # DynamoDB table for storing session cookies from user authentication
-├── lambda/          # Lambda function and IAM role for security scanning
-├── api-gateway/     # API Gateway HTTP API creates the 12 endpoints used for auth + scans
-├── cognito/         # User pool, app client, and cognito domain for authentication
-├── cloudfront/       # CloudFront CDN for secure https transportation and caching         
+├── bootstrap/       # One-time S3 state bucket + DynamoDB lock table setup
+├── s3/              # Frontend static-hosting bucket and scan-result notification wiring
+├── dynamodb/        # DynamoDB tables for scan results and registered accounts
+├── DynamoDB_Auth/   # DynamoDB table for auth/session records
+├── lambda/          # Scanner Lambda and SES notification Lambda
+├── lambda-accounts/ # Account-management Lambda for multi-account registration
+├── api-gateway/     # HTTP API routes for auth, scans, and account management
+├── cognito/         # User pool, app client, and Cognito domain for authentication
+├── cloudfront/      # CloudFront CDN for HTTPS transport and caching
+├── ses/             # SES email identities for scan notifications
+├── IAM/             # Cross-account scan role module for member accounts
 └── README.md        # This file
 ```
 
@@ -51,6 +54,15 @@ infra/
 - **API**: `iam-dashboard-api`
 - **Purpose**: HTTP API endpoints for scans and authentication
 - **Status**: Currently 12 route endpoints exist
+
+### SES (`infra/ses`)
+- **Identities**: Sender and recipient emails
+- **Purpose**: Creates SES email identities used by the SES notification Lambda
+- **Status**: Currently, SES is in sandbox mode since there is no domain for this project.
+
+### IAM (`infra/IAM`)
+- **Role**: iam-dashboard-scan-role
+- **Purpose**: Create an IAM role with the correct policies to allow the scanner lambda to assume and run scans in the account
 
 ## Terraform state bucket (important)
 
@@ -213,6 +225,9 @@ terraform output
 - **API Gateway** → Lambda (triggers scans)
 - **Frontend** → API Gateway (calls scan endpoints)
 - **Frontend** → S3 (serves static site)
+- **Scanner Lambda** -> S3 writes scan-result JSON
+- **S3** -> SES notification Lambda invokes on matching result JSON objects
+- **SES notification Lambda** -> SES sends email notification
 
 ## 📝 Environment Variables
 
