@@ -44,12 +44,16 @@ data "aws_wafv2_web_acl" "cloudfront" {
 module "s3" {
   source = "./s3"
 
-  aws_region             = var.aws_region
-  environment            = var.environment
-  project_name           = var.project_name
-  s3_bucket_name         = var.s3_bucket_name
-  s3_kms_key_arn         = data.aws_kms_key.logs.arn
-  s3_logging_bucket_name = "${var.s3_bucket_name}-access-logs"
+  aws_region                   = var.aws_region
+  environment                  = var.environment
+  project_name                 = var.project_name
+  s3_bucket_name               = var.s3_bucket_name
+  s3_kms_key_arn               = data.aws_kms_key.logs.arn
+  s3_logging_bucket_name       = "${var.s3_bucket_name}-access-logs"
+  scan_notification_lambda_arn = module.lambda.lambda_ses_function_arn
+  scan_notification_prefix     = var.scan_notification_prefix
+
+  depends_on = [module.lambda]
 }
 
 # DynamoDB Module
@@ -75,18 +79,34 @@ module "auth_dynamodb" {
   enable_point_in_time_recovery = true
 }
 
+# SES Module
+module "ses" {
+  source = "./ses"
+
+  aws_region      = var.aws_region
+  environment     = var.environment
+  project_name    = var.project_name
+  sender_email    = var.sender_email
+  recipient_email = var.recipient_email
+}
+
 # Lambda Module
 module "lambda" {
   source = "./lambda"
 
-  aws_region           = var.aws_region
-  environment          = var.environment
-  project_name         = var.project_name
-  lambda_function_name = var.lambda_function_name
-  dynamodb_table_name  = var.dynamodb_table_name
-  session_table_name   = module.auth_dynamodb.dynamodb_table_name
-  s3_bucket_name       = var.s3_bucket_name
-  lambda_kms_key_arn   = data.aws_kms_key.logs.arn
+  aws_region               = var.aws_region
+  environment              = var.environment
+  project_name             = var.project_name
+  lambda_function_name     = var.lambda_function_name
+  dynamodb_table_name      = var.dynamodb_table_name
+  session_table_name       = module.auth_dynamodb.dynamodb_table_name
+  s3_bucket_name           = var.s3_bucket_name
+  scan_alert_recipients    = module.ses.recipient_email
+  ses_from_email           = module.ses.sender_email
+  lambda_ses_bucket_name   = var.s3_bucket_name
+  email_timezone           = var.email_timezone
+  scan_notification_prefix = var.scan_notification_prefix
+  lambda_kms_key_arn       = data.aws_kms_key.logs.arn
 
   lambda_environment_variables = {
     CORS_ALLOWED_ORIGINS    = join(",", var.allowed_urls)

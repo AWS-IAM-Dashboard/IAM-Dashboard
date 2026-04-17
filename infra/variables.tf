@@ -137,9 +137,32 @@ variable "cross_account_role_arn_pattern" {
   default     = "arn:aws:iam::*:role/iam-dashboard-scan-role"
 }
 
-
 variable "main_account_id" {
   description = "AWS account ID where the scanner and account-management Lambdas run."
   type        = string
   sensitive   = true
+}
+
+variable "scan_notification_prefix" {
+  description = "S3 object prefix used for SES notification filtering"
+  type        = string
+  default     = "scan-results/prod"
+}
+
+variable "sender_email" {
+  description = "SES sender identity for sandbox-mode scan notifications"
+  type        = string
+  default     = ""
+}
+
+variable "recipient_email" {
+  description = "SES recipient identity for sandbox-mode scan notifications"
+  type        = string
+  default     = ""
+}
+
+variable "email_timezone" {
+  description = "Timezone used when formatting SES notification timestamps"
+  type        = string
+  default     = "America/New_York"
 }

@@ -2,12 +2,11 @@
 
 ## 🎯 What This Does
 
-Creates an AWS API Gateway (HTTP API) resources for the 9 security scan endpoints and 3 authentication scan endpoints. 
-They're also integrated with the two Lambda function that current exist.
+Creates AWS API Gateway HTTP API routes for scanner, authentication, and account-management workflows.
 
 ## 📋 Existing API Endpoints
 
-The following 12 endpoints have been implemented:
+The following 15 endpoints have been implemented:
 
 ### Scanner Endpoints
 
@@ -26,6 +25,12 @@ The following 12 endpoints have been implemented:
 1. `POST /auth/login` - Trigger the login workflow to authenticate the user. Store the session cookie in backend and user's browser
 2. `POST /auth/logout` - Sign the user out of the application. Remove the cookie from the backend and the user's browser
 3. `GET /auth/session` - Use the stored cookie on the user's browser to authenticate automatically
+
+### Account Management Endpoints
+
+1. `POST /accounts` - Register a new AWS account for multi-account scanning.
+2. `GET /accounts` - Return the list of registered AWS accounts available to the authenticated user.
+3. `DELETE /accounts/{account_id}` - Delete a registered AWS account from the account registry.
 
 ## 📁 Files Created
 
@@ -49,8 +54,9 @@ terraform apply
 - **Stage**: `v1`
 - **CORS**: Enabled with configurable origins
 - **Throttling**: Per-route limits on the stage (see below)
-- **Routes**: Added route definitions for 12 routes. 9 scanner, 3 authentication
-- **Lambda Integration**: Integrated the scanner routes with the scanner lambda and auth routes with the auth lambda
+- **Routes**: 15 routes total: 9 scanner, 3 authentication, and 3 account-management routes
+- **Lambda Integration**: Scanner routes integrate with the scanner Lambda, authentication routes integrate with the auth Lambda, and account-
+  management routes integrate with the account-management Lambda
 - **Request/Response Mapping**: Configure request/response transformations
 - **Deployment**: Deployed to stage and are currently live
 
