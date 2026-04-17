@@ -39,6 +39,9 @@ jobs:
       TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
       # Main account ID where the scanner lambda function lives
       TF_VAR_main_account_id: ${{ secrets.MAIN_ACCOUNT_ID }}
+      # SES email identities — set SENDER_EMAIL and RECIPIENT_EMAIL in GitHub secrets
+      TF_VAR_sender_email: ${{ secrets.SENDER_EMAIL }}
+      TF_VAR_recipient_email: ${{ secrets.RECIPIENT_EMAIL }}
     defaults:
       run:
         working-directory: infra
@@ -77,6 +80,9 @@ jobs:
       TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
       # Main account ID where the scanner lambda function lives
       TF_VAR_main_account_id: ${{ secrets.MAIN_ACCOUNT_ID }}
+      # SES email identities — set SENDER_EMAIL and RECIPIENT_EMAIL in GitHub secrets
+      TF_VAR_sender_email: ${{ secrets.SENDER_EMAIL }}
+      TF_VAR_recipient_email: ${{ secrets.RECIPIENT_EMAIL }}
     defaults:
       run:
         working-directory: infra
