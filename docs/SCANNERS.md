@@ -201,7 +201,7 @@ make check-docker
 make scan
 
 # 4. Check the results
-ls -la scanner-results/
+make show-results
 ```
 
 ---
@@ -209,15 +209,15 @@ ls -la scanner-results/
 ## Understanding Results
 
 ### OPA Results
-- **Format**: JSON output (container stdout/stderr captured to the file)
-- **Location**: `scanner-results/opa-results.json`
+- **Format**: Human-readable text output
+- **Location**: Console output
 - **What to look for**: 
   - `deny` messages indicate policy violations
   - `allow` means the policy passed
 
 ### Checkov Results
 - **Format**: JSON and CLI output
-- **Location**: `scanner-results/checkov-results.json`
+- **Location**: `checkov-results.json` (in project root)
 - **What to look for**:
   - `PASS` - Check passed
   - `FAIL` - Security issue found
@@ -225,7 +225,7 @@ ls -la scanner-results/
 
 ### Gitleaks Results
 - **Format**: JSON output
-- **Location**: `scanner-results/gitleaks-results.json`
+- **Location**: `gitleaks-results.json` (in project root)
 - **What to look for**:
   - Any findings indicate potential secrets
   - Check if they're false positives

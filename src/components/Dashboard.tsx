@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
@@ -20,7 +19,6 @@ import { FindingsTablePagination } from "./FindingsTablePagination";
 import { FindingDetailPanel, type WorkflowData, type WorkflowStatus, type TimelineEvent, type FindingData } from "./ui/FindingDetailPanel";
 import { GlobePulse, AWS_REGION_MARKERS } from "./ui/cobe-globe-pulse";
 import { SeverityBadge } from "./ui/SeverityBadge";
-
 // ── Workflow constants — module-level so they aren't recreated every render ──
 const IR_PIPELINE: WorkflowStatus[] = ["NEW", "TRIAGED", "ASSIGNED", "IN_PROGRESS", "PENDING_VERIFY", "REMEDIATED"];
 const IR_NEXT: Partial<Record<WorkflowStatus, WorkflowStatus>> = {

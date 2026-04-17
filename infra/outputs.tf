@@ -43,3 +43,23 @@ output "cognito_hosted_ui_domain" {
   value       = module.cognito.hosted_ui_domain
 }
 
+
+output "account_mgmt_lambda_function_name" {
+  description = "Name of the account management Lambda function"
+  value       = module.lambda_accounts.lambda_function_name
+}
+
+output "account_mgmt_lambda_arn" {
+  description = "ARN of the account management Lambda function"
+  value       = module.lambda_accounts.lambda_function_arn
+}
+
+output "accounts_table_name" {
+  description = "Name of the registered accounts DynamoDB table"
+  value       = module.dynamodb.accounts_table_name
+}
+
+output "accounts_table_arn" {
+  description = "ARN of the registered accounts DynamoDB table"
+  value       = module.dynamodb.accounts_table_arn
+}

@@ -25,10 +25,21 @@ export function ForgotPasswordPage() {
 
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await fetch("/api/v1/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+
       setSubmitted(true);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Unable to reach the server. Please try again.");
     } finally {
       setIsLoading(false);
     }

@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  /** Vite dev server proxies /api/v1 → Flask. Docker frontend: VITE_FLASK_PROXY_TARGET=http://app:5000 */
+  /** Vite dev server proxies /api/v1 and /api/findings → Flask. Docker: VITE_FLASK_PROXY_TARGET=http://app:5000 */
   const flaskProxyTarget = env.VITE_FLASK_PROXY_TARGET || 'http://127.0.0.1:5001';
 
   const { default: tailwindcss } = await import('@tailwindcss/vite');
@@ -75,6 +75,11 @@ export default defineConfig(async ({ mode }) => {
           headers: { 'Origin': 'http://localhost:3001' },
         },
         '/api/v1': {
+          target: flaskProxyTarget,
+          changeOrigin: true,
+        },
+        // Flask CSV export (same target as /api/v1 — not under /api/v1 prefix)
+        '/api/findings': {
           target: flaskProxyTarget,
           changeOrigin: true,
         },

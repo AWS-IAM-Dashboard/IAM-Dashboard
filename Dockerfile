@@ -26,39 +26,40 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (robust, noninteractive)
+# Create non-root user up front so subsequent COPYs can set ownership at copy
+# time rather than rewriting /app recursively later (avoids a large chown layer)
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Copy requirements first for better caching
+COPY --chown=appuser:appuser requirements.txt requirements-postgres.txt ./
+
+# Install system dependencies, Python packages, then remove build tools in a
+# single layer so compiler toolchain never bloats the final image.
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -o Acquire::Retries=3 -o Acquire::ForceIPv4=true && \
         apt-get install -y --no-install-recommends \
             ca-certificates \
             curl \
-            apt-utils \
             build-essential \
             gcc \
             g++ \
+        && grep -Ev '^\s*(#|$)' requirements.txt \
+           | grep -Ev '^\s*(pytest([-_][A-Za-z0-9]+)*|black|flake8)\s*([<>=!~].*)?$' \
+           > /tmp/requirements-prod.txt \
+        && pip install --no-cache-dir -r /tmp/requirements-prod.txt -r requirements-postgres.txt \
+        && rm /tmp/requirements-prod.txt \
+        && apt-get purge -y --auto-remove build-essential gcc g++ \
         && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt requirements-postgres.txt ./
+# Copy Flask application with ownership set at copy time
+COPY --chown=appuser:appuser backend/ ./backend/
+COPY --chown=appuser:appuser config/ ./config/
 
-# Install Python dependencies (include PostgreSQL driver for Docker/Compose)
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-postgres.txt
+# Copy built frontend from previous stage with ownership set at copy time
+COPY --from=frontend-builder --chown=appuser:appuser /app/frontend/build ./static
 
-# Copy Flask application
-COPY backend/ ./backend/
-COPY config/ ./config/
-
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/frontend/build ./static
-
-# Create necessary directories
-RUN mkdir -p logs data/uploads
-
-# Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Set proper ownership of directories
-RUN chown -R appuser:appuser /app
+# Ensure writable runtime directories exist and are owned by appuser
+RUN mkdir -p logs data/uploads && chown appuser:appuser logs data/uploads
 
 # Switch to non-root user
 USER appuser

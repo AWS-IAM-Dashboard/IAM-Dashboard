@@ -21,6 +21,8 @@ from api.dashboard import DashboardResource
 from api.health import HealthResource
 from api.metrics import MetricsResource, register_metrics_hooks
 from api.scan_history import ScanHistoryResource
+from api.findings_export import export_findings_csv
+from auth.jwt_guard import require_jwt
 from api.ir import (
     LLMTriageResource,
     LLMRootCauseResource,
@@ -38,6 +40,8 @@ from api.ir import (
 )
 from api.tts import TTSSynthesizeResource
 from api.voice_intent import VoiceIntentResource
+from api.signup import SignupWelcomeEmailResource
+from api.password_reset import ForgotPasswordResource, ResetPasswordResource
 
 # Import services
 from services.aws_service import AWSService
@@ -81,6 +85,13 @@ def create_app():
     # Initialize API
     api = Api(app, prefix='/api/v1')
 
+    app.add_url_rule(
+        '/api/findings/export/csv',
+        'findings_export_csv',
+        require_jwt(export_findings_csv),
+        methods=['GET'],
+    )
+
     # Initialize services
     aws_service = AWSService()
     grafana_service = GrafanaService()
@@ -114,6 +125,9 @@ def create_app():
     api.add_resource(IRAuditResource,             '/ir/audit')
     api.add_resource(TTSSynthesizeResource,       '/tts/synthesize')
     api.add_resource(VoiceIntentResource,         '/voice/intent')
+    api.add_resource(SignupWelcomeEmailResource,  '/signup/welcome-email')
+    api.add_resource(ForgotPasswordResource,     '/forgot-password')
+    api.add_resource(ResetPasswordResource,      '/reset-password')
 
     # Serve static files (React frontend)
     @app.route('/')

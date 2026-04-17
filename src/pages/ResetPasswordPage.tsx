@@ -32,10 +32,22 @@ export function ResetPasswordPage() {
 
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const res = await fetch("/api/v1/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ submit: data.error || "Something went wrong. Please try again." });
+        return;
+      }
+
       setSuccess(true);
     } catch {
-      setErrors({ submit: "Something went wrong. Please try again." });
+      setErrors({ submit: "Unable to reach the server. Please try again." });
     } finally {
       setIsLoading(false);
     }

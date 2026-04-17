@@ -14,6 +14,8 @@ export function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -29,10 +31,33 @@ export function SignupPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!validateForm()) return;
-    navigate("/app");
+
+    setSubmitting(true);
+    setErrors({});
+
+    try {
+      const res = await fetch("/api/v1/signup/welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: fullName.trim(), email: email.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ form: data.error || "Something went wrong. Please try again." });
+        return;
+      }
+
+      setSuccess(true);
+    } catch {
+      setErrors({ form: "Unable to reach the server. Please try again." });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -66,6 +91,24 @@ export function SignupPage() {
         >
           <div className="pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-green-500/20 via-transparent to-emerald-500/20 opacity-0 transition-opacity duration-500 hover:opacity-100"></div>
 
+          {success ? (
+            <div className="py-6 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
+                <Mail className="h-8 w-8 text-green-400" />
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-white">You're all set!</h2>
+              <p className="mb-6 text-gray-400">
+                A welcome email has been sent to <span className="text-green-400">{email}</span>.
+              </p>
+              <Link
+                to="/login"
+                className="inline-block rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-6 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50"
+              >
+                Go to Sign In
+              </Link>
+            </div>
+          ) : (
+          <>
           <div className="relative mb-6 text-center">
             <motion.div
               className="mb-4 inline-flex items-center justify-center"
@@ -133,6 +176,12 @@ export function SignupPage() {
               <span className="bg-transparent px-4 text-gray-400">Or register with email</span>
             </div>
           </div>
+
+          {errors.form && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400" role="alert">
+              {errors.form}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -298,9 +347,10 @@ export function SignupPage() {
 
             <button
               type="submit"
-              className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80"
+              disabled={submitting}
+              className="group relative w-full min-h-[44px] overflow-hidden rounded-lg bg-gradient-to-r from-green-400 to-emerald-500 px-4 py-3 font-semibold text-black transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black/80 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
             >
-              <span className="relative z-10">Create Account</span>
+              <span className="relative z-10">{submitting ? "Creating Account…" : "Create Account"}</span>
               <div className="absolute inset-0 bg-gradient-to-r from-green-300 to-emerald-400 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           </form>
@@ -321,6 +371,8 @@ export function SignupPage() {
               </p>
             </div>
           </div>
+          </>
+          )}
         </motion.div>
       </div>
     </div>

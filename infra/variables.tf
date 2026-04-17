@@ -106,3 +106,40 @@ variable "auth_lambda_function_name" {
   type        = string
   default     = "test-BFF"
 }
+
+variable "accounts_table_name" {
+  description = "Name of the DynamoDB table that stores registered AWS accounts for multi-account scanning."
+  type        = string
+  default     = "iam-dashboard-accounts"
+}
+
+variable "account_mgmt_lambda_function_name" {
+  description = "Name of the account management Lambda function"
+  type        = string
+  default     = "iam-dashboard-account-mgmt"
+}
+
+variable "account_mgmt_lambda_role_name" {
+  description = "Name of the IAM execution role for the account management Lambda"
+  type        = string
+  default     = "iam-dashboard-account-mgmt-role"
+}
+
+variable "cross_account_role_name" {
+  description = "Name of the cross-account IAM role to assume in member accounts"
+  type        = string
+  default     = "iam-dashboard-scan-role"
+}
+
+variable "cross_account_role_arn_pattern" {
+  description = "Resource ARN pattern for sts:AssumeRole on cross-account scan roles"
+  type        = string
+  default     = "arn:aws:iam::*:role/iam-dashboard-scan-role"
+}
+
+
+variable "main_account_id" {
+  description = "AWS account ID where the scanner and account-management Lambdas run."
+  type        = string
+  sensitive   = true
+}

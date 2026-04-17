@@ -19,10 +19,11 @@ resource "aws_apigatewayv2_api" "api" {
   version       = "1.0"
 
   cors_configuration {
-    allow_origins = var.cors_allowed_origins
-    allow_methods = var.cors_allowed_methods
-    allow_headers = var.cors_allowed_headers
-    max_age       = 3600
+    allow_origins     = var.cors_allowed_origins
+    allow_methods     = var.cors_allowed_methods
+    allow_headers     = var.cors_allowed_headers
+    allow_credentials = true
+    max_age           = 3600
   }
 
   tags = {
@@ -248,4 +249,42 @@ resource "aws_apigatewayv2_route" "auth_session" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /auth/session"
   target    = "integrations/${aws_apigatewayv2_integration.auth.id}"
+}
+
+# -- Account-management integration and permission --
+
+resource "aws_apigatewayv2_integration" "account_mgmt" {
+  api_id                 = aws_apigatewayv2_api.api.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = var.account_mgmt_lambda_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_lambda_permission" "account_mgmt" {
+  statement_id  = "AllowExecutionFromAPIGatewayAccountMgmt"
+  action        = "lambda:InvokeFunction"
+  function_name = var.account_mgmt_lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# -- Account-management routes --
+
+resource "aws_apigatewayv2_route" "account_create" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /accounts"
+  target    = "integrations/${aws_apigatewayv2_integration.account_mgmt.id}"
+}
+
+resource "aws_apigatewayv2_route" "account_list" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /accounts"
+  target    = "integrations/${aws_apigatewayv2_integration.account_mgmt.id}"
+}
+
+resource "aws_apigatewayv2_route" "account_delete" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /accounts/{account_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.account_mgmt.id}"
 }

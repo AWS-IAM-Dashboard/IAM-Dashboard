@@ -126,6 +126,9 @@ PROJECT_NAME = os.environ.get('PROJECT_NAME', 'IAMDash')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 COOKIE_NAME = 'iamdash_session'
 SESSION_TABLE_NAME = os.environ.get('SESSION_TABLE_NAME', 'iam-dashboard-auth-sessions-test')
+ACCOUNTS_TABLE_NAME = os.environ.get("ACCOUNTS_TABLE_NAME", "iam-dashboard-accounts-test")
+CROSS_ACCOUNT_ROLE_NAME = os.environ.get("CROSS_ACCOUNT_ROLE_NAME", "iam-dashboard-scan-role")
+MAIN_ACCOUNT_ID = os.environ.get("MAIN_ACCOUNT_ID")
 SCANNER_GROUP_MAP = {
     'admin':       None,  # admin is handled separately — allowed all non-full types
     'iam':         'iam',
@@ -151,73 +154,8 @@ class SessionStoreError(Exception):
     """Raised when session storage cannot be read safely."""
 
 
-def _http_request_audit_context(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Correlation and client context from API Gateway (HTTP API v2 or REST) for audit logs."""
-    ctx: Dict[str, Any] = {}
-    rc = event.get('requestContext') or {}
-    if not isinstance(rc, dict):
-        return ctx
-    ctx['request_id'] = rc.get('requestId')
-    http = rc.get('http') or {}
-    if isinstance(http, dict):
-        if http.get('sourceIp'):
-            ctx['source_ip'] = http.get('sourceIp')
-        if http.get('userAgent'):
-            ctx['user_agent'] = http.get('userAgent')
-        if http.get('method'):
-            ctx['http_method'] = http.get('method')
-        if http.get('path'):
-            ctx['path'] = http.get('path')
-    ident = rc.get('identity') or {}
-    if isinstance(ident, dict):
-        if 'source_ip' not in ctx and ident.get('sourceIp'):
-            ctx['source_ip'] = ident.get('sourceIp')
-        if 'user_agent' not in ctx and ident.get('userAgent'):
-            ctx['user_agent'] = ident.get('userAgent')
-    return {k: v for k, v in ctx.items() if v is not None}
-
-
-def emit_sensitive_audit_record(
-    action: str,
-    *,
-    actor_username: Optional[str] = None,
-    actor_groups: Optional[list] = None,
-    resource: str = '',
-    details: Optional[Dict[str, Any]] = None,
-    http_context: Optional[Dict[str, Any]] = None,
-) -> None:
-    """
-    Emit one JSON audit record to CloudWatch Logs (Lambda platform log stream).
-    Prefix with SENSITIVE_AUDIT for CloudWatch Logs Insights: filter @message like /SENSITIVE_AUDIT/
-    """
-    record: Dict[str, Any] = {
-        'audit_schema': 'iamdash_sensitive_action_v1',
-        'timestamp_utc': datetime.utcnow().isoformat() + 'Z',
-        'action': action,
-        'resource': resource,
-        'actor_username': actor_username,
-        'environment': ENVIRONMENT,
-        'project': PROJECT_NAME,
-        'details': details or {},
-    }
-    if actor_groups is not None:
-        record['actor_groups'] = actor_groups
-    if http_context:
-        record['http'] = http_context
-    try:
-        logger.info('SENSITIVE_AUDIT %s', json.dumps(record, default=json_serial))
-    except (TypeError, ValueError) as exc:
-        logger.warning('SENSITIVE_AUDIT serialization failed: %s', exc)
-
-
-def _target_account_from_scan_params(params: Dict[str, Any]) -> Optional[str]:
-    raw = params.get('account_id') if isinstance(params.get('account_id'), str) else params.get('accountId')
-    if isinstance(raw, str) and raw.strip():
-        return raw.strip()
-    return None
-
-
 def _cors_allowed_origins_set() -> set:
+    """Return the set of allowed origins from the CORS_ALLOWED_ORIGINS environment variable."""
     raw = os.environ.get('CORS_ALLOWED_ORIGINS', '')
     return {o.strip() for o in raw.split(',') if o.strip()}
 
@@ -318,6 +256,71 @@ def parse_request_cookies(event: Dict[str, Any]) -> Dict[str, str]:
 
     return parsed
 
+def get_accounts_table():
+    """Return the DynamoDB accounts table."""
+    return dynamodb.Table(ACCOUNTS_TABLE_NAME)
+
+def get_registered_account(account_id: str) -> Optional[Dict[str, Any]]:
+    """Return the registered account record for the given account ID."""
+    if not account_id:
+        return None
+
+    try:
+        result = get_accounts_table().get_item(Key={"account_id": account_id})
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception("Failed to read registered account_id=%s", account_id)
+        raise SessionStoreError("Unable to process request.") from exc
+
+    return result.get("Item")
+
+def get_scan_clients_for_account(account_id: Optional[str], region: str) -> Dict[str, Any]:
+    """Return scan clients for the main account or an assumed target account."""
+    if not account_id or (MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID):
+        return {
+            "securityhub": boto3.client("securityhub", region_name=region),
+            "guardduty": boto3.client("guardduty", region_name=region),
+            "config": boto3.client("config", region_name=region),
+            "inspector": boto3.client("inspector2", region_name=region),
+            "macie": boto3.client("macie2", region_name=region),
+            "iam": boto3.client("iam"),
+            "ec2": boto3.client("ec2", region_name=region),
+            "s3": boto3.client("s3"),
+            "sts": boto3.client("sts")
+        }
+
+    role_arn = f"arn:aws:iam::{account_id}:role/{CROSS_ACCOUNT_ROLE_NAME}"
+
+    try:
+        response = sts.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName=f"DashboardScan-{account_id}"
+        )
+    except ClientError as exc:
+        logger.exception("Failed to assume role for account_id=%s", account_id)
+        raise ForbiddenError(
+            f"Cannot assume role in account {account_id}"
+        ) from exc
+
+    creds = response["Credentials"]
+
+    session = boto3.Session(
+        aws_access_key_id=creds["AccessKeyId"],
+        aws_secret_access_key=creds["SecretAccessKey"],
+        aws_session_token=creds["SessionToken"],
+        region_name=region
+    )
+
+    return {
+        "securityhub": session.client("securityhub", region_name=region),
+        "guardduty": session.client("guardduty", region_name=region),
+        "config": session.client("config", region_name=region),
+        "inspector": session.client("inspector2", region_name=region),
+        "macie": session.client("macie2", region_name=region),
+        "iam": session.client("iam"),
+        "ec2": session.client("ec2", region_name=region),
+        "s3": session.client("s3"),
+        "sts": session.client("sts")
+    }
 
 def get_session_table():
     """Resolve the DynamoDB session table from the configured environment."""
@@ -404,6 +407,64 @@ def require_groups(session: Dict[str, Any], scanner_type: str) -> None:
     raise ForbiddenError('Forbidden.')
 
 
+def _http_request_audit_context(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Correlation and client context from API Gateway for audit logs."""
+    ctx: Dict[str, Any] = {}
+    rc = event.get('requestContext') or {}
+    if not isinstance(rc, dict):
+        return ctx
+    ctx['request_id'] = rc.get('requestId')
+    http = rc.get('http') or {}
+    if isinstance(http, dict):
+        if http.get('sourceIp'): ctx['source_ip'] = http.get('sourceIp')
+        if http.get('userAgent'): ctx['user_agent'] = http.get('userAgent')
+        if http.get('method'): ctx['http_method'] = http.get('method')
+        if http.get('path'): ctx['path'] = http.get('path')
+    ident = rc.get('identity') or {}
+    if isinstance(ident, dict):
+        if 'source_ip' not in ctx and ident.get('sourceIp'): ctx['source_ip'] = ident.get('sourceIp')
+        if 'user_agent' not in ctx and ident.get('userAgent'): ctx['user_agent'] = ident.get('userAgent')
+    return {k: v for k, v in ctx.items() if v is not None}
+
+
+def emit_sensitive_audit_record(
+    action: str,
+    *,
+    actor_username: Optional[str] = None,
+    actor_groups: Optional[list] = None,
+    resource: str = '',
+    details: Optional[Dict[str, Any]] = None,
+    http_context: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Emit one JSON audit record to CloudWatch Logs. Prefix: SENSITIVE_AUDIT"""
+    record: Dict[str, Any] = {
+        'audit_schema': 'iamdash_sensitive_action_v1',
+        'timestamp_utc': datetime.utcnow().isoformat() + 'Z',
+        'action': action,
+        'resource': resource,
+        'actor_username': actor_username,
+        'environment': ENVIRONMENT,
+        'project': PROJECT_NAME,
+        'details': details or {},
+    }
+    if actor_groups is not None:
+        record['actor_groups'] = actor_groups
+    if http_context:
+        record['http'] = http_context
+    try:
+        logger.info('SENSITIVE_AUDIT %s', json.dumps(record, default=json_serial))
+    except (TypeError, ValueError) as exc:
+        logger.warning('SENSITIVE_AUDIT serialization failed: %s', exc)
+
+
+def _target_account_from_scan_params(params: Dict[str, Any]) -> Optional[str]:
+    """Extract account_id from scan params for audit context."""
+    raw = params.get('account_id') if isinstance(params.get('account_id'), str) else params.get('accountId')
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler for security scanning
@@ -455,11 +516,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}')) if event.get('body') else {}
             region = body.get('region', 'us-east-1')
             scan_params = body
+            account_id = body.get("account_id")
         else:
             # Direct invocation
             scanner_type = event.get('scanner_type', '')
             region = event.get('region', 'us-east-1')
             scan_params = event.get('scan_parameters', {})
+            account_id = event.get('account_id')
         
         # Validate scanner type
         valid_scanners = ['security-hub', 'guardduty', 'config', 'inspector', 'macie', 'iam', 'ec2', 's3', 'full']
@@ -505,9 +568,24 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 )
                 raise
 
+        account_name = None
+        is_main_account = bool(account_id and MAIN_ACCOUNT_ID and account_id == MAIN_ACCOUNT_ID)
+
+        if account_id and not is_main_account:
+            registered_account = get_registered_account(account_id)
+            if not registered_account:
+                return create_response(404, {
+                    "error": f"Account {account_id} is not registered"
+                }, event)
+            account_name = registered_account.get("account_name")
+        elif is_main_account:
+            account_name = "Main Account"
+        
+        scan_clients = get_scan_clients_for_account(account_id, region)
+
         # Execute scan
         scan_id = f"{scanner_type}-{datetime.utcnow().isoformat()}"
-        target_account = _target_account_from_scan_params(scan_params)
+        target_account = account_id or MAIN_ACCOUNT_ID
         if is_http_request and session is not None:
             emit_sensitive_audit_record(
                 'scan_triggered',
@@ -538,9 +616,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Starting scan: {scan_id} for type: {scanner_type}")
         
         try:
-            scan_result = execute_scan(scanner_type, region, scan_params, scan_id)
+            scan_result = execute_scan(scanner_type, region, scan_params, scan_id, scan_clients)
             scan_duration = (datetime.utcnow() - scan_start_time).total_seconds()
-            
+
+            if account_id:
+                scan_result["account_id"] = account_id
+                scan_result["account_name"] = account_name
+            elif MAIN_ACCOUNT_ID:
+                scan_result["account_id"] = MAIN_ACCOUNT_ID
+                if not scan_result.get("account_name"):
+                    scan_result["account_name"] = "Main Account"
+
             # Ensure scan_result is a dict
             if not isinstance(scan_result, dict):
                 logger.warning(f"Scan result is not a dict: {type(scan_result)}")
@@ -695,7 +781,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         }, event)
 
 
-def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def execute_scan(
+    scanner_type: str, region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Execute the appropriate security scan based on scanner type"""
     
     scanner_handlers = {
@@ -711,22 +798,22 @@ def execute_scan(scanner_type: str, region: str, scan_params: Dict[str, Any], sc
     }
     
     handler = scanner_handlers.get(scanner_type)
-    if handler:
-        return handler(region, scan_params, scan_id)
-    else:
+    if not handler:
         raise ValueError(f"Unknown scanner type: {scanner_type}")
 
+    return handler(region, scan_params, scan_id, scan_clients)
 
-def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Security Hub for findings"""
     try:
         logger.info(f"Scanning Security Hub in region: {region}")
         
+        securityhub_client = scan_clients["securityhub"]
         findings = []
         severity_filter = scan_params.get('severity', {})
         
         # Get findings
-        paginator = securityhub.get_paginator('get_findings')
+        paginator = securityhub_client.get_paginator('get_findings')
         page_iterator = paginator.paginate(
             Filters={
                 'SeverityLabel': severity_filter if severity_filter else [
@@ -782,13 +869,14 @@ def scan_security_hub(region: str, scan_params: Dict[str, Any], scan_id: str) ->
             }
 
 
-def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS GuardDuty for threats"""
     try:
         logger.info(f"Scanning GuardDuty in region: {region}")
         
+        guardduty_client = scan_clients["guardduty"]
         # List detectors
-        detectors = guardduty.list_detectors()
+        detectors = guardduty_client.list_detectors()
         detector_ids = detectors.get('DetectorIds', [])
         
         if not detector_ids:
@@ -800,7 +888,7 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         findings = []
         for detector_id in detector_ids:
             # Get findings
-            paginator = guardduty.get_paginator('list_findings')
+            paginator = guardduty_client.get_paginator('list_findings')
             page_iterator = paginator.paginate(
                 DetectorId=detector_id,
                 FindingCriteria={
@@ -815,7 +903,7 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
             for page in page_iterator:
                 finding_ids = page.get('FindingIds', [])
                 if finding_ids:
-                    findings_response = guardduty.get_findings(
+                    findings_response = guardduty_client.get_findings(
                         DetectorId=detector_id,
                         FindingIds=finding_ids
                     )
@@ -833,14 +921,15 @@ def scan_guardduty(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         raise
 
 
-def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Config for compliance"""
     try:
         logger.info(f"Scanning AWS Config in region: {region}")
         
+        config_client = scan_clients["config"]
         # Check if Config is enabled
         try:
-            recorders = config.describe_configuration_recorders()
+            recorders = config_client.describe_configuration_recorders()
             if not recorders.get('ConfigurationRecorders'):
                 return {
                     'error': 'AWS Config is not enabled in this region',
@@ -860,10 +949,10 @@ def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[
                 }
         
         # Get compliance summary
-        compliance_summary = config.get_compliance_summary_by_config_rule()
+        compliance_summary = config_client.get_compliance_summary_by_config_rule()
         
         # Get config rules
-        rules = config.describe_config_rules()
+        rules = config_client.describe_config_rules()
         
         # Convert to JSON-serializable format
         compliance_summary_clean = json.loads(json.dumps(compliance_summary, default=json_serial))
@@ -890,20 +979,21 @@ def scan_config(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[
         raise
 
 
-def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Inspector for vulnerabilities"""
     try:
         logger.info(f"Scanning AWS Inspector in region: {region}")
         
+        inspector_client = scan_clients["inspector"]
         # List findings (simplified - no filters to avoid validation issues)
         findings = []
         try:
             # List findings without complex filters
-            response = inspector.list_findings(maxResults=100)
+            response = inspector_client.list_findings(maxResults=100)
             finding_arns = response.get('findingArns', [])
             
             if finding_arns:
-                findings_response = inspector.batch_get_findings(
+                findings_response = inspector_client.batch_get_findings(
                     findingArns=finding_arns[:100]
                 )
                 findings.extend(findings_response.get('findings', []))
@@ -947,14 +1037,15 @@ def scan_inspector(region: str, scan_params: Dict[str, Any], scan_id: str) -> Di
         raise
 
 
-def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan AWS Macie for data security"""
     try:
         logger.info(f"Scanning AWS Macie in region: {region}")
         
+        macie_client = scan_clients["macie"]
         # List findings
         findings = []
-        paginator = macie.get_paginator('list_findings')
+        paginator = macie_client.get_paginator('list_findings')
         page_iterator = paginator.paginate(
             findingCriteria={
                 'criterion': {
@@ -968,7 +1059,7 @@ def scan_macie(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[s
         for page in page_iterator:
             finding_ids = page.get('findingIds', [])
             if finding_ids:
-                findings_response = macie.get_findings(findingIds=finding_ids[:100])
+                findings_response = macie_client.get_findings(findingIds=finding_ids[:100])
                 findings.extend(findings_response.get('findings', []))
         
         return {
@@ -1111,14 +1202,19 @@ def analyze_policy_document(policy_doc: Dict[str, Any], role_name: str, role_arn
     return findings
 
 
-def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan IAM for security issues"""
     try:
         logger.info(f"Scanning IAM in region: {region}")
+
+        iam_client = scan_clients["iam"]
+        sts_client = scan_clients["sts"]
         
         # List users
-        users = iam.list_users()
-        user_list = users.get('Users', [])
+        user_list = []
+        paginator = iam_client.get_paginator('list_users')
+        for page in paginator.paginate():
+            user_list.extend(page.get('Users', []))
         
         # Analyze users and generate findings
         users_with_mfa = 0
@@ -1131,7 +1227,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for user in user_list:
             user_name = user['UserName']
@@ -1139,7 +1235,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             
             try:
                 # Check MFA
-                mfa_devices = iam.list_mfa_devices(UserName=user_name)
+                mfa_devices = iam_client.list_mfa_devices(UserName=user_name)
                 if not mfa_devices.get('MFADevices'):
                     users_without_mfa += 1
                     high_findings += 1
@@ -1156,7 +1252,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     users_with_mfa += 1
                 
                 # Check access keys
-                access_keys = iam.list_access_keys(UserName=user_name)
+                access_keys = iam_client.list_access_keys(UserName=user_name)
                 key_metadata = access_keys.get('AccessKeyMetadata', [])
                 
                 for key in key_metadata:
@@ -1182,7 +1278,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     
                     # Check last used
                     try:
-                        last_used = iam.get_access_key_last_used(AccessKeyId=key_id)
+                        last_used = iam_client.get_access_key_last_used(AccessKeyId=key_id)
                         last_used_date = last_used.get('AccessKeyLastUsed', {}).get('LastUsedDate')
                         if last_used_date:
                             days_since_use = (datetime.now(timezone.utc) - last_used_date.replace(tzinfo=timezone.utc)).days
@@ -1202,8 +1298,8 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 
                 # Check for admin policies
                 try:
-                    attached_policies = iam.list_attached_user_policies(UserName=user_name)
-                    inline_policies = iam.list_user_policies(UserName=user_name)
+                    attached_policies = iam_client.list_attached_user_policies(UserName=user_name)
+                    inline_policies = iam_client.list_user_policies(UserName=user_name)
                     
                     # Check for AdministratorAccess
                     for policy in attached_policies.get('AttachedPolicies', []):
@@ -1244,8 +1340,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 continue
         
         # List roles
-        roles = iam.list_roles()
-        role_list = roles.get('Roles', [])
+        role_list = []
+        paginator = iam_client.get_paginator('list_roles')
+        for page in paginator.paginate():
+            role_list.extend(page.get('Roles', []))
         
         # Service principal mappings for infrastructure identification
         service_principals = {
@@ -1265,13 +1363,13 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         }
         
         # Analyze roles for infrastructure security
-        for role in role_list[:100]:  # Increased limit to analyze more roles
+        for role in role_list:
             role_name = role['RoleName']
             role_arn = role.get('Arn', f'arn:aws:iam::{account_id}:role/{role_name}')
             
             try:
                 # Get role details including trust policy
-                role_details = iam.get_role(RoleName=role_name)
+                role_details = iam_client.get_role(RoleName=role_name)
                 assume_role_policy = role_details.get('Role', {}).get('AssumeRolePolicyDocument', {})
                 
                 # Parse trust policy to identify service principals
@@ -1355,7 +1453,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     })
                 
                 # Analyze attached policies
-                attached_policies = iam.list_attached_role_policies(RoleName=role_name)
+                attached_policies = iam_client.list_attached_role_policies(RoleName=role_name)
                 for policy in attached_policies.get('AttachedPolicies', []):
                     policy_arn = policy.get('PolicyArn', '')
                     
@@ -1375,10 +1473,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                     
                     # Get and analyze policy document
                     try:
-                        policy_details = iam.get_policy(PolicyArn=policy_arn)
+                        policy_details = iam_client.get_policy(PolicyArn=policy_arn)
                         default_version = policy_details.get('Policy', {}).get('DefaultVersionId')
                         if default_version:
-                            policy_version = iam.get_policy_version(PolicyArn=policy_arn, VersionId=default_version)
+                            policy_version = iam_client.get_policy_version(PolicyArn=policy_arn, VersionId=default_version)
                             policy_doc = policy_version.get('PolicyVersion', {}).get('Document', {})
                             
                             # Analyze policy document for security issues
@@ -1401,10 +1499,10 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 
                 # Analyze inline policies
                 try:
-                    inline_policies = iam.list_role_policies(RoleName=role_name)
+                    inline_policies = iam_client.list_role_policies(RoleName=role_name)
                     for inline_policy_name in inline_policies.get('PolicyNames', []):
                         try:
-                            inline_policy = iam.get_role_policy(RoleName=role_name, PolicyName=inline_policy_name)
+                            inline_policy = iam_client.get_role_policy(RoleName=role_name, PolicyName=inline_policy_name)
                             policy_doc = inline_policy.get('PolicyDocument', {})
                             
                             # Analyze inline policy document
@@ -1432,12 +1530,16 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
                 continue
         
         # List policies
-        policies = iam.list_policies(Scope='Local', MaxItems=100)
-        policy_list = policies.get('Policies', [])
+        policy_list = []
+        paginator = iam_client.get_paginator('list_policies')
+        for page in paginator.paginate(Scope='Local'):
+            policy_list.extend(page.get('Policies', []))
         
         # List groups
-        groups = iam.list_groups()
-        group_list = groups.get('Groups', [])
+        group_list = []
+        paginator = iam_client.get_paginator('list_groups')
+        for page in paginator.paginate():
+            group_list.extend(page.get('Groups', []))
         
         return {
             'account_id': account_id,
@@ -1456,7 +1558,7 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
             'groups': {
                 'total': len(group_list)
             },
-            'findings': findings[:100],  # Limit to first 100 findings
+            'findings': findings,
             'scan_summary': {
                 'critical_findings': critical_findings,
                 'high_findings': high_findings,
@@ -1497,13 +1599,12 @@ def scan_iam(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         }
 
 
-def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan EC2 instances for security issues"""
     try:
         logger.info(f"Scanning EC2 in region: {region}")
         
-        # Set region for EC2 client
-        ec2_regional = boto3.client('ec2', region_name=region)
+        ec2_regional = scan_clients["ec2"]
         
         # Describe instances
         response = ec2_regional.describe_instances()
@@ -1524,7 +1625,8 @@ def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        sts_client = scan_clients["sts"]
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for instance in instances:
             instance_id = instance.get('InstanceId', 'N/A')
@@ -1658,13 +1760,14 @@ def scan_ec2(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str
         }
 
 
-def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Scan S3 buckets for security issues"""
     try:
         logger.info(f"Scanning S3 in region: {region}")
         
+        s3_regional = scan_clients["s3"]
         # List buckets
-        buckets = s3_client.list_buckets()
+        buckets = s3_regional.list_buckets()
         bucket_list = buckets.get('Buckets', [])
         
         # Analyze buckets and generate findings
@@ -1677,7 +1780,8 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
         low_findings = 0
         
         # Get account ID
-        account_id = sts.get_caller_identity().get('Account', 'N/A')
+        sts_client = scan_clients["sts"]
+        account_id = sts_client.get_caller_identity().get('Account', 'N/A')
         
         for bucket in bucket_list:
             bucket_name = bucket['Name']
@@ -1686,7 +1790,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
             try:
                 # Check public access block
                 try:
-                    public_access = s3_client.get_public_access_block(Bucket=bucket_name)
+                    public_access = s3_regional.get_public_access_block(Bucket=bucket_name)
                     pab_config = public_access.get('PublicAccessBlockConfiguration', {})
                     
                     if not pab_config.get('BlockPublicAcls') or not pab_config.get('BlockPublicPolicy'):
@@ -1718,7 +1822,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
                 
                 # Check encryption
                 try:
-                    encryption = s3_client.get_bucket_encryption(Bucket=bucket_name)
+                    encryption = s3_regional.get_bucket_encryption(Bucket=bucket_name)
                     encryption_config = encryption.get('ServerSideEncryptionConfiguration', {})
                     rules = encryption_config.get('Rules', [])
                     if not rules:
@@ -1750,7 +1854,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
                 
                 # Check versioning
                 try:
-                    versioning = s3_client.get_bucket_versioning(Bucket=bucket_name)
+                    versioning = s3_regional.get_bucket_versioning(Bucket=bucket_name)
                     if versioning.get('Status') != 'Enabled':
                         medium_findings += 1
                         findings.append({
@@ -1818,7 +1922,7 @@ def scan_s3(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str,
         }
 
 
-def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[str, Any]:
+def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str, scan_clients: Dict[str, Any]) -> Dict[str, Any]:
     """Execute full security scan across all services - GUARANTEED TO COMPLETE"""
     logger.info(f"Executing full security scan in region: {region}")
     
@@ -1841,7 +1945,7 @@ def scan_full(region: str, scan_params: Dict[str, Any], scan_id: str) -> Dict[st
     for scanner_name, scanner_func in scanners:
         try:
             logger.info(f"Scanning {scanner_name}...")
-            result = scanner_func(region, scan_params, scan_id)
+            result = scanner_func(region, scan_params, scan_id, scan_clients)
             
             # Validate result is a dict
             if not isinstance(result, dict):

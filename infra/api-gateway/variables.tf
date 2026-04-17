@@ -52,7 +52,7 @@ variable "cors_allowed_origins" {
 variable "cors_allowed_methods" {
   description = "List of allowed CORS methods"
   type        = list(string)
-  default     = ["GET", "POST", "OPTIONS"]
+  default     = ["GET", "POST", "DELETE", "OPTIONS"]
 }
 
 variable "cors_allowed_headers" {
@@ -131,3 +131,13 @@ variable "cognito_app_client_id" {
   default     = ""
 }
 
+
+variable "account_mgmt_lambda_function_name" {
+  description = "Function name of the account management Lambda"
+  type        = string
+}
+
+variable "account_mgmt_lambda_invoke_arn" {
+  description = "Invoke ARN of the account management Lambda"
+  type        = string
+}

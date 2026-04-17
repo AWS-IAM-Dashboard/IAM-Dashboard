@@ -45,11 +45,6 @@ variable "cors_allowed_headers" {
   default     = ["Content-Type", "Authorization", "X-Requested-With"]
 }
 
-variable "lambda_function_arn" {
-  description = "ARN for the BFF-Auth lambda function"
-  type        = string
-}
-
 variable "throttling_burst_limit" {
   description = "Stage burst limit for this standalone auth HTTP API (RPS bucket)."
   type        = number
@@ -61,3 +56,9 @@ variable "throttling_rate_limit" {
   type        = number
   default     = 35
 }
+
+variable "lambda_function_arn" {
+  description = "ARN for the BFF-Auth lambda function"
+  type        = string
+}
+

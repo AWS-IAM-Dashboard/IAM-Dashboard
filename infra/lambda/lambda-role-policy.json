@@ -13,6 +13,13 @@
     {
       "Effect": "Allow",
       "Action": [
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
         "s3:PutObject",
         "s3:GetObject",
         "s3:ListBucket",
@@ -75,7 +82,8 @@
         "config:GetComplianceSummaryByConfigRule",
         "config:GetComplianceSummaryByResourceType",
         "config:DescribeComplianceByConfigRule",
-        "config:DescribeComplianceByResource"
+        "config:DescribeComplianceByResource",
+        "config:DescribeConfigurationRecorders"
       ],
       "Resource": "*"
     },
@@ -124,6 +132,18 @@
       ],
       "Resource": "*"
     },
+    {
+			"Action": "sts:AssumeRole",
+			"Effect": "Allow",
+			"Resource": "arn:aws:iam::*:role/iam-dashboard-scan-role",
+			"Sid": "STSAssumeRole"
+		},
+		{
+			"Action": "sts:GetCallerIdentity",
+			"Effect": "Allow",
+			"Resource": "*",
+			"Sid": "STSCallerIdentity"
+		},
     {
       "Effect": "Allow",
       "Action": [

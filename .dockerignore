@@ -41,4 +41,11 @@ scanner-results
 # Python / virtualenv
 venv
 .venv
+__pycache__
+**/__pycache__
+*.pyc
+
+# Local data / CI config (not needed in images)
+data
+.github
 

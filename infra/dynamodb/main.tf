@@ -11,7 +11,9 @@ provider "aws" {
   region = var.aws_region
 }
 
-# DynamoDB table for scan results
+# ── Scan Results Table ─────────────────────────────────────────────────
+# Stores security scan output and history from the scanner Lambda.
+
 resource "aws_dynamodb_table" "scan_results" {
   name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
@@ -68,5 +70,40 @@ resource "aws_dynamodb_table" "scan_results" {
     Env         = var.environment
     ManagedBy   = "terraform"
     Description = "Stores security scan results from AWS native scanners and custom OPA policies"
+  }
+}
+
+# ── Registered Accounts Table ─────────────────────────────────────────────────
+# Stores AWS accounts registered for multi-account scanning.
+# Separate from the scan results table — do not combine.
+
+resource "aws_dynamodb_table" "accounts" {
+  name         = var.accounts_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "account_id"
+
+  attribute {
+    name = "account_id"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = var.enable_accounts_point_in_time_recovery
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = var.dynamodb_kms_key_arn
+  }
+
+  deletion_protection_enabled = var.environment == "prod"
+
+  tags = {
+    Name      = var.accounts_table_name
+    Project   = var.project_name
+    Env       = var.environment
+    ManagedBy = "terraform"
+    Service   = "account-management"
+    Purpose   = "multi-account-registry"
   }
 }

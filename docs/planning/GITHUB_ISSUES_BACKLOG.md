@@ -363,8 +363,8 @@ This table shows the *ideal long-term flow* of the project and explains why mile
 | **M2** | Auth spine (backend) | B1, B6, B7, B10 | Cognito exists; OAuth + JWT working |
 | **M3** | Auth + landing (frontend) | W1, W2, W3, S15, S20, S25 | Landing page + login/session end-to-end |
 | **M4** | Single-account quality | S1–S3, S5, S18, S19, S22, S26, B13, B14b, B17, B18, B19, A8, A9, W8–W11, W10b, W12, D16 | Trusted findings, unified schema, better UX, refresh persistence, starter dashboards |
-| **M5** | Multi-account backend | B2, B4, B8, B11, B12, S16, S17, S21, S23, S24 | Cross-account ingestion + account APIs (lite) |
-| **M6** | Multi-account frontend | W5, W6, W7 | Account status, switcher, multi-account UI |
+| **M5** | Multi-account backend | B2, B4, B11, B12, S16, S17, S21, S23, S24 | Cross-account ingestion + account APIs (lite) |
+| **M6** | Multi-account frontend | W5, W7 | Account connection status, account switcher |
 | **M7** | RBAC & security review *(POST)* | B9, S15, S16, W4 | RBAC enforced, auth security reviewed, onboarding |
 | **M8** | Data & reporting *(POST)* | A1–A7, A10–A15 | Metrics pipelines, Grafana, exports, docs |
 | **M9** | DevOps & ops polish *(POST)* | D1–D14, P3, P5 | CI/CD maturity, envs, rollback, documentation |
@@ -376,7 +376,7 @@ This table shows the *ideal long-term flow* of the project and explains why mile
 
 > **Note:**  
 > This is the **entire backlog**, including post-semester work.  
-> **This semester:** we will only create and work issues labeled `(SEMESTER)` (≈85 total).
+> **This semester:** we will only create and work issues labeled `(SEMESTER)` (~70 total; see *Issue Count Target* above).
 
 | Department | # of issues |
 |---|---:|

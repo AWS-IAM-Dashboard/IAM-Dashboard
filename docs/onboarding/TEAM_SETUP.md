@@ -20,7 +20,9 @@ cd IAM-Dashboard
 docker compose up -d --build
 ```
 
-**URLs:** Dashboard http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
+**URLs:** Dashboard (Vite) http://localhost:3001 · API (Flask) http://localhost:5001 · Grafana http://localhost:3000 (admin/admin) · Prometheus http://localhost:9090
+
+**CSV export (findings):** Use **Reports** in the app (not the main dashboard card). The browser calls Flask at `VITE_FLASK_API_URL` (compose defaults to `http://localhost:5001`, matching `5001:5000`). For `npm run dev` on the host, leave `VITE_FLASK_API_URL` unset so Vite proxies `/api/findings` to Flask and avoids 404s from a wrong port.
 
 ### Frontend data mode (dev-only)
 

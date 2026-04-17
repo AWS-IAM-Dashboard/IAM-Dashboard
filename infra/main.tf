@@ -60,6 +60,7 @@ module "dynamodb" {
   environment                   = var.environment
   project_name                  = var.project_name
   dynamodb_table_name           = var.dynamodb_table_name
+  accounts_table_name           = var.accounts_table_name
   dynamodb_kms_key_arn          = data.aws_kms_key.logs.arn
   enable_point_in_time_recovery = true
 }
@@ -88,23 +89,46 @@ module "lambda" {
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 
   lambda_environment_variables = {
-    CORS_ALLOWED_ORIGINS = join(",", var.allowed_urls)
+    CORS_ALLOWED_ORIGINS    = join(",", var.allowed_urls)
+    ACCOUNTS_TABLE_NAME     = module.dynamodb.accounts_table_name
+    CROSS_ACCOUNT_ROLE_NAME = var.cross_account_role_name
+    MAIN_ACCOUNT_ID         = var.main_account_id
   }
+}
+
+# Account Management Lambda Module
+module "lambda_accounts" {
+  source = "./lambda-accounts"
+
+  aws_region                     = var.aws_region
+  environment                    = var.environment
+  project_name                   = var.project_name
+  lambda_function_name           = var.account_mgmt_lambda_function_name
+  lambda_role_name               = var.account_mgmt_lambda_role_name
+  accounts_table_name            = var.accounts_table_name
+  accounts_table_arn             = module.dynamodb.accounts_table_arn
+  session_table_name             = module.auth_dynamodb.dynamodb_table_name
+  session_table_arn              = module.auth_dynamodb.dynamodb_table_arn
+  cross_account_role_name        = var.cross_account_role_name
+  cross_account_role_arn_pattern = var.cross_account_role_arn_pattern
+  lambda_kms_key_arn             = data.aws_kms_key.logs.arn
 }
 
 # API Gateway Module for the Scanner APIs
 module "api_gateway" {
   source = "./api-gateway"
 
-  aws_region                   = var.aws_region
-  environment                  = var.environment
-  project_name                 = var.project_name
-  kms_key_arn                  = data.aws_kms_key.logs.arn
-  cognito_issuer_url           = module.cognito.issuer_url
-  cognito_app_client_id        = module.cognito.app_client_id
-  scanner_lambda_function_name = var.lambda_function_name
-  auth_lambda_function_name    = var.auth_lambda_function_name
-  cors_allowed_origins         = var.allowed_urls
+  aws_region                        = var.aws_region
+  environment                       = var.environment
+  project_name                      = var.project_name
+  kms_key_arn                       = data.aws_kms_key.logs.arn
+  cognito_issuer_url                = module.cognito.issuer_url
+  cognito_app_client_id             = module.cognito.app_client_id
+  scanner_lambda_function_name      = var.lambda_function_name
+  auth_lambda_function_name         = var.auth_lambda_function_name
+  cors_allowed_origins              = var.allowed_urls
+  account_mgmt_lambda_function_name = module.lambda_accounts.lambda_function_name
+  account_mgmt_lambda_invoke_arn    = module.lambda_accounts.lambda_invoke_arn
 
 }
 
