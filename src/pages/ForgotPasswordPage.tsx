@@ -60,7 +60,7 @@ export function ForgotPasswordPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
           onClick={() => navigate("/login")}
-          className="group absolute left-0 top-0 flex min-h-[44px] min-w-[44px] items-center gap-2 text-gray-400 transition-colors hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black sm:-top-16"
+          className="group mb-4 flex min-h-[44px] min-w-[44px] items-center gap-2 text-gray-400 transition-colors hover:text-green-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black"
           type="button"
           aria-label="Back to login"
         >
