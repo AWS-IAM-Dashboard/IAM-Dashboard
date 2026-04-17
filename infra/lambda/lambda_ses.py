@@ -57,6 +57,11 @@ def format_scan_timestamp(timestamp: str, timezone_name: str) -> str:
     return f"{dt_local.strftime('%B')} {dt_local.day}, {dt_local.year} at {hour}:{minute_ampm_tz}"
 
 
+def is_count_value(value: Any) -> bool:
+    """Return True for numeric finding counts, excluding booleans."""
+    return isinstance(value, Number) and not isinstance(value, bool)
+
+
 def get_scan_type(scan_document: dict[str, Any]) -> str:
     """Read and validate the top-level scanner type."""
     scanner_type = scan_document.get("scanner_type")
@@ -83,7 +88,7 @@ def extract_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
 
     # Only count numeric severities so the Lambda remains tolerant of future
     # metadata fields that may appear in the summary object.
-    total_findings = sum(value for value in scan_summary.values() if isinstance(value, Number))
+    total_findings = sum(value for value in scan_summary.values() if is_count_value(value))
 
     return {
         "scanner_type": scanner_type,
@@ -141,7 +146,7 @@ def extract_full_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
 
         for key in merged_summary:
             value = nested_summary.get(key)
-            if isinstance(value, Number):
+            if is_count_value(value):
                 merged_summary[key] += value
 
         processed_operational_sections += 1
@@ -152,7 +157,7 @@ def extract_full_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
     if not account_id:
         raise ValueError("Full scan JSON does not contain an account_id in nested operational results")
 
-    total_findings = sum(value for value in merged_summary.values() if isinstance(value, Number))
+    total_findings = sum(value for value in merged_summary.values() if is_count_value(value))
 
     return {
         "scanner_type": scanner_type,
