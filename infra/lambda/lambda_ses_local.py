@@ -6,20 +6,49 @@ without importing boto3 or attempting any AWS calls.
 """
 
 from __future__ import annotations
-
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from numbers import Number
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 DEFAULT_SAMPLE_FILE = Path(__file__).resolve().parents[2] / "s3-2026-03-18T14_40_25.394352.json"
 DEFAULT_BUCKET_NAME = "iam-dashboard-scan-results"
 DEFAULT_SUBJECT_PREFIX = "IAM Dashboard"
+DEFAULT_EMAIL_TIMEZONE = "America/New_York"
 OPERATIONAL_SCANS = {"iam", "ec2", "s3"}
 NON_OPERATIONAL_SCANS = {"config", "guardduty", "inspector", "security-hub"}
+
+
+def format_scan_timestamp(timestamp: str, timezone_name: str) -> str:
+    """Parse an ISO timestamp and return a human-readable string in the given timezone.
+
+    Naive timestamps (no tz info) are treated as UTC.
+    Raises ValueError for invalid timestamps or unknown timezone names.
+    """
+    try:
+        tz = ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        raise ValueError(f"Unknown timezone: {timezone_name!r}")
+
+    try:
+        dt = datetime.fromisoformat(timestamp)
+    except (ValueError, TypeError):
+        raise ValueError(f"Invalid ISO timestamp: {timestamp!r}")
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    dt_local = dt.astimezone(tz)
+    # e.g. "March 25, 2026 at 10:21 AM EDT"
+    # %-I is Unix-only; strip leading zero manually for Windows compatibility
+    hour = dt_local.strftime("%I").lstrip("0") or "12"
+    minute_ampm_tz = dt_local.strftime("%M %p %Z")
+    return f"{dt_local.strftime('%B')} {dt_local.day}, {dt_local.year} at {hour}:{minute_ampm_tz}"
 
 
 def load_scan_document(file_path: Path) -> dict[str, Any]:
@@ -139,14 +168,14 @@ def extract_full_scan_values(scan_document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_email_body(parsed_values: dict[str, Any], s3_bucket_name: str) -> str:
+def build_email_body(parsed_values: dict[str, Any], s3_bucket_name: str, formatted_timestamp: str) -> str:
     """Build the same email body format used by the SES Lambda."""
     scan_summary_json = json.dumps(parsed_values["scan_summary"])
 
     return (
         f"scan_summary: {scan_summary_json}\n"
         f"A {parsed_values['scanner_type']} scan was ran in your account "
-        f"AccountID:{parsed_values['account_id']} at {parsed_values['timestamp']}. "
+        f"AccountID:{parsed_values['account_id']} at {formatted_timestamp}. "
         f"A total of {parsed_values['total_findings']} vulnerabilities were found. "
         f"Check the results in {s3_bucket_name}."
     )
@@ -157,10 +186,10 @@ def build_subject(scanner_type: str, subject_prefix: str) -> str:
     return f"{subject_prefix}: {scanner_type} scan notification"
 
 
-def build_unavailable_scan_message(scan_type: str, timestamp: str) -> str:
+def build_unavailable_scan_message(scan_type: str, formatted_timestamp: str) -> str:
     """Build the fallback body for non-operational scans that lack extractable findings."""
     return (
-        f"A {scan_type} scan was ran in your account at {timestamp}. "
+        f"A {scan_type} scan was ran in your account at {formatted_timestamp}. "
         "The resource is currently not enabled so no information could be extracted."
     )
 
@@ -183,6 +212,11 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_SUBJECT_PREFIX,
         help="Subject prefix used in the generated email subject",
     )
+    parser.add_argument(
+        "--timezone",
+        default=DEFAULT_EMAIL_TIMEZONE,
+        help="Timezone for the formatted timestamp in the email body (default: America/New_York)",
+    )
     return parser.parse_args()
 
 
@@ -196,17 +230,20 @@ def main() -> int:
 
         if scan_type in OPERATIONAL_SCANS:
             parsed_values = extract_scan_values(scan_document)
-            body = build_email_body(parsed_values, args.bucket_name)
+            formatted_timestamp = format_scan_timestamp(parsed_values["timestamp"], args.timezone)
+            body = build_email_body(parsed_values, args.bucket_name, formatted_timestamp)
         elif scan_type == "full":
             parsed_values = extract_full_scan_values(scan_document)
-            body = build_email_body(parsed_values, args.bucket_name)
+            formatted_timestamp = format_scan_timestamp(parsed_values["timestamp"], args.timezone)
+            body = build_email_body(parsed_values, args.bucket_name, formatted_timestamp)
         elif scan_type in NON_OPERATIONAL_SCANS:
             timestamp = scan_document.get("timestamp")
             if not isinstance(timestamp, str) or not timestamp:
                 raise ValueError("Scan result JSON is missing top-level timestamp")
 
+            formatted_timestamp = format_scan_timestamp(timestamp, args.timezone)
             parsed_values = None
-            body = build_unavailable_scan_message(scan_type, timestamp)
+            body = build_unavailable_scan_message(scan_type, formatted_timestamp)
         else:
             raise ValueError(f"Unsupported scanner_type for local SES test: {scan_type}")
     except Exception as exc:
@@ -218,6 +255,7 @@ def main() -> int:
         print(f"  scanner_type: {parsed_values['scanner_type']}")
         print(f"  region: {parsed_values['region']}")
         print(f"  timestamp: {parsed_values['timestamp']}")
+        print(f"  formatted_timestamp: {formatted_timestamp}")
         print(f"  account_id: {parsed_values['account_id']}")
         print(f"  scan_summary: {json.dumps(parsed_values['scan_summary'])}")
         print(f"  total_findings: {parsed_values['total_findings']}")
@@ -226,6 +264,7 @@ def main() -> int:
         print("Parsed Values")
         print(f"  scanner_type: {scan_type}")
         print(f"  timestamp: {scan_document['timestamp']}")
+        print(f"  formatted_timestamp: {formatted_timestamp}")
         print()
 
     print("Email Subject")
