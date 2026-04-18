@@ -39,6 +39,9 @@ jobs:
       TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
       # Main account ID where the scanner lambda function lives
       TF_VAR_main_account_id: ${{ secrets.MAIN_ACCOUNT_ID }}
+      # Bedrock API key — written to SSM /iam-dashboard/dev/bedrock-api-key on first apply.
+      # Terraform will not overwrite after initial creation (lifecycle ignore_changes).
+      TF_VAR_bedrock_api_key_placeholder: ${{ secrets.BEDROCK_API_KEY }}
     defaults:
       run:
         working-directory: infra
@@ -77,6 +80,8 @@ jobs:
       TF_VAR_kms_key_id: ${{ secrets.KMS_KEY_ID }}
       # Main account ID where the scanner lambda function lives
       TF_VAR_main_account_id: ${{ secrets.MAIN_ACCOUNT_ID }}
+      # Bedrock API key — written to SSM on first apply only.
+      TF_VAR_bedrock_api_key_placeholder: ${{ secrets.BEDROCK_API_KEY }}
     defaults:
       run:
         working-directory: infra

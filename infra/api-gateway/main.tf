@@ -95,6 +95,22 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_burst_limit = var.throttling_auth_burst_limit
     throttling_rate_limit  = var.throttling_auth_rate_limit
   }
+  # LLM routes — tighter throttle since each call invokes Bedrock
+  route_settings {
+    route_key              = "POST /llm/triage"
+    throttling_burst_limit = var.throttling_llm_burst_limit
+    throttling_rate_limit  = var.throttling_llm_rate_limit
+  }
+  route_settings {
+    route_key              = "POST /llm/root-cause"
+    throttling_burst_limit = var.throttling_llm_burst_limit
+    throttling_rate_limit  = var.throttling_llm_rate_limit
+  }
+  route_settings {
+    route_key              = "POST /llm/runbook"
+    throttling_burst_limit = var.throttling_llm_burst_limit
+    throttling_rate_limit  = var.throttling_llm_rate_limit
+  }
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.apigw_access.arn
@@ -287,4 +303,29 @@ resource "aws_apigatewayv2_route" "account_delete" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "DELETE /accounts/{account_id}"
   target    = "integrations/${aws_apigatewayv2_integration.account_mgmt.id}"
+}
+
+# ── LLM routes (triage, root-cause, runbook) ──────────────────────────────────
+# All three route to the scanner Lambda which now handles /llm/* paths
+# via _handle_llm_triage / _handle_llm_root_cause / _handle_llm_runbook
+
+resource "aws_apigatewayv2_route" "llm_triage" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /llm/triage"
+  authorization_type = var.route_authorization_type
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "llm_root_cause" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /llm/root-cause"
+  authorization_type = var.route_authorization_type
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "llm_runbook" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /llm/runbook"
+  authorization_type = var.route_authorization_type
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

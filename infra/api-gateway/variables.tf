@@ -98,6 +98,18 @@ variable "throttling_auth_rate_limit" {
   default     = 35
 }
 
+variable "throttling_llm_burst_limit" {
+  description = "Burst limit for LLM routes (triage, root-cause, runbook). Lower than scan routes since each call invokes Bedrock."
+  type        = number
+  default     = 10
+}
+
+variable "throttling_llm_rate_limit" {
+  description = "Steady-state RPS for LLM routes."
+  type        = number
+  default     = 5
+}
+
 variable "lambda_function_arn" {
   description = "ARN of the Lambda function to integrate (optional, placeholder for now)"
   type        = string

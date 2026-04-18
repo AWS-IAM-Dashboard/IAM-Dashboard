@@ -105,3 +105,16 @@ variable "session_table_name" {
   description = "Name of the DynamoDB table for auth sessions"
   type        = string
 }
+
+variable "bedrock_model_id" {
+  description = "Amazon Bedrock model ID for LLM triage/runbook features"
+  type        = string
+  default     = "anthropic.claude-haiku-4-5-20251001"
+}
+
+variable "bedrock_api_key_placeholder" {
+  description = "Initial placeholder value for the Bedrock API key SSM parameter. Set to the real key via CI secret or AWS Secrets rotation. Terraform will not overwrite after first apply (lifecycle ignore_changes)."
+  type        = string
+  default     = "REPLACE_ME"
+  sensitive   = true
+}

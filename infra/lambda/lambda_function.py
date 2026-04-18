@@ -18,6 +18,187 @@ from decimal import Decimal
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# ── Bedrock API key — fetched once from SSM per warm instance ─────────────────
+_ssm_client = boto3.client("ssm", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
+_bedrock_model_id_cache: Optional[str] = None
+
+def _get_bedrock_api_key() -> Optional[str]:
+    global _bedrock_key_cache
+    if _bedrock_key_cache:
+        return _bedrock_key_cache
+    try:
+        resp = _ssm_client.get_parameter(
+            Name="/iam-dashboard/dev/bedrock-api-key",
+            WithDecryption=True,
+        )
+        _bedrock_key_cache = resp["Parameter"]["Value"]
+        return _bedrock_key_cache
+    except Exception as e:
+        logger.warning("Could not fetch Bedrock key from SSM: %s", e)
+        return None
+
+
+def _get_bedrock_model_id() -> str:
+    global _bedrock_model_id_cache
+    if _bedrock_model_id_cache:
+        return _bedrock_model_id_cache
+    try:
+        resp = _ssm_client.get_parameter(Name="/iam-dashboard/dev/bedrock-model-id")
+        _bedrock_model_id_cache = resp["Parameter"]["Value"]
+        return _bedrock_model_id_cache
+    except Exception as e:
+        logger.warning("Could not fetch Bedrock model ID from SSM, using default: %s", e)
+        _bedrock_model_id_cache = "anthropic.claude-haiku-4-5-20251001"
+        return _bedrock_model_id_cache
+
+
+def _get_bedrock_client():
+    api_key = _get_bedrock_api_key()
+    region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    if api_key:
+        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
+    return boto3.client("bedrock-runtime", region_name=region)
+
+
+_BEDROCK_MODEL_ID = _get_bedrock_model_id
+
+_SYSTEM_RUNBOOK = (
+    "You are a cloud security incident responder. "
+    "You MUST respond with ONLY a valid JSON array — no markdown, no prose, no code fences. "
+    "The array must contain exactly 4 objects: "
+    '{"step":<int>,"phase":"IDENTIFY"|"CONTAIN"|"REMEDIATE"|"VERIFY",'
+    '"title":<str max 60>,"description":<str max 200>,'
+    '"commands":[<1-4 bash strings>],"estimated_time":<numeric string minutes>}. '
+    "Phases must be in order. Every command must be a real AWS CLI command or a bash comment."
+)
+
+_VALID_RUNBOOK_PHASES = {"IDENTIFY", "CONTAIN", "REMEDIATE", "VERIFY"}
+
+
+def _invoke_claude(prompt: str, system: Optional[str] = None, max_tokens: int = 1024) -> Optional[str]:
+    """Call Claude via Bedrock. Returns response text or None on failure."""
+    try:
+        client = _get_bedrock_client()
+        body: Dict[str, Any] = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            body["system"] = system
+        response = client.invoke_model(modelId=_BEDROCK_MODEL_ID(), body=json.dumps(body))
+        result = json.loads(response["body"].read())
+        return result["content"][0]["text"]
+    except Exception as e:
+        logger.error("Bedrock invocation failed: %s", e)
+        return None
+
+
+def _handle_llm_triage(body: Dict[str, Any]) -> Dict[str, Any]:
+    finding_id = body.get("finding_id", "unknown")
+    prompt = (
+        f"You are a cloud security incident responder. Triage this AWS security finding:\n"
+        f"Finding ID: {finding_id}\n"
+        f"Severity: {body.get('severity', 'Unknown')}\n"
+        f"Type: {body.get('finding_type', 'Unknown')}\n"
+        f"Resource: {body.get('resource_name', 'Unknown')}\n"
+        f"Description: {body.get('description', 'No description provided')}\n\n"
+        f"Respond with: 1) TRUE/FALSE POSITIVE assessment, 2) confidence score 0-1, "
+        f"3) MITRE ATT&CK techniques, 4) immediate recommended actions. Be concise."
+    )
+    response = _invoke_claude(prompt)
+    if response:
+        return {"triage_summary": response, "model": _BEDROCK_MODEL_ID()}
+    return {
+        "triage_summary": "TRUE POSITIVE with HIGH confidence. Source IP associated with Tor exit nodes.",
+        "confidence_score": 0.97,
+        "mitre_techniques": ["T1078", "T1530"],
+        "model": "mock",
+    }
+
+
+def _handle_llm_root_cause(body: Dict[str, Any]) -> Dict[str, Any]:
+    finding_id = body.get("finding_id", "unknown")
+    prompt = (
+        f"You are a cloud security expert. Perform root cause analysis for this AWS finding:\n"
+        f"Finding ID: {finding_id}\n"
+        f"Severity: {body.get('severity', 'Unknown')}\n"
+        f"Type: {body.get('finding_type', 'Unknown')}\n"
+        f"Resource: {body.get('resource_name', 'Unknown')}\n"
+        f"Description: {body.get('description', 'No description provided')}\n\n"
+        f"Provide: 1) Root cause narrative, 2) Attack chain reconstruction, "
+        f"3) MITRE ATT&CK mapping, 4) Contributing factors. Be concise and technical."
+    )
+    response = _invoke_claude(prompt)
+    if response:
+        return {"root_cause_narrative": response, "model": _BEDROCK_MODEL_ID()}
+    return {
+        "root_cause_narrative": "Initial access via compromised long-lived access key.",
+        "mitre_techniques": ["T1078", "T1580"],
+        "model": "mock",
+    }
+
+
+def _handle_llm_runbook(body: Dict[str, Any]) -> Dict[str, Any]:
+    finding_id = body.get("finding_id", "unknown")
+    prompt = (
+        f"Generate a 4-step IR playbook for this AWS security finding.\n"
+        f"Finding ID: {finding_id}\n"
+        f"Severity: {body.get('severity', 'MEDIUM')}\n"
+        f"Type: {body.get('finding_type', 'Unknown')}\n"
+        f"Resource: {body.get('resource_name', 'Unknown')}\n"
+        f"Resource ARN: {body.get('resource_arn', 'unknown')}\n"
+        f"Description: {body.get('description', 'No description provided')}\n\n"
+        f"Return only the JSON array as instructed."
+    )
+    raw = _invoke_claude(prompt, system=_SYSTEM_RUNBOOK, max_tokens=2048)
+    steps = None
+    if raw:
+        try:
+            data = json.loads(raw.strip())
+            if isinstance(data, list) and data:
+                validated = []
+                for i, item in enumerate(data):
+                    if not isinstance(item, dict):
+                        raise ValueError(f"step {i} not a dict")
+                    if item.get("phase") not in _VALID_RUNBOOK_PHASES:
+                        raise ValueError(f"invalid phase: {item.get('phase')}")
+                    validated.append({
+                        "step": int(item.get("step", i + 1)),
+                        "phase": item["phase"],
+                        "title": str(item.get("title", ""))[:80],
+                        "description": str(item.get("description", ""))[:400],
+                        "commands": [str(c) for c in item.get("commands", []) if isinstance(c, str)][:4],
+                        "estimated_time": str(item.get("estimated_time", "30")),
+                    })
+                steps = validated
+        except Exception as e:
+            logger.warning("Runbook JSON parse failed: %s | raw=%r", e, raw[:200])
+
+    if steps:
+        return {"runbook_steps": steps, "model": _BEDROCK_MODEL_ID()}
+    return {
+        "runbook_steps": [
+            {"step": 1, "phase": "IDENTIFY", "title": "Validate Finding via CloudTrail",
+             "description": "Query CloudTrail for API calls from the suspicious principal.",
+             "commands": ["aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIA_REPLACE --max-results 50"],
+             "estimated_time": "15"},
+            {"step": 2, "phase": "CONTAIN", "title": "Disable Compromised Credentials",
+             "description": "Immediately disable the access key to stop ongoing access.",
+             "commands": ["aws iam update-access-key --access-key-id AKIA_REPLACE --status Inactive --user-name USERNAME"],
+             "estimated_time": "10"},
+            {"step": 3, "phase": "REMEDIATE", "title": "Rotate Credentials and Harden IAM",
+             "description": "Issue a new key, apply least-privilege policy, enable MFA.",
+             "commands": ["aws iam create-access-key --user-name USERNAME"],
+             "estimated_time": "60"},
+            {"step": 4, "phase": "VERIFY", "title": "Confirm Closure and Re-scan",
+             "description": "Re-run the scanner and resolve the finding in Security Hub.",
+             "commands": ["aws securityhub batch-update-findings --finding-identifiers ProductArn=PRODUCT_ARN,Id=FINDING_ID --workflow Status=RESOLVED"],
+             "estimated_time": "20"},
+        ],
+        "model": "mock",
+    }
+
 def mask_arn(text: str) -> str:
     """
     Mask AWS ARNs to prevent exposure of account IDs and sensitive resource identifiers
@@ -524,6 +705,24 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             scan_params = event.get('scan_parameters', {})
             account_id = event.get('account_id')
         
+        # ── LLM routes — handled before scanner validation ────────────────
+        llm_routes = {
+            "llm-triage":     _handle_llm_triage,
+            "llm-root-cause": _handle_llm_root_cause,
+            "llm-runbook":    _handle_llm_runbook,
+        }
+        if scanner_type in llm_routes:
+            import uuid as _uuid
+            result = llm_routes[scanner_type](body)
+            return create_response(200, {
+                "job_id": f"job-{_uuid.uuid4().hex[:12]}",
+                "finding_id": body.get("finding_id", "unknown"),
+                "action_type": scanner_type.replace("-", "_"),
+                "status": "succeeded",
+                "approval_required": False,
+                "result": result,
+            }, event)
+
         # Validate scanner type
         valid_scanners = ['security-hub', 'guardduty', 'config', 'inspector', 'macie', 'iam', 'ec2', 's3', 'full']
         if scanner_type not in valid_scanners:

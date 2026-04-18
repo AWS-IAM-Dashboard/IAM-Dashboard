@@ -88,6 +88,9 @@ module "lambda" {
   s3_bucket_name       = var.s3_bucket_name
   lambda_kms_key_arn   = data.aws_kms_key.logs.arn
 
+  bedrock_model_id            = var.bedrock_model_id
+  bedrock_api_key_placeholder = var.bedrock_api_key_placeholder
+
   lambda_environment_variables = {
     CORS_ALLOWED_ORIGINS    = join(",", var.allowed_urls)
     ACCOUNTS_TABLE_NAME     = module.dynamodb.accounts_table_name

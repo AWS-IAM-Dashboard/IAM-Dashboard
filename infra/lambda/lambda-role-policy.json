@@ -166,6 +166,25 @@
       "Resource": "*"
     },
     {
+      "Sid": "SSMBedrockKey",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-east-1:*:parameter/iam-dashboard/dev/bedrock-api-key",
+        "arn:aws:ssm:us-east-1:*:parameter/iam-dashboard/dev/bedrock-model-id"
+      ]
+    },
+    {
+      "Sid": "BedrockInvokeModel",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001"
+    },
+    {
       "Effect": "Allow",
       "Action": [
         "xray:PutTraceSegments",
