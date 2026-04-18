@@ -8,6 +8,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
@@ -608,10 +609,12 @@ export function AWSIAMScan() {
 
           {/* Rows */}
           {paginatedFindings.length === 0 ? (
-            <div style={{ padding: "48px 24px", textAlign: "center" }}>
-              <Users size={36} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
-              <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13 }}>No findings match the current filters</p>
-            </div>
+            <ScanEmptyState
+              variant="no-results"
+              icon={Users}
+              serviceName="IAM"
+              onAction={clearFindingFilters}
+            />
           ) : (
             paginatedFindings.map((finding) => {
               const isExpanded = expandedRow === finding.id;
@@ -738,10 +741,14 @@ export function AWSIAMScan() {
 
       {/* ── Empty state (pre-scan) ────────────────────────────────────────── */}
       {!scanResult && !isScanning && (
-        <div style={{ ...card, padding: "64px 24px", textAlign: "center" }}>
-          <Users size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
-          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 8 }}>Run a scan to analyze your AWS IAM posture</p>
+        <div style={{ ...card }}>
+          <ScanEmptyState
+            variant="pre-scan"
+            icon={Users}
+            serviceName="IAM & Access Control"
+            subtitle="Run a security scan to analyse IAM users, roles, policies, and access patterns across your AWS account."
+            onAction={handleStartScan}
+          />
         </div>
       )}
 

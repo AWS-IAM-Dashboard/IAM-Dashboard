@@ -43,6 +43,7 @@ import { useActiveScanResults } from "../hooks/useActiveScanResults";
 import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { StatCard } from "./ui/StatCard";
 import { FindingDetailPanel } from "./ui/FindingDetailPanel";
 
@@ -509,6 +510,12 @@ export function EC2Security() {
     navigator.clipboard.writeText(cmd).then(() => { setCopiedCmd(cmd); setTimeout(() => setCopiedCmd(null), 2000); });
   };
 
+  const handleResetFilters = () => {
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  };
+
   const findings = scanResult?.findings ?? mockFindings;
   const filteredFindings = findings.filter(f => {
     const w = workflows[f.id];
@@ -644,10 +651,12 @@ export function EC2Security() {
         </div>
 
         {filteredFindings.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center" }}>
-            <Server size={40} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 14, margin: 0 }}>No findings match your filters</p>
-          </div>
+          <ScanEmptyState
+            variant="no-results"
+            icon={Server}
+            serviceName="EC2 & Compute"
+            onAction={handleResetFilters}
+          />
         ) : filteredFindings.map((finding, idx) => {
           const expanded = expandedRows.has(finding.id);
           const tab = activeTab[finding.id] ?? "playbook";
