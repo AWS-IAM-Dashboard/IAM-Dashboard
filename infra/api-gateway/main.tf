@@ -165,6 +165,18 @@ resource "aws_lambda_permission" "auth" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
+# ── Health route ──────────────────────────────────────────────────────────────
+
+# Deployment verification (D13). authorization_type is hardcoded to NONE so
+# monitoring and CI never need credentials, even if var.route_authorization_type
+# is later flipped for scan/auth routes.
+resource "aws_apigatewayv2_route" "health" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /health"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 # ── Scanner routes ────────────────────────────────────────────────────────────
 
 # Routes for all 9 security scan endpoints

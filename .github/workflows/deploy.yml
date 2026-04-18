@@ -123,3 +123,29 @@ jobs:
         done
         echo "Lambda update failed after $MAX_ATTEMPTS attempts (concurrent updates)"
         exit "${RC:-254}"
+
+    - name: Wait for Lambda update to activate
+      run: |
+        LAMBDA_FUNCTION_NAME="${{ steps.deployment-vars.outputs.lambda_function }}"
+        echo "Waiting for $LAMBDA_FUNCTION_NAME to reach LastUpdateStatus=Successful..."
+        aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
+        echo "Lambda function is active."
+
+    - name: Verify deployment health (D13)
+      env:
+        HEALTH_CHECK_URL: ${{ vars.HEALTH_CHECK_URL }}
+      run: |
+        if [ -z "$HEALTH_CHECK_URL" ]; then
+          echo "::warning::HEALTH_CHECK_URL not set; skipping verification"
+          exit 0
+        fi
+        for attempt in 1 2 3 4 5 6; do
+          echo "Health check $attempt/6: $HEALTH_CHECK_URL"
+          if curl -fsS -m 10 "$HEALTH_CHECK_URL"; then
+            echo; echo "Deployment verified"
+            exit 0
+          fi
+          [ "$attempt" -lt 6 ] && sleep $((attempt * 5))
+        done
+        echo "::error::/health did not return 200 after 6 attempts"
+        exit 1

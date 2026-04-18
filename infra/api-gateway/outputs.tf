@@ -23,3 +23,8 @@ output "api_gateway_stage_id" {
   value       = aws_apigatewayv2_stage.default.id
 }
 
+output "health_check_url" {
+  description = "Full URL of the GET /health endpoint used by deploy verification (D13)"
+  value       = "${aws_apigatewayv2_api.api.api_endpoint}/${var.stage_name}/health"
+}
+
