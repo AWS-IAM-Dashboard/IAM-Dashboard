@@ -376,6 +376,7 @@ export function Header({ onNavigate, activeTab = "dashboard" }: HeaderProps) {
       <div className="flex items-center gap-1 shrink-0">
         {/* Region pill */}
         <button
+          data-tour="region-pill"
           className="hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-all"
           style={{
             background: "rgba(255,255,255,0.03)",
