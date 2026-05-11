@@ -1,6 +1,6 @@
 # Vite dev server for local development — no Node.js needed on host
 #checkov:skip=CKV_DOCKER_3:Entrypoint runs as root for npm ci on mounted volumes, then su-exec drops to app user
-FROM node:20-alpine
+FROM node:26-alpine
 
 # Healthcheck + su-exec to run dev server as app user after entrypoint installs deps
 RUN apk add --no-cache curl su-exec
