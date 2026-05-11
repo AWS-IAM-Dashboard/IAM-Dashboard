@@ -1,5 +1,5 @@
 # Multi-stage build for Cybersecurity Dashboard
-FROM node:20-alpine AS frontend-builder
+FROM node:26-alpine AS frontend-builder
 
 # Set working directory
 WORKDIR /app/frontend
