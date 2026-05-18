@@ -14,7 +14,7 @@ bcrypt==4.1.2
 
 # Data processing and analysis
 pandas==3.0.1
-numpy==2.4.4
+numpy==2.4.5
 requests==2.33.0
 
 # Database and caching
