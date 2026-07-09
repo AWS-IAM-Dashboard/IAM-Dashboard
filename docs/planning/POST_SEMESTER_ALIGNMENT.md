@@ -64,22 +64,126 @@ merge the security ones as they arrive.
 
 ---
 
-## 2. Where the semester goals landed
+## 2. Verified state of main (full repo review, 2026-07-09)
 
-Per the [demo criteria](./GITHUB_ISSUES_BACKLOG.md#end-of-semester-demo-criteria-definition-of-success),
-the core flow shipped on main (landing → Cognito login → scan → persisted findings →
-severity → remediation with AI agents → export). The open issues (37, labeled by team)
-are the tail: retention, telemetry, multi-account, exports polish, and the security
-review items (S17–S26).
+Five-area code review of main @ `7781dda` — status below is what the **code** shows, not
+what issues claim. Issue-closure stats and verified reality diverge: several "closed"
+items are partial in code.
 
-## 3. Post-semester order of work
+### Demo criteria — the honest scorecard
 
-1. **Land the merge queue** — the 7 open PRs above, one at a time, CI-verified.
-2. **Reland salvage in priority order** — retention (#196) → multi-account (#109) →
-   dedup (#126) → telemetry (#291) → lint gates (#137) → PDF summary (#133) →
-   Bedrock runbooks → false-positive tuning (#123) → code signing → mobile (#119).
-3. **Then the untouched backlog** — security review items (S17–S26), CloudFront (#233),
-   signup APIs (#284), remaining data/export issues.
+| # | Criterion | Verdict | Reality |
+|---|---|---|---|
+| 1 | Landing page | ✅ | Real; footer Privacy/Terms/Contact links are `#` stubs |
+| 2 | Cognito login | ⚠️ | Works via deployed auth Lambda — **whose source is not in this repo** (Terraform looks it up by name). MFA off. Signup page never creates an account; password reset verifies the token but resets nothing |
+| 3 | Run a scan | ⚠️ | IAM/EC2/S3 scanners are real and substantive. But `scan_full` silently runs IAM only, and scanner errors return HTTP 200 "completed" with empty findings |
+| 4 | Findings persist on refresh | ⚠️ | sessionStorage only (survives refresh, dies with the tab). Lambda writes results to DynamoDB+S3 but **there is no GET-latest endpoint** — B14b shipped only its write half |
+| 5 | IAM risks with severity | ⚠️ | ~20 finding types with hardcoded severities; no dedup/suppression on main (stranded in archive/pr-298); FP-prone rules (any public IP = Critical) |
+| 6 | Remediation + why + confidence | ⚠️ | Bedrock triage/root-cause/runbook calls are real (with mock fallback). The IR **action** engine is demo theater: in-memory job store, fake approval gate, fabricated evidence and ARNs |
+| 7 | Grafana severity trends | ❌ | The only dashboard on main queries a `scan_history` Postgres table no code creates — 4 of 5 panels dead. A8/A9 never landed |
+| 8 | PDF export | ⚠️ | Print-window shim over generated HTML; no PDF library. CSV export is real (streaming, JWT-guarded) |
+
+### Cross-cutting findings (these matter more than any single item)
+
+1. **The product lies on failure.** Both the Lambda (HTTP 200 "completed" on scanner
+   exceptions) and the frontend (`src/services/api.ts` + Dashboard coerce failures to
+   completed/0 findings) render a broken scan as *100% compliant*. Worst possible
+   failure mode for a security tool.
+2. **Mock is indistinguishable from live.** VPC/DynamoDB/Access-Analyzer pages
+   auto-load hardcoded findings even in live mode (and their scan buttons call the
+   wrong scanners — VPC→EC2, DynamoDB→IAM, AccessAnalyzer→IAM); account connection
+   status is hardcoded "connected"; SOC/Infra/GRC centers are pure fixtures.
+   `VITE_DATA_MODE` gating is inconsistent across ~8 files.
+3. **The Flask API is effectively unauthenticated.** Only CSV export has auth; IR
+   contain/remediate/approve, TTS, voice-intent, dashboard, scan-history are open.
+   The one guard is homegrown HS256 with a dev-mode bypass. API Gateway routes default
+   `authorization_type = NONE` — the Cognito authorizer exists but is unused.
+4. **Two backends, one real.** The Lambda scanner is the substantive backend. Flask
+   `/aws/*` endpoints are stubs returning hardcoded zeros; Postgres is write-orphaned
+   (nothing ever writes findings to it); `backend/sql/init.sql` uses MySQL syntax and
+   likely fails a fresh `docker compose up` on a clean volume.
+5. **CI security gates are mostly theater.** Checkov forced `--soft-fail`, OPA tests
+   nothing against nothing, Gitleaks runs 4 custom rules with an invalid (ignored)
+   exclude config and never scans history. Only npm/pip audit actually block. There is
+   no typecheck, no lint, and ~1 test file per stack.
+6. **Deploy path is 3 months cold** with zero post-deploy verification (D13 = still-open
+   PR #381), a public S3 website bucket that CloudFront only half-fronts (no OAC —
+   D17's goal is architecturally unreachable as designed), auto-apply of unreviewed
+   Terraform plans, and one clickops WAF dependency.
+
+### Per-team verified checklist
+
+**Backend** — B17 /health ✅ · B18 metrics ✅ · B6 Cognito infra ✅ · B2/B4/B11/B12
+multi-account code ✅-untested (AssumeRole wildcards the target account) · B7 OAuth ⚠️
+auth-Lambda source missing from repo · B10 JWT ⚠️ one route guarded · B13 schema ⚠️
+de-facto dict, never formalized · B14b ⚠️ write-only · B19 email ⚠️ MailHog yes / SES
+no / reset-password is a no-op · B9 RBAC ⚠️ admin-only, no viewer, Lambda-side only.
+
+**Frontend** — W1 landing ✅ · W8/W9 filters/pagination ✅ Dashboard-only · A14 CSV ✅ ·
+IR/voice UI ✅ (fed partly by theater) · W2/W3 ⚠️ session works, signup dead-end ·
+W10b ⚠️ sessionStorage · W11 mobile ⚠️ public pages only, app shell desktop-only ·
+W5/W7 ⚠️ switcher real, status hardcoded · W10 ❌ on main (PR #375 open) · W4 ❌ on
+main (PR #354 open) · W13 feature gate ❌ · W14 free-scanner UIs ⚠️ mock-fed,
+mis-wired scan buttons.
+
+**Security** — S23 rate limiting ✅ · S25 CORS ✅ · S27 dep scanning ✅ · S24 audit
+log ✅ Lambda-side · S1/S2 rules ⚠️ hardcoded, no FP handling · S3 severity ⚠️
+strings, no scoring · S15 ⚠️ MFA off · S16 ⚠️ split-brain authz · S17 ❌ authorizer
+unused · S22 headers ❌ · S5 dedup ❌ on main · S18/S19 Checkov/OPA ⚠️ present but not
+enforcing · S20 Gitleaks ⚠️ thin.
+
+**Data** — A6 Prometheus scrape ✅ · A14 CSV ✅ · A7 datasources ⚠️ (Redis plugin
+missing, creds hardcoded) · A12/A13 PDF ⚠️ print shim · A17 retention ⚠️ ~8-day
+Prometheus flag only, no DynamoDB TTL · A8/A9 dashboards ❌ · A10 alerting ❌ ·
+A16 telemetry ❌.
+
+**DevOps** — F1 CI ✅ (stale-green since Apr 17) · F2/F3 ✅ · D14 TF-apply-on-merge ✅ ·
+D15 Vite-in-Docker ✅ · D16 MailHog ✅ · D12 images ✅ · D18 S3 logging ✅ · D17
+CloudFront ⚠️ public-bucket origin, no OAC, CI never invalidates · D13 ❌ (PR #381).
+Strongest team by verified completion.
+
+**AI** — Bedrock triage/runbook/voice-intent/TTS real ✅ · IR action engine ❌ demo
+theater (in-memory store, fake ARNs) · runbook salvage waiting in archive/pr-391.
+
+### Issue-closure stats vs. reality
+
+| Team | Open | Closed | Verified caveat |
+|---|---|---|---|
+| security | 11 | 8 | Worst both ways: most open AND several closed items partial in code |
+| data | 8 | 7 | Second-worst; observability largely non-functional on main |
+| backend | 5 | 11 | Several closures overstated (B14b, B19, B7) |
+| frontend | 5 | 13 | Solid UI shell; mock-vs-live integrity is the gap |
+| devops | 3 | 16 | Matches reality best |
+| AI | 0 | 9 | Closed, but action engine was demo-scoped |
+
+## 3. Where to concentrate
+
+**Security first, Data second** — but organized as product promises, not semester teams:
+
+1. **Stop lying (trust integrity)** — fix error masking end-to-end (Lambda
+   200-on-error, `api.ts`/Dashboard coercion), make mock mode visually unmistakable
+   and consistently gated, fix or hide the mock-fed scanner pages. Cheap, highest
+   credibility-per-hour.
+2. **Lock the doors (security hardening)** — flip API Gateway routes to the existing
+   Cognito authorizer (S17), wrap or amputate the unauthenticated Flask surface,
+   security headers (S22), make Checkov/Gitleaks actually block, and recover or
+   rewrite the auth Lambda **into the repo**.
+3. **Make persistence real (data spine)** — GET-latest-results API (finish B14b),
+   retire or fix the orphaned Postgres path + broken init.sql, reland retention
+   (archive/pr-390 + 388), then dashboards (A8/A9) against a store that has data.
+4. **Then polish** — merge-queue UX PRs land anytime (they're independent); real PDF,
+   telemetry, mobile.
+
+## 4. Post-semester order of work (revised)
+
+1. **Land the merge queue** (7 open PRs) — merge #381 (/health verification) **first**
+   and validate the 3-months-cold deploy chain before trusting it with the rest.
+2. **Trust integrity pass** (§3.1) — small diffs, big honesty gains.
+3. **Security hardening pass** (§3.2) — S17, Flask auth, S22, CI gates; reland dedup
+   (archive/pr-298) and FP-tuning docs (archive/pr-285) here.
+4. **Data spine** (§3.3) — B14b read-half, retention reland, real dashboards.
+5. **Remaining salvage + backlog** per §1 tables — multi-account E2E test, telemetry,
+   lint gates, PDF, Bedrock runbooks, mobile.
 
 Issues without surviving work or clear post-semester value should be closed as they're
 reviewed, referencing this doc.
