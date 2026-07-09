@@ -141,11 +141,14 @@ jobs:
         fi
         for attempt in 1 2 3 4 5 6; do
           echo "Health check $attempt/6: $HEALTH_CHECK_URL"
-          if curl -fsS -m 10 "$HEALTH_CHECK_URL"; then
-            echo; echo "Deployment verified"
+          if BODY=$(curl -fsS -m 10 "$HEALTH_CHECK_URL") \
+             && echo "$BODY" | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
+            echo "$BODY"
+            echo "Deployment verified"
             exit 0
           fi
+          [ -n "${BODY:-}" ] && echo "Unexpected response body: $BODY"
           [ "$attempt" -lt 6 ] && sleep $((attempt * 5))
         done
-        echo "::error::/health did not return 200 after 6 attempts"
+        echo "::error::/health did not return 200 with status=healthy after 6 attempts"
         exit 1
