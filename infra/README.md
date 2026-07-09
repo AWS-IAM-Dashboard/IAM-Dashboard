@@ -250,6 +250,22 @@ This directory is scanned by:
 - **OPA** - Policy validation using Terraform policies
 - **Terraform Plan** - Built-in security checks
 
+## Deployment Verification (D13)
+
+After the `Deploy IAM Dashboard` workflow updates the scanner Lambda, it calls
+`aws lambda wait function-updated` and then hits `GET /health` on the API
+Gateway. A non-200 response after 6 retries with backoff fails the pipeline.
+
+- `/health` is an early return inside `lambda_handler`
+  (`infra/lambda/lambda_function.py`) routed via `aws_apigatewayv2_route.health`
+  with `authorization_type = "NONE"`.
+- The verification step reads the URL from the **repository variable**
+  `HEALTH_CHECK_URL`. After Terraform first applies the new route, copy the
+  `health_check_url` Terraform output (e.g.
+  `https://<api-id>.execute-api.us-east-1.amazonaws.com/v1/health`) into that
+  variable. If it is unset, the step logs a warning and exits 0 so the pipeline
+  is not blocked before setup is complete.
+
 ## Getting Started
 
 1. Install Terraform: https://terraform.io/downloads
