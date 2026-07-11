@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 
 interface MacieFinding {
   id: string;
@@ -218,6 +219,11 @@ export function Macie() {
     }, 1500);
   };
 
+  const handleResetFilters = () => {
+    setSelectedSeverity('all');
+    setSelectedCategory('all');
+  };
+
   const filteredFindings = findings.filter(f => {
     if (selectedSeverity !== 'all' && f.severity !== selectedSeverity) return false;
     if (selectedCategory !== 'all' && f.category !== selectedCategory) return false;
@@ -360,10 +366,12 @@ export function Macie() {
         </div>
 
         {filteredFindings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'rgba(100,116,139,0.7)' }}>
-            <Shield size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
-            <p style={{ margin: 0 }}>No findings match the selected filters.</p>
-          </div>
+          <ScanEmptyState
+            variant="no-results"
+            icon={Eye}
+            serviceName="Macie"
+            onAction={handleResetFilters}
+          />
         ) : (
           filteredFindings.map((finding, idx) => {
             const isExpanded = expandedId === finding.id;

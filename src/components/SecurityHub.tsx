@@ -14,6 +14,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard as SharedStatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { toast } from "sonner";
 import { scanSecurityHub, type ScanResponse } from "../services/api";
 import { useActiveScanResults } from "../hooks/useActiveScanResults";
@@ -403,6 +404,13 @@ export function SecurityHub() {
     setIsRefreshing(false);
   };
 
+  const handleResetFilters = () => {
+    setSelectedSeverity("all");
+    setSelectedStatus("all");
+    setSelectedProduct("all");
+    setSearchQuery("");
+  };
+
   const filteredFindings = findings.filter((f) => {
     if (selectedSeverity !== "all" && f.severity !== selectedSeverity)
       return false;
@@ -658,40 +666,18 @@ export function SecurityHub() {
 
         {/* Empty state */}
         {filteredFindings.length === 0 && !isScanning && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column" as const,
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "64px 24px",
-              gap: 12,
-            }}
-          >
-            <Shield size={48} color={C.muted} style={{ opacity: 0.4 }} />
-            <p style={{ fontSize: 14, color: C.muted, margin: 0, textAlign: "center" as const }}>
-              Run a scan to fetch live Security Hub findings
-            </p>
-            <button
-              onClick={handleStartScan}
-              style={{
-                marginTop: 4,
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: `1px solid ${C.green}55`,
-                background: "rgba(0,255,136,0.07)",
-                color: C.green,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Play size={13} /> Start Scan
-            </button>
-          </div>
+          <ScanEmptyState
+            variant={findings.length === 0 ? "pre-scan" : "no-results"}
+            icon={Shield}
+            serviceName="Security Hub"
+            title={findings.length === 0 ? "No Security Hub findings yet" : undefined}
+            subtitle={findings.length === 0
+              ? "Run a scan to fetch live Security Hub findings and compliance status from your AWS account."
+              : undefined}
+            onAction={findings.length === 0 ? handleStartScan : handleResetFilters}
+            actionLabel={findings.length === 0 ? "Start Scan" : "Clear filters"}
+            secondaryLabel={findings.length > 0 ? "Try a different search" : undefined}
+          />
         )}
 
         {/* Rows */}

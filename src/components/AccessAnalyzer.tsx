@@ -15,6 +15,7 @@ import {
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { FindingDetailPanel, type WorkflowData } from "./ui/FindingDetailPanel";
 import { toast } from "sonner";
 import { scanIAM, type ScanResponse } from "../services/api";
@@ -344,6 +345,12 @@ export function AccessAnalyzer() {
     toast.warning("Access Analyzer scan stopped");
   };
 
+  const handleResetFilters = () => {
+    setSeverityFilter("all");
+    setTypeFilter("all");
+    setSearchTerm("");
+  };
+
   const filteredFindings = useMemo(() => {
     if (!scanResult?.findings?.length) return [];
     const q = searchTerm.trim().toLowerCase();
@@ -530,10 +537,26 @@ export function AccessAnalyzer() {
 
           {/* Rows */}
           {filteredFindings.length === 0 ? (
-            <div style={{ padding: "48px 24px", textAlign: "center" }}>
-              <ScanLine size={36} color="rgba(100,116,139,0.3)" style={{ margin: "0 auto 12px" }} />
-              <p style={{ color: "rgba(100,116,139,0.5)", fontSize: 13, margin: 0 }}>No findings match the current filters</p>
-            </div>
+            (() => {
+              const hasFindings = (scanResult?.findings?.length ?? 0) > 0;
+              const filtersActive = severityFilter !== "all" || typeFilter !== "all" || searchTerm.trim() !== "";
+              return hasFindings || filtersActive ? (
+                <ScanEmptyState
+                  variant="no-results"
+                  icon={ScanLine}
+                  serviceName="Access Analyzer"
+                  onAction={handleResetFilters}
+                />
+              ) : (
+                <ScanEmptyState
+                  variant="general"
+                  icon={ScanLine}
+                  serviceName="Access Analyzer"
+                  title="Scan returned zero findings"
+                  subtitle="No external access issues were detected. Your resources look good."
+                />
+              );
+            })()
           ) : (
             filteredFindings.map((finding) => {
               const isExpanded = expandedRow === finding.id;
@@ -638,10 +661,14 @@ export function AccessAnalyzer() {
 
       {/* ── Empty state (pre-scan) ────────────────────────────────────────── */}
       {!scanResult && !isScanning && (
-        <div style={{ ...card, padding: "60px 24px", textAlign: "center" }}>
-          <ScanLine size={44} color="rgba(100,116,139,0.25)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(100,116,139,0.5)", margin: 0 }}>No scan results yet</p>
-          <p style={{ fontSize: 12, color: "rgba(100,116,139,0.3)", marginTop: 6 }}>Run a scan to find external access findings and public resources</p>
+        <div style={{ ...card }}>
+          <ScanEmptyState
+            variant="pre-scan"
+            icon={ScanLine}
+            serviceName="Access Analyzer"
+            subtitle="Run a scan to discover external access findings, public resources, and overly permissive policies."
+            onAction={handleStartScan}
+          />
         </div>
       )}
 

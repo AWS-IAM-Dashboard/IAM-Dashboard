@@ -45,6 +45,7 @@ import { useAwsAccount } from "../context/AwsAccountContext";
 import { ScanPageHeader } from "./ui/ScanPageHeader";
 import { SeverityBadge } from "./ui/SeverityBadge";
 import { StatCard } from "./ui/StatCard";
+import { ScanEmptyState } from "./ui/EmptyState";
 import { FindingDetailPanel } from "./ui/FindingDetailPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -797,6 +798,12 @@ export function S3Security() {
     setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
 
+  const handleResetFilters = () => {
+    setSeverityFilter("ALL");
+    setStatusFilter("ALL");
+    setFindingSearch("");
+  };
+
   const findings = scanResult?.findings ?? mockS3Findings;
   const filteredFindings = findings.filter(f => {
     const wf = workflows[f.id];
@@ -940,10 +947,12 @@ export function S3Security() {
         </div>
 
         {filteredFindings.length === 0 ? (
-          <div style={{ ...cs, padding: 40, textAlign: "center", border: "none", background: "transparent" }}>
-            <Archive size={32} style={{ color: "rgba(100,116,139,0.3)", margin: "0 auto 12px" }} />
-            <p style={{ color: "rgba(100,116,139,0.6)", fontSize: 14, margin: 0 }}>No findings match current filters</p>
-          </div>
+          <ScanEmptyState
+            variant="no-results"
+            icon={Archive}
+            serviceName="S3 & Storage"
+            onAction={handleResetFilters}
+          />
         ) : filteredFindings.map((f, idx) => {
           const wf = workflows[f.id] ?? S3_WORKFLOWS[f.id];
           const isExpanded = expandedRows.has(f.id);
