@@ -43,3 +43,13 @@ variable "s3_logging_bucket_name" {
   description = "Name of the S3 bucket for storing access logs"
   type        = string
 }
+
+variable "scan_notification_lambda_arn" {
+  description = "ARN of the SES notification Lambda invoked for matching scan-result objects"
+  type        = string
+}
+
+variable "scan_notification_prefix" {
+  description = "S3 key prefix filter for scan-result notification objects"
+  type        = string
+}
