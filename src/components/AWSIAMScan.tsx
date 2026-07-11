@@ -483,7 +483,7 @@ export function AWSIAMScan() {
   const monoText: React.CSSProperties = { fontFamily: "'JetBrains Mono', monospace" };
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div data-tour="iam-main" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <ScanPageHeader

@@ -54,7 +54,7 @@ export function GRCCenter({ onNavigate }: { onNavigate?: (tab: string) => void }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" as const, height: "100%", minHeight: 0 }}>
+    <div data-tour="grc-main" style={{ display: "flex", flexDirection: "column" as const, height: "100%", minHeight: 0 }}>
       <GRCGlobalStyles />
 
       {/* Sub-nav — pill buttons matching SOC/Infra pattern */}

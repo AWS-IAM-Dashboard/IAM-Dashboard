@@ -75,7 +75,7 @@ export function SecurityOpsCenter() {
   const [activeTab, setActiveTab] = useState<SOCTab>("alerts");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <div data-tour="soc-main" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <SOCGlobalStyles />
 
       {/* Sub-nav */}
